@@ -1,0 +1,129 @@
+/** Google Form setup and dropdown refresh. */
+function openMainForm_() {
+  var id = getConfig().MAIN_FORM_ID;
+  if (!id) throw new Error('MAIN_FORM_ID is not configured.');
+  return FormApp.openById(id);
+}
+
+function setupFormStructure() {
+  var form = openMainForm_();
+  form.setTitle('طلب تدريب موظف جديد / New Employee Training Request');
+  form.setDescription('يرجى إدخال بيانات الطلب بدقة. يتم التحقق من التعارضات مرة أخرى عند الموافقة.\nPlease enter the request details carefully. Conflicts are checked again when the unit head approves.');
+  try { form.setCollectEmail(true); } catch (ignore) {}
+
+  ensureTextItem_(form, FORM.TITLES.DIRECT_MANAGER_NAME, true);
+  ensureTextItem_(form, FORM.TITLES.DIRECT_MANAGER_EMAIL, true);
+  ensureTextItem_(form, FORM.TITLES.EMPLOYEE_NAME, true);
+  ensureTextItem_(form, FORM.TITLES.EMPLOYEE_EMAIL, true);
+  ensureCurrentUnitItem_(form);
+  ensureDateItem_(form, FORM.TITLES.START_DATE, true);
+  ensureDateItem_(form, FORM.TITLES.END_DATE, true);
+  ensureTextItem_(form, FORM.TITLES.HOURS, true);
+  ensureParagraphItem_(form, FORM.TITLES.NOTES, false);
+  ensureTrainingUnitItem_(form);
+  refreshFormChoices();
+}
+
+function refreshFormChoices() {
+  var form = openMainForm_();
+  var units = getUnits_();
+  var sections = getSections_();
+  var unavailable = getUnavailableSectionIdsForCurrentDate_();
+
+  var currentUnitItem = ensureCurrentUnitItem_(form);
+  currentUnitItem.setChoiceValues(units.map(function(unit) { return unit.name; }));
+
+  var trainingUnitItem = ensureTrainingUnitItem_(form);
+  var pageBreakByUnit = {};
+
+  units.forEach(function(unit) {
+    var page = ensurePageBreak_(form, FORM.SECTION_PAGE_PREFIX + unit.name);
+    try { page.setGoToPage(FormApp.PageNavigationType.SUBMIT); } catch (ignore) {}
+    pageBreakByUnit[unit.name] = page;
+
+    var sectionItem = ensureListItem_(form, FORM.SECTION_QUESTION_PREFIX + unit.name, true);
+    var availableSections = sections.filter(function(section) {
+      if (normalizeKey_(section.unitName) !== normalizeKey_(unit.name)) return false;
+      var activeCount = unavailable[section.id] || 0;
+      return activeCount < section.capacity;
+    }).map(function(section) { return section.name; });
+
+    if (!availableSections.length) availableSections = [FORM.NO_AVAILABLE_SECTIONS];
+    sectionItem.setChoiceValues(availableSections);
+  });
+
+  var choices = units.map(function(unit) {
+    return trainingUnitItem.createChoice(unit.name, pageBreakByUnit[unit.name]);
+  });
+  if (choices.length) trainingUnitItem.setChoices(choices);
+  logInfo_('refreshFormChoices', '', 'Form choices refreshed.');
+}
+
+function ensureTextItem_(form, title, required) {
+  var item = getFormItemByTitle_(form, title, FormApp.ItemType.TEXT);
+  if (!item) item = form.addTextItem().setTitle(title);
+  item.asTextItem().setRequired(Boolean(required));
+  return item.asTextItem();
+}
+
+function ensureParagraphItem_(form, title, required) {
+  var item = getFormItemByTitle_(form, title, FormApp.ItemType.PARAGRAPH_TEXT);
+  if (!item) item = form.addParagraphTextItem().setTitle(title);
+  item.asParagraphTextItem().setRequired(Boolean(required));
+  return item.asParagraphTextItem();
+}
+
+function ensureDateItem_(form, title, required) {
+  var item = getFormItemByTitle_(form, title, FormApp.ItemType.DATE);
+  if (!item) item = form.addDateItem().setTitle(title);
+  item.asDateItem().setRequired(Boolean(required));
+  return item.asDateItem();
+}
+
+function ensureListItem_(form, title, required) {
+  var item = getFormItemByTitle_(form, title, FormApp.ItemType.LIST);
+  if (!item) item = form.addListItem().setTitle(title);
+  item.asListItem().setRequired(Boolean(required));
+  return item.asListItem();
+}
+
+function ensureCurrentUnitItem_(form) {
+  return ensureListItem_(form, FORM.TITLES.CURRENT_UNIT, true);
+}
+
+function ensureTrainingUnitItem_(form) {
+  return ensureListItem_(form, FORM.TITLES.TRAINING_UNIT, true);
+}
+
+function ensurePageBreak_(form, title) {
+  var item = getFormItemByTitle_(form, title, FormApp.ItemType.PAGE_BREAK);
+  if (!item) item = form.addPageBreakItem().setTitle(title);
+  return item.asPageBreakItem();
+}
+
+function getFormItemByTitle_(form, title, type) {
+  var items = form.getItems(type);
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].getTitle && items[i].getTitle() === title) return items[i];
+  }
+  return null;
+}
+
+function getUnavailableSectionIdsForCurrentDate_() {
+  var counts = {};
+  var records = getRecords_();
+  var sections = getSections_();
+  var sectionIdByKey = {};
+  sections.forEach(function(section) {
+    sectionIdByKey[normalizeKey_(section.unitName) + '|' + normalizeKey_(section.name)] = section.id;
+  });
+
+  records.forEach(function(record) {
+    if (!isRecordActiveOrApproved_(record)) return;
+    if (!isTodayWithinRange_(record[H.RECORD.START_DATE], record[H.RECORD.END_DATE])) return;
+    var key = normalizeKey_(record[H.RECORD.TRAINING_UNIT]) + '|' + normalizeKey_(record[H.RECORD.SECTION]);
+    var sectionId = sectionIdByKey[key] || key;
+    counts[sectionId] = (counts[sectionId] || 0) + 1;
+  });
+  return counts;
+}

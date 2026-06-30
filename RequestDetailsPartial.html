@@ -1,0 +1,9 @@
+<table class="details">
+  <tr><th>البيان / Field</th><th>القيمة / Value</th></tr>
+  <? for (var i = 0; i < data.rows.length; i++) { ?>
+    <tr>
+      <th><?= data.rows[i].ar ?> / <?= data.rows[i].en ?></th>
+      <td><?= data.rows[i].value ?></td>
+    </tr>
+  <? } ?>
+</table>

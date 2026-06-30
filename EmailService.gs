@@ -1,0 +1,157 @@
+/** Email rendering, sending, queueing, and retry. */
+function sendApprovalEmail(record) {
+  var approveUrl = makeWebAppUrl_('approve', record[H.RECORD.TOKEN]);
+  var rejectUrl = makeWebAppUrl_('reject', record[H.RECORD.TOKEN]);
+  var data = buildTemplateData_(record, { approveUrl: approveUrl, rejectUrl: rejectUrl });
+  var html = renderTemplate_('Emails_Approval', data);
+  var to = safeString_(record[H.RECORD.APPROVER_EMAIL]);
+  var cc = uniqueNonEmpty_([record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL], record[H.RECORD.DIRECT_MANAGER_EMAIL]]).join(',');
+  return sendEmailSafe_({
+    to: to,
+    cc: cc,
+    subject: 'طلب موافقة تدريب / Training Approval Request - ' + record[H.RECORD.REQUEST_ID],
+    htmlBody: html
+  }, { kind: 'approval', requestId: record[H.RECORD.REQUEST_ID] });
+}
+
+function sendSubmissionConfirmationEmail(record) {
+  var data = buildTemplateData_(record, {});
+  var html = renderTemplate_('Emails_Submitted', data);
+  return sendEmailSafe_({
+    to: safeString_(record[H.RECORD.DIRECT_MANAGER_EMAIL]),
+    cc: uniqueNonEmpty_([record[H.RECORD.EMPLOYEE_EMAIL], record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]]).join(','),
+    subject: 'تم استلام طلب التدريب / Training Request Submitted - ' + record[H.RECORD.REQUEST_ID],
+    htmlBody: html
+  }, { kind: 'submitted', requestId: record[H.RECORD.REQUEST_ID] });
+}
+
+function sendApprovedNotification(record) {
+  var data = buildTemplateData_(record, {});
+  var html = renderTemplate_('Emails_Approved', data);
+  return sendEmailSafe_({
+    to: uniqueNonEmpty_([record[H.RECORD.DIRECT_MANAGER_EMAIL], record[H.RECORD.EMPLOYEE_EMAIL]]).join(','),
+    cc: uniqueNonEmpty_([record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL], record[H.RECORD.APPROVER_EMAIL]]).join(','),
+    subject: 'تم اعتماد طلب التدريب / Training Request Approved - ' + record[H.RECORD.REQUEST_ID],
+    htmlBody: html
+  }, { kind: 'approved', requestId: record[H.RECORD.REQUEST_ID] });
+}
+
+function sendRejectedNotification(record) {
+  var data = buildTemplateData_(record, {});
+  var html = renderTemplate_('Emails_Rejected', data);
+  return sendEmailSafe_({
+    to: uniqueNonEmpty_([record[H.RECORD.DIRECT_MANAGER_EMAIL], record[H.RECORD.EMPLOYEE_EMAIL]]).join(','),
+    cc: uniqueNonEmpty_([record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL], record[H.RECORD.APPROVER_EMAIL]]).join(','),
+    subject: 'تم رفض طلب التدريب / Training Request Rejected - ' + record[H.RECORD.REQUEST_ID],
+    htmlBody: html
+  }, { kind: 'rejected', requestId: record[H.RECORD.REQUEST_ID] });
+}
+
+function sendConflictNotification(record, conflict, source) {
+  var data = buildTemplateData_(record, {
+    conflict: conflict,
+    conflictDetails: formatConflictDetails_(conflict),
+    source: source
+  });
+  var html = renderTemplate_('Emails_Conflict', data);
+  return sendEmailSafe_({
+    to: uniqueNonEmpty_([record[H.RECORD.APPROVER_EMAIL], record[H.RECORD.EMPLOYEE_EMAIL], record[H.RECORD.DIRECT_MANAGER_EMAIL], record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]]).join(','),
+    subject: 'تعارض في طلب التدريب / Training Request Conflict - ' + record[H.RECORD.REQUEST_ID],
+    htmlBody: html
+  }, { kind: 'conflict', requestId: record[H.RECORD.REQUEST_ID] });
+}
+
+function sendEvaluationEmail(record) {
+  var cfg = getConfig();
+  var data = buildTemplateData_(record, { evaluationUrl: cfg.EVALUATION_FORM_URL });
+  var html = renderTemplate_('Emails_Evaluation', data);
+  return sendEmailSafe_({
+    to: safeString_(record[H.RECORD.EMPLOYEE_EMAIL]),
+    subject: 'تقييم تجربة التدريب / Training Evaluation - ' + record[H.RECORD.REQUEST_ID],
+    htmlBody: html
+  }, { kind: 'evaluation', requestId: record[H.RECORD.REQUEST_ID] });
+}
+
+function sendEmailSafe_(payload, context) {
+  try {
+    if (!safeString_(payload.to)) throw new Error('Email recipient is empty.');
+    MailApp.sendEmail({
+      to: payload.to,
+      cc: payload.cc || '',
+      bcc: payload.bcc || '',
+      subject: payload.subject,
+      body: payload.body || 'يرجى عرض هذه الرسالة بصيغة HTML. / Please view this message in HTML.',
+      htmlBody: payload.htmlBody,
+      name: getConfig().EMAIL_SENDER_NAME
+    });
+    logInfo_('sendEmailSafe_:' + (context && context.kind || ''), context && context.requestId, 'Email sent to: ' + payload.to);
+    return true;
+  } catch (err) {
+    queueEmail_(payload, context, err);
+    logError_('sendEmailSafe_:' + (context && context.kind || ''), context && context.requestId, err);
+    return false;
+  }
+}
+
+function queueEmail_(payload, context, error) {
+  var sheet = getOrCreateSheet_(SHEETS.EMAIL_QUEUE);
+  setSheetHeaders_(sheet, QUEUE_HEADERS);
+  appendObjectRow_(sheet, QUEUE_HEADERS, {
+    [H.QUEUE.MESSAGE_ID]: Utilities.getUuid(),
+    [H.QUEUE.STATUS]: STATUS.QUEUE_PENDING,
+    [H.QUEUE.TO]: payload.to || '',
+    [H.QUEUE.CC]: payload.cc || '',
+    [H.QUEUE.BCC]: payload.bcc || '',
+    [H.QUEUE.SUBJECT]: payload.subject || '',
+    [H.QUEUE.HTML]: payload.htmlBody || '',
+    [H.QUEUE.CONTEXT_JSON]: objectToJson_(context || {}),
+    [H.QUEUE.ATTEMPTS]: 0,
+    [H.QUEUE.LAST_ERROR]: error && error.message ? error.message : safeString_(error),
+    [H.QUEUE.CREATED_AT]: now_(),
+    [H.QUEUE.LAST_ATTEMPT_AT]: ''
+  });
+  try { sheet.hideSheet(); } catch (ignore) {}
+}
+
+function processEmailQueue() {
+  var sheet = getOrCreateSheet_(SHEETS.EMAIL_QUEUE);
+  setSheetHeaders_(sheet, QUEUE_HEADERS);
+  var rows = getDataObjects_(sheet);
+  rows.forEach(function(row) {
+    if (safeString_(row[H.QUEUE.STATUS]) === STATUS.QUEUE_SENT) return;
+    var attempts = toNumber_(row[H.QUEUE.ATTEMPTS], 0);
+    if (attempts >= 5) return;
+    var context = parseJsonSafe_(row[H.QUEUE.CONTEXT_JSON], {});
+    try {
+      MailApp.sendEmail({
+        to: safeString_(row[H.QUEUE.TO]),
+        cc: safeString_(row[H.QUEUE.CC]),
+        bcc: safeString_(row[H.QUEUE.BCC]),
+        subject: safeString_(row[H.QUEUE.SUBJECT]),
+        body: 'يرجى عرض هذه الرسالة بصيغة HTML. / Please view this message in HTML.',
+        htmlBody: safeString_(row[H.QUEUE.HTML]),
+        name: getConfig().EMAIL_SENDER_NAME
+      });
+      updateObjectRow_(sheet, row._rowNumber, {
+        [H.QUEUE.STATUS]: STATUS.QUEUE_SENT,
+        [H.QUEUE.ATTEMPTS]: attempts + 1,
+        [H.QUEUE.LAST_ATTEMPT_AT]: now_(),
+        [H.QUEUE.LAST_ERROR]: ''
+      });
+      if (context.kind === 'approval' && context.requestId) {
+        var record = getRequestById_(context.requestId);
+        if (record && !safeString_(record[H.RECORD.APPROVAL_EMAIL_SENT_AT])) {
+          updateRequestByRow_(record._rowNumber, { [H.RECORD.APPROVAL_EMAIL_SENT_AT]: now_() });
+        }
+      }
+    } catch (err) {
+      updateObjectRow_(sheet, row._rowNumber, {
+        [H.QUEUE.STATUS]: attempts + 1 >= 5 ? STATUS.QUEUE_FAILED : STATUS.QUEUE_PENDING,
+        [H.QUEUE.ATTEMPTS]: attempts + 1,
+        [H.QUEUE.LAST_ATTEMPT_AT]: now_(),
+        [H.QUEUE.LAST_ERROR]: err.message
+      });
+      logError_('processEmailQueue', context.requestId || '', err);
+    }
+  });
+}

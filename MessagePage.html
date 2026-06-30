@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <?!= include('EmailStyles'); ?>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="header" style="background:<?= data.success ? data.brand.primaryColor : '#8a2d2d' ?>;">
+        <? if (data.brand.logoUrl) { ?><img class="logo" src="<?= data.brand.logoUrl ?>" alt="SQU Logo"><? } ?>
+        <div class="title-ar"><?= data.titleAr ?></div>
+        <div class="title-en"><?= data.titleEn ?></div>
+      </div>
+      <div class="content">
+        <div class="<?= data.success ? 'success' : 'danger' ?>" dir="rtl"><?= data.message ?></div>
+      </div>
+      <div class="footer">
+        <div dir="rtl"><?= data.orgAr ?></div>
+        <div><?= data.orgEn ?></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
