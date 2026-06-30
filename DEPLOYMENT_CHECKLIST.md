@@ -6,8 +6,8 @@
 - [ ] Add all working script files to one Apps Script project.
 - [ ] Add Script Properties from `CONFIG_TEMPLATE.json`.
 - [ ] Run `setupAll()` and authorize.
-- [ ] Replace sample unit data in `الوحدات`.
-- [ ] Replace sample section data in `الأقسام`.
+- [ ] Replace sample unit data in `إدارة الوحدات`.
+- [ ] Replace sample section data in `إدارة الأقسام`.
 - [ ] Run `setupAll()` again.
 - [ ] Deploy as Web App.
 - [ ] Save Web App URL into `WEB_APP_URL`.
@@ -15,6 +15,8 @@
 - [ ] Submit a test request.
 - [ ] Test approve.
 - [ ] Test reject with reason.
+- [ ] Test same-employee active-training auto-rejection.
 - [ ] Test two overlapping requests in the same section.
 - [ ] Test final status cannot be changed to `منجز` before head approval.
 - [ ] Test evaluation email after training end date.
+- [ ] Confirm the five-minute trigger is installed only in this production workflow project, not the setup/resource project.

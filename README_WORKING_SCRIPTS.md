@@ -9,7 +9,10 @@ This folder is the production Apps Script project for the Google Forms + Google 
   - `لوحة الأقسام`
   - `سجل الطلبات`
   - `الرسوم والمؤشرات`
-- Hidden configuration sheets:
+- Visible admin reference sheets:
+  - `إدارة الوحدات`
+  - `إدارة الأقسام`
+- Hidden runtime/system sheets:
   - `الوحدات`
   - `الأقسام`
   - `الإعدادات`
@@ -19,6 +22,7 @@ This folder is the production Apps Script project for the Google Forms + Google 
 - Approval/rejection web app links with secure tokens.
 - Required rejection reason page.
 - Conflict checking on submission and again on approval.
+- Immediate auto-rejection if the employee already has active approved training.
 - Late approval conflict blocking.
 - Bilingual Arabic/English centered emails.
 - SQU-themed email placeholders for official colors and logo.
@@ -39,7 +43,7 @@ FORM_RESPONSES_SPREADSHEET_ID = optional linked responses spreadsheet ID
 EVALUATION_FORM_URL = evaluation Google Form published URL
 OWNER_EMAIL = owner email
 ADMIN_EMAILS = comma-separated admin emails
-APPROVER_UNIT_MODE = TRAINING_UNIT
+APPROVER_UNIT_MODE = CURRENT_UNIT
 EMAIL_SENDER_NAME = SQU Training System
 ORGANIZATION_NAME_AR = جامعة السلطان قابوس
 ORGANIZATION_NAME_EN = Sultan Qaboos University
@@ -50,10 +54,10 @@ BRAND_LOGO_URL = official hosted logo URL
 EVALUATION_ALLOWED_FINAL_STATUSES = معتمد,منجز
 ```
 
-Recommended `APPROVER_UNIT_MODE` is `TRAINING_UNIT`, meaning the head of the unit receiving the trainee approves. Use `CURRENT_UNIT` only if your policy requires the current unit head to approve.
+Recommended `APPROVER_UNIT_MODE` is `CURRENT_UNIT`, meaning the head of the unit the new employee belongs to approves. Use `TRAINING_UNIT` only if your policy requires the receiving training unit head to approve.
 
 4. Run `setupAll()` once and authorize permissions.
-5. Fill the hidden `الوحدات` and `الأقسام` sheets with your real unit/section data.
+5. Fill the visible `إدارة الوحدات` and `إدارة الأقسام` sheets with your real unit/section data. The production script syncs these into the hidden runtime `الوحدات` and `الأقسام` sheets.
 6. Deploy the script as a **Web App**:
    - Execute as: **Me**
    - Access: **Anyone in your domain**
@@ -66,6 +70,8 @@ Native Google Forms cannot refresh a second dropdown live on the same page after
 
 The form choices are refreshed by the five-minute trigger and after submissions/decisions. The approval handler still re-checks conflicts atomically with `LockService`, so even if the form choice was stale, the system blocks late conflicts.
 
+Do not install the five-minute refresh trigger in the setup/resource project. It belongs only in this production workflow project.
+
 ## Main functions
 
 - `setupAll()` — run after configuration changes.
@@ -77,13 +83,13 @@ The form choices are refreshed by the five-minute trigger and after submissions/
 
 ## Sheet data requirements
 
-### `الوحدات`
+### `إدارة الوحدات`
 
 | معرف الوحدة | اسم الوحدة | رئيس الوحدة | بريد رئيس الوحدة | نشط |
 |---|---|---|---|---|
 | UNIT-001 | Unit Name | Head Name | head@example.com | نعم |
 
-### `الأقسام`
+### `إدارة الأقسام`
 
 | معرف القسم | معرف الوحدة | اسم الوحدة | اسم القسم | نشط | السعة |
 |---|---|---|---|---|---|

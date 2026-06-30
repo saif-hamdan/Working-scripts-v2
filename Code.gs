@@ -36,11 +36,12 @@ function syncSystem() {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(25000)) return;
   try {
+    syncReferenceDataFromAdminSheets_();
     processEmailQueue();
     processPendingApprovalEmails();
-    refreshDashboard();
+    refreshDashboard(true);
     refreshCharts();
-    refreshFormChoices();
+    refreshFormChoices(true);
     logInfo_('syncSystem', '', 'Sync completed.');
   } catch (err) {
     logError_('syncSystem', '', err);

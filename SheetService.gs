@@ -75,8 +75,9 @@ function appendObjectRow_(sheet, headers, obj) {
   var row = headers.map(function(header) {
     return obj[header] === undefined ? '' : obj[header];
   });
-  sheet.appendRow(row);
-  return sheet.getLastRow();
+  var rowNumber = sheet.getLastRow() + 1;
+  sheet.getRange(rowNumber, 1, 1, headers.length).setValues([row]);
+  return rowNumber;
 }
 
 function updateObjectRow_(sheet, rowNumber, updates) {
@@ -84,13 +85,12 @@ function updateObjectRow_(sheet, rowNumber, updates) {
   Object.keys(updates).forEach(function(header) {
     if (!map[header]) throw new Error('Cannot update missing column: ' + header + ' in ' + sheet.getName());
   });
-  var ranges = [];
+  var lastCol = sheet.getLastColumn();
+  var row = sheet.getRange(rowNumber, 1, 1, lastCol).getValues()[0];
   Object.keys(updates).forEach(function(header) {
-    ranges.push({ col: map[header], value: updates[header] });
+    row[map[header] - 1] = updates[header];
   });
-  ranges.forEach(function(item) {
-    sheet.getRange(rowNumber, item.col).setValue(item.value);
-  });
+  sheet.getRange(rowNumber, 1, 1, lastCol).setValues([row]);
 }
 
 function findRowByValue_(sheet, header, value) {

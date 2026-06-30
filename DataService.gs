@@ -38,6 +38,67 @@ function getRecords_() {
   return getDataObjects_(sheet);
 }
 
+function syncReferenceDataFromAdminSheets_() {
+  var ss = openDashboardSpreadsheet_();
+  var adminUnits = ensureSheet_(ss, SHEETS.ADMIN_UNITS);
+  var adminSections = ensureSheet_(ss, SHEETS.ADMIN_SECTIONS);
+  var runtimeUnits = ensureSheet_(ss, SHEETS.UNITS);
+  var runtimeSections = ensureSheet_(ss, SHEETS.SECTIONS);
+
+  setSheetHeaders_(adminUnits, UNIT_HEADERS);
+  setSheetHeaders_(adminSections, SECTION_HEADERS);
+  setSheetHeaders_(runtimeUnits, UNIT_HEADERS);
+  setSheetHeaders_(runtimeSections, SECTION_HEADERS);
+
+  if (adminUnits.getLastRow() < 2 && runtimeUnits.getLastRow() >= 2) {
+    clearAndWriteObjects_(adminUnits, UNIT_HEADERS, getDataObjects_(runtimeUnits));
+  }
+  if (adminSections.getLastRow() < 2 && runtimeSections.getLastRow() >= 2) {
+    clearAndWriteObjects_(adminSections, SECTION_HEADERS, getDataObjects_(runtimeSections));
+  }
+
+  var units = normalizeAdminUnitRows_(getDataObjects_(adminUnits));
+  var sections = normalizeAdminSectionRows_(getDataObjects_(adminSections));
+  if (units.length) clearAndWriteObjects_(runtimeUnits, UNIT_HEADERS, units);
+  if (sections.length) clearAndWriteObjects_(runtimeSections, SECTION_HEADERS, sections);
+
+  applyCleanTableFormatting_(adminUnits, UNIT_HEADERS.length);
+  applyCleanTableFormatting_(adminSections, SECTION_HEADERS.length);
+  applyCleanTableFormatting_(runtimeUnits, UNIT_HEADERS.length);
+  applyCleanTableFormatting_(runtimeSections, SECTION_HEADERS.length);
+  try { runtimeUnits.hideSheet(); runtimeSections.hideSheet(); } catch (ignore) {}
+}
+
+function normalizeAdminUnitRows_(rows) {
+  return (rows || []).map(function(row) {
+    var unit = {};
+    unit[H.UNIT.UNIT_ID] = safeString_(row[H.UNIT.UNIT_ID]) || safeString_(row[H.UNIT.UNIT_NAME]);
+    unit[H.UNIT.UNIT_NAME] = safeString_(row[H.UNIT.UNIT_NAME]);
+    unit[H.UNIT.HEAD_NAME] = safeString_(row[H.UNIT.HEAD_NAME]);
+    unit[H.UNIT.HEAD_EMAIL] = safeString_(row[H.UNIT.HEAD_EMAIL]);
+    unit[H.UNIT.ACTIVE] = safeString_(row[H.UNIT.ACTIVE]) || STATUS.YES;
+    return unit;
+  }).filter(function(unit) {
+    return safeString_(unit[H.UNIT.UNIT_NAME]);
+  });
+}
+
+function normalizeAdminSectionRows_(rows) {
+  return (rows || []).map(function(row) {
+    var section = {};
+    section[H.SECTION.SECTION_ID] = safeString_(row[H.SECTION.SECTION_ID]) ||
+      (safeString_(row[H.SECTION.UNIT_NAME]) + '|' + safeString_(row[H.SECTION.SECTION_NAME]));
+    section[H.SECTION.UNIT_ID] = safeString_(row[H.SECTION.UNIT_ID]);
+    section[H.SECTION.UNIT_NAME] = safeString_(row[H.SECTION.UNIT_NAME]);
+    section[H.SECTION.SECTION_NAME] = safeString_(row[H.SECTION.SECTION_NAME]);
+    section[H.SECTION.ACTIVE] = safeString_(row[H.SECTION.ACTIVE]) || STATUS.YES;
+    section[H.SECTION.CAPACITY] = Math.max(1, toNumber_(row[H.SECTION.CAPACITY], 1));
+    return section;
+  }).filter(function(section) {
+    return safeString_(section[H.SECTION.UNIT_NAME]) && safeString_(section[H.SECTION.SECTION_NAME]);
+  });
+}
+
 function findUnitByName_(unitName) {
   var target = normalizeKey_(unitName);
   return getUnits_().filter(function(unit) { return normalizeKey_(unit.name) === target; })[0] || null;

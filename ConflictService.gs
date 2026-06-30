@@ -13,6 +13,21 @@ function findConflicts(criteria) {
   return conflicts.length ? conflicts[0] : null;
 }
 
+function findActiveTrainingByEmployee_(employeeEmail, employeeName, excludeRequestId) {
+  var emailKey = normalizeEmail_(employeeEmail);
+  var nameKey = normalizeKey_(employeeName);
+  if (!emailKey && !nameKey) return null;
+
+  var matches = getRecords_().filter(function(record) {
+    if (safeString_(record[H.RECORD.REQUEST_ID]) === safeString_(excludeRequestId)) return false;
+    if (!isRecordActiveOrApproved_(record)) return false;
+    if (!isTodayWithinRange_(record[H.RECORD.START_DATE], record[H.RECORD.END_DATE])) return false;
+    if (emailKey) return normalizeEmail_(record[H.RECORD.EMPLOYEE_EMAIL]) === emailKey;
+    return normalizeKey_(record[H.RECORD.EMPLOYEE_NAME]) === nameKey;
+  });
+  return matches.length ? matches[0] : null;
+}
+
 function formatConflictDetails_(conflict) {
   if (!conflict) return '';
   return [
@@ -22,5 +37,18 @@ function formatConflictDetails_(conflict) {
     'القسم: ' + safeString_(conflict[H.RECORD.SECTION]),
     'الفترة: ' + formatDate_(conflict[H.RECORD.START_DATE]) + ' إلى ' + formatDate_(conflict[H.RECORD.END_DATE]),
     'المدير المباشر: ' + safeString_(conflict[H.RECORD.DIRECT_MANAGER_NAME])
+  ].join('\n');
+}
+
+function formatActiveTrainingDetails_(activeRecord) {
+  if (!activeRecord) return '';
+  return [
+    'رقم الطلب النشط: ' + safeString_(activeRecord[H.RECORD.REQUEST_ID]),
+    'الموظف: ' + safeString_(activeRecord[H.RECORD.EMPLOYEE_NAME]),
+    'البريد: ' + safeString_(activeRecord[H.RECORD.EMPLOYEE_EMAIL]),
+    'وحدة التدريب: ' + safeString_(activeRecord[H.RECORD.TRAINING_UNIT]),
+    'القسم: ' + safeString_(activeRecord[H.RECORD.SECTION]),
+    'الفترة: ' + formatDate_(activeRecord[H.RECORD.START_DATE]) + ' إلى ' + formatDate_(activeRecord[H.RECORD.END_DATE]),
+    'الحالة النهائية: ' + safeString_(activeRecord[H.RECORD.FINAL_STATUS])
   ].join('\n');
 }

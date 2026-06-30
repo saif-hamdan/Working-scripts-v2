@@ -24,7 +24,8 @@ function setupFormStructure() {
   refreshFormChoices();
 }
 
-function refreshFormChoices() {
+function refreshFormChoices(skipReferenceSync) {
+  if (skipReferenceSync !== true) syncReferenceDataFromAdminSheets_();
   var form = openMainForm_();
   var units = getUnits_();
   var sections = getSections_();

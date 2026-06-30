@@ -18,6 +18,10 @@ function setupValidations() {
 function handleFinalStatusEdit(e) {
   if (!e || !e.range) return;
   var sheet = e.range.getSheet();
+  if (sheet.getName() === SHEETS.ADMIN_UNITS || sheet.getName() === SHEETS.ADMIN_SECTIONS) {
+    handleAdminReferenceEdit_(e);
+    return;
+  }
   if (sheet.getName() !== SHEETS.RECORDS) return;
   if (e.range.getRow() === 1) return;
   var map = getHeaderMap_(sheet);
@@ -49,6 +53,32 @@ function handleFinalStatusEdit(e) {
     refreshDashboard();
     refreshCharts();
     refreshFormChoices();
+  }
+}
+
+function handleAdminReferenceEdit_(e) {
+  var sheet = e.range.getSheet();
+  var userEmail = (e.user && e.user.getEmail) ? e.user.getEmail() : getActiveUserEmail_();
+  if (!isAuthorizedEditor_(userEmail)) {
+    revertEdit_(e);
+    logInfo_('handleAdminReferenceEdit_:unauthorized', '', 'Unauthorized reference edit blocked for ' + userEmail);
+    SpreadsheetApp.getActive().toast('غير مصرح بتعديل بيانات الوحدات والأقسام / Unauthorized reference edit.');
+    return;
+  }
+
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(25000)) return;
+  try {
+    syncReferenceDataFromAdminSheets_();
+    refreshDashboard(true);
+    refreshCharts();
+    refreshFormChoices(true);
+    logInfo_('handleAdminReferenceEdit_', '', 'Reference data synced from ' + sheet.getName() + '.');
+  } catch (err) {
+    logError_('handleAdminReferenceEdit_', '', err);
+    throw err;
+  } finally {
+    lock.releaseLock();
   }
 }
 

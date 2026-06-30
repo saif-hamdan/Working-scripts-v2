@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <?!= include('EmailStyles'); ?>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="header" style="background:<?= data.brand.primaryColor ?>;">
+        <? if (data.brand.logoUrl) { ?><img class="logo" src="<?= data.brand.logoUrl ?>" alt="SQU Logo"><? } ?>
+        <div class="title-ar">رفض تلقائي لطلب التدريب</div>
+        <div class="title-en">Automatic Training Request Rejection</div>
+      </div>
+      <div class="content">
+        <div class="intro-ar">تم رفض طلب التدريب تلقائياً لأن الموظف لديه تدريب معتمد ونشط حالياً.</div>
+        <div class="intro-en">The training request was automatically rejected because the employee currently has active approved training.</div>
+
+        <?!= include('RequestDetailsPartial'); ?>
+
+        <div class="danger" dir="rtl">
+          <strong>سبب الرفض / Rejection Reason:</strong><br>
+          <pre style="white-space:pre-wrap; text-align:center; font-family:Arial,Tahoma,sans-serif;"><?= data.record['سبب الرفض'] ?></pre>
+        </div>
+
+        <div class="note" dir="rtl">
+          <strong>تفاصيل التدريب النشط الحالي:</strong><br>
+          <pre style="white-space:pre-wrap; text-align:center; font-family:Arial,Tahoma,sans-serif;"><?= data.activeTrainingDetails ?></pre>
+        </div>
+        <div class="note">
+          <strong>Current active training details:</strong><br>
+          The employee may submit a new request after the active training period ends.
+        </div>
+      </div>
+      <div class="footer">
+        <div dir="rtl">هذه رسالة آلية من <?= data.orgAr ?>، يرجى عدم الرد على هذه الرسالة.</div>
+        <div>This is an automated message from <?= data.orgEn ?>. Please do not reply to this email.</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

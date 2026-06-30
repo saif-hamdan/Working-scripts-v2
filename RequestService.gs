@@ -50,13 +50,25 @@ function createRequestFromFormSubmit(e) {
     record[H.RECORD.EMAIL_RETRY_COUNT] = 0;
     record[H.RECORD.LAST_ERROR] = '';
 
-    var conflict = findConflicts({
-      trainingUnit: data.trainingUnit,
-      section: data.section,
-      startDate: data.startDate,
-      endDate: data.endDate,
-      excludeRequestId: requestId
-    });
+    var activeTraining = findActiveTrainingByEmployee_(data.employeeEmail, data.employeeName, requestId);
+    var conflict = null;
+
+    if (activeTraining) {
+      record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_EMPLOYEE_ACTIVE;
+      record[H.RECORD.FINAL_STATUS] = STATUS.FINAL_EMPLOYEE_ACTIVE;
+      record[H.RECORD.REJECTION_REASON] = buildActiveEmployeeRejectionReason_(activeTraining);
+      record[H.RECORD.CONFLICT_ID] = activeTraining[H.RECORD.REQUEST_ID];
+      record[H.RECORD.CONFLICT_DETAILS] = formatActiveTrainingDetails_(activeTraining);
+      record[H.RECORD.DECISION_DATE] = now_();
+    } else {
+      conflict = findConflicts({
+        trainingUnit: data.trainingUnit,
+        section: data.section,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        excludeRequestId: requestId
+      });
+    }
 
     if (conflict) {
       record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_CONFLICT;
@@ -71,7 +83,10 @@ function createRequestFromFormSubmit(e) {
     var rowNumber = appendObjectRow_(sheet, RECORD_HEADERS, record);
     record._rowNumber = rowNumber;
 
-    if (conflict) {
+    if (activeTraining) {
+      sendActiveEmployeeRejectedNotification(record, activeTraining);
+      logInfo_('createRequestFromFormSubmit:activeEmployeeRejected', requestId, 'Request rejected because employee already has active approved training.');
+    } else if (conflict) {
       sendConflictNotification(record, conflict, 'submission');
       logInfo_('createRequestFromFormSubmit:conflict', requestId, 'Request rejected at submission because of conflict.');
     } else {
@@ -162,6 +177,14 @@ function validateSubmissionData_(data) {
   if (data.section === FORM.NO_AVAILABLE_SECTIONS) throw new Error('No available section was selected.');
   if (!data.startDate || !data.endDate) throw new Error('Start date or end date is invalid.');
   if (dateOnly_(data.startDate).getTime() > dateOnly_(data.endDate).getTime()) throw new Error('Start date cannot be after end date.');
+}
+
+function buildActiveEmployeeRejectionReason_(activeTraining) {
+  return [
+    'تم رفض الطلب تلقائياً لأن الموظف لديه تدريب معتمد ونشط حالياً.',
+    'The request was automatically rejected because the employee currently has active approved training.',
+    'رقم الطلب النشط / Active request ID: ' + safeString_(activeTraining[H.RECORD.REQUEST_ID])
+  ].join('\n');
 }
 
 function getRequestByToken_(token) {

@@ -33,6 +33,10 @@ function normalizeKey_(value) {
   return safeString_(value).toLowerCase().replace(/\s+/g, ' ');
 }
 
+function normalizeEmail_(value) {
+  return safeString_(value).toLowerCase();
+}
+
 function isActiveFlag_(value) {
   var s = normalizeKey_(value);
   return s === '' || s === 'yes' || s === 'y' || s === 'true' || s === '1' || s === 'نعم' || s === 'نشط';

@@ -6,7 +6,7 @@
   "WEB_APP_URL": "PASTE_DEPLOYED_WEB_APP_URL_HERE_AFTER_DEPLOYMENT",
   "OWNER_EMAIL": "owner@example.com",
   "ADMIN_EMAILS": "owner@example.com,admin@example.com",
-  "APPROVER_UNIT_MODE": "TRAINING_UNIT",
+  "APPROVER_UNIT_MODE": "CURRENT_UNIT",
   "EMAIL_SENDER_NAME": "SQU Training System",
   "ORGANIZATION_NAME_AR": "جامعة السلطان قابوس",
   "ORGANIZATION_NAME_EN": "Sultan Qaboos University",

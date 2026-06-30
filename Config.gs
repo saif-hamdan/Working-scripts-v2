@@ -21,7 +21,7 @@ function getConfig() {
     WEB_APP_URL: value(SETTINGS_KEYS.WEB_APP_URL, ''),
     OWNER_EMAIL: ownerEmail,
     ADMIN_EMAILS: adminEmails,
-    APPROVER_UNIT_MODE: value(SETTINGS_KEYS.APPROVER_UNIT_MODE, APPROVER_UNIT_MODE.TRAINING_UNIT),
+    APPROVER_UNIT_MODE: normalizeApproverUnitMode_(value(SETTINGS_KEYS.APPROVER_UNIT_MODE, APPROVER_UNIT_MODE.CURRENT_UNIT)),
     EMAIL_SENDER_NAME: value(SETTINGS_KEYS.EMAIL_SENDER_NAME, 'SQU Training System'),
     ORGANIZATION_NAME_AR: value(SETTINGS_KEYS.ORGANIZATION_NAME_AR, 'جامعة السلطان قابوس'),
     ORGANIZATION_NAME_EN: value(SETTINGS_KEYS.ORGANIZATION_NAME_EN, 'Sultan Qaboos University'),
@@ -81,7 +81,7 @@ function writeSettingsFromConfig_(ss) {
   defaults[SETTINGS_KEYS.WEB_APP_URL] = '';
   defaults[SETTINGS_KEYS.OWNER_EMAIL] = Session.getEffectiveUser().getEmail() || '';
   defaults[SETTINGS_KEYS.ADMIN_EMAILS] = Session.getEffectiveUser().getEmail() || '';
-  defaults[SETTINGS_KEYS.APPROVER_UNIT_MODE] = APPROVER_UNIT_MODE.TRAINING_UNIT;
+  defaults[SETTINGS_KEYS.APPROVER_UNIT_MODE] = APPROVER_UNIT_MODE.CURRENT_UNIT;
   defaults[SETTINGS_KEYS.EMAIL_SENDER_NAME] = 'SQU Training System';
   defaults[SETTINGS_KEYS.ORGANIZATION_NAME_AR] = 'جامعة السلطان قابوس';
   defaults[SETTINGS_KEYS.ORGANIZATION_NAME_EN] = 'Sultan Qaboos University';
@@ -99,11 +99,24 @@ function writeSettingsFromConfig_(ss) {
 
   Object.keys(defaults).forEach(function(key) {
     if (!current[key]) current[key] = defaults[key];
+    if (
+      key === SETTINGS_KEYS.APPROVER_UNIT_MODE &&
+      !props[key] &&
+      current[key] === APPROVER_UNIT_MODE.TRAINING_UNIT
+    ) {
+      current[key] = defaults[key];
+    }
   });
   var rows = Object.keys(current).map(function(key) { return [key, current[key]]; });
   sheet.getRange(2, 1, Math.max(sheet.getMaxRows() - 1, 1), 2).clearContent();
   if (rows.length) sheet.getRange(2, 1, rows.length, 2).setValues(rows);
   try { sheet.hideSheet(); } catch (ignore) {}
+}
+
+function normalizeApproverUnitMode_(value) {
+  var mode = safeString_(value);
+  if (mode === APPROVER_UNIT_MODE.TRAINING_UNIT) return APPROVER_UNIT_MODE.TRAINING_UNIT;
+  return APPROVER_UNIT_MODE.CURRENT_UNIT;
 }
 
 function readSettingsRows_(sheet) {

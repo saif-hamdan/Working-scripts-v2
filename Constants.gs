@@ -12,6 +12,8 @@ const SHEETS = Object.freeze({
   DASHBOARD: 'لوحة الأقسام',
   RECORDS: 'سجل الطلبات',
   CHARTS: 'الرسوم والمؤشرات',
+  ADMIN_UNITS: 'إدارة الوحدات',
+  ADMIN_SECTIONS: 'إدارة الأقسام',
   UNITS: 'الوحدات',
   SECTIONS: 'الأقسام',
   SETTINGS: 'الإعدادات',
@@ -130,12 +132,14 @@ const STATUS = Object.freeze({
   HEAD_ACCEPTED: 'موافق عليه من رئيس الوحدة',
   HEAD_REJECTED: 'مرفوض من رئيس الوحدة',
   HEAD_CONFLICT: 'تعذر الاعتماد بسبب التعارض',
+  HEAD_EMPLOYEE_ACTIVE: 'مرفوض تلقائياً لوجود تدريب نشط للموظف',
   FINAL_PENDING: 'قيد الاعتماد النهائي',
   FINAL_APPROVED: 'معتمد',
   FINAL_IN_PROGRESS: 'قيد التنفيذ',
   FINAL_DONE: 'منجز',
   FINAL_REJECTED: 'مرفوض',
   FINAL_CONFLICT: 'مرفوض تلقائياً بسبب التعارض',
+  FINAL_EMPLOYEE_ACTIVE: 'مرفوض تلقائياً لوجود تدريب نشط للموظف',
   QUEUE_PENDING: 'بانتظار الإرسال',
   QUEUE_SENT: 'تم الإرسال',
   QUEUE_FAILED: 'فشل الإرسال'
@@ -147,7 +151,8 @@ const FINAL_STATUS_OPTIONS = Object.freeze([
   STATUS.FINAL_IN_PROGRESS,
   STATUS.FINAL_DONE,
   STATUS.FINAL_REJECTED,
-  STATUS.FINAL_CONFLICT
+  STATUS.FINAL_CONFLICT,
+  STATUS.FINAL_EMPLOYEE_ACTIVE
 ]);
 
 const ACTIVE_FINAL_STATUSES = Object.freeze([

@@ -1,5 +1,6 @@
 /** Dashboard calculations and rendering. */
-function refreshDashboard() {
+function refreshDashboard(skipReferenceSync) {
+  if (skipReferenceSync !== true) syncReferenceDataFromAdminSheets_();
   var ss = openDashboardSpreadsheet_();
   var sheet = ensureSheet_(ss, SHEETS.DASHBOARD);
   var rows = calculateSectionSummary_();

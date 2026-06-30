@@ -5,7 +5,9 @@ function sendApprovalEmail(record) {
   var data = buildTemplateData_(record, { approveUrl: approveUrl, rejectUrl: rejectUrl });
   var html = renderTemplate_('Emails_Approval', data);
   var to = safeString_(record[H.RECORD.APPROVER_EMAIL]);
-  var cc = uniqueNonEmpty_([record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL], record[H.RECORD.DIRECT_MANAGER_EMAIL]]).join(',');
+  var cc = uniqueNonEmpty_([record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL], record[H.RECORD.DIRECT_MANAGER_EMAIL]])
+    .filter(function(email) { return normalizeEmail_(email) !== normalizeEmail_(to); })
+    .join(',');
   return sendEmailSafe_({
     to: to,
     cc: cc,
@@ -45,6 +47,20 @@ function sendRejectedNotification(record) {
     subject: 'تم رفض طلب التدريب / Training Request Rejected - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   }, { kind: 'rejected', requestId: record[H.RECORD.REQUEST_ID] });
+}
+
+function sendActiveEmployeeRejectedNotification(record, activeTraining) {
+  var data = buildTemplateData_(record, {
+    activeTraining: activeTraining,
+    activeTrainingDetails: formatActiveTrainingDetails_(activeTraining)
+  });
+  var html = renderTemplate_('Emails_ActiveEmployeeRejected', data);
+  return sendEmailSafe_({
+    to: uniqueNonEmpty_([record[H.RECORD.EMPLOYEE_EMAIL], record[H.RECORD.DIRECT_MANAGER_EMAIL]]).join(','),
+    cc: uniqueNonEmpty_([record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]]).join(','),
+    subject: 'رفض تلقائي لطلب التدريب / Automatic Training Request Rejection - ' + record[H.RECORD.REQUEST_ID],
+    htmlBody: html
+  }, { kind: 'active_employee_rejected', requestId: record[H.RECORD.REQUEST_ID] });
 }
 
 function sendConflictNotification(record, conflict, source) {

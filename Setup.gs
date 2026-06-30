@@ -26,6 +26,7 @@ function setupSheets() {
   writeSettingsFromConfig_(ss);
   ensureReferenceSheets_(ss);
   ensureSystemSheets_(ss);
+  syncReferenceDataFromAdminSheets_();
 }
 
 function ensureMainSheets_(ss) {
@@ -38,23 +39,37 @@ function ensureMainSheets_(ss) {
 }
 
 function ensureReferenceSheets_(ss) {
+  var adminUnits = ensureSheet_(ss, SHEETS.ADMIN_UNITS);
+  setSheetHeaders_(adminUnits, UNIT_HEADERS);
+  var adminSections = ensureSheet_(ss, SHEETS.ADMIN_SECTIONS);
+  setSheetHeaders_(adminSections, SECTION_HEADERS);
+
   var units = ensureSheet_(ss, SHEETS.UNITS);
   setSheetHeaders_(units, UNIT_HEADERS);
-  if (units.getLastRow() < 2) {
-    units.getRange(2, 1, 2, UNIT_HEADERS.length).setValues([
+  if (adminUnits.getLastRow() < 2 && units.getLastRow() >= 2) {
+    clearAndWriteObjects_(adminUnits, UNIT_HEADERS, getDataObjects_(units));
+  }
+  if (adminUnits.getLastRow() < 2) {
+    adminUnits.getRange(2, 1, 2, UNIT_HEADERS.length).setValues([
       ['UNIT-001', 'مثال وحدة 1', 'اسم رئيس الوحدة', 'unit.head@example.com', 'نعم'],
       ['UNIT-002', 'مثال وحدة 2', 'اسم رئيس الوحدة', 'unit2.head@example.com', 'نعم']
     ]);
   }
+
   var sections = ensureSheet_(ss, SHEETS.SECTIONS);
   setSheetHeaders_(sections, SECTION_HEADERS);
-  if (sections.getLastRow() < 2) {
-    sections.getRange(2, 1, 3, SECTION_HEADERS.length).setValues([
+  if (adminSections.getLastRow() < 2 && sections.getLastRow() >= 2) {
+    clearAndWriteObjects_(adminSections, SECTION_HEADERS, getDataObjects_(sections));
+  }
+  if (adminSections.getLastRow() < 2) {
+    adminSections.getRange(2, 1, 3, SECTION_HEADERS.length).setValues([
       ['SEC-001', 'UNIT-001', 'مثال وحدة 1', 'قسم مثال 1', 'نعم', 1],
       ['SEC-002', 'UNIT-001', 'مثال وحدة 1', 'قسم مثال 2', 'نعم', 1],
       ['SEC-003', 'UNIT-002', 'مثال وحدة 2', 'قسم مثال 3', 'نعم', 1]
     ]);
   }
+  applyCleanTableFormatting_(adminUnits, UNIT_HEADERS.length);
+  applyCleanTableFormatting_(adminSections, SECTION_HEADERS.length);
   applyCleanTableFormatting_(units, UNIT_HEADERS.length);
   applyCleanTableFormatting_(sections, SECTION_HEADERS.length);
   try { units.hideSheet(); sections.hideSheet(); } catch (ignore) {}
