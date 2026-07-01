@@ -1,16 +1,7 @@
 /** Request creation, retrieval, and updates. */
 function createRequestFromFormSubmit(e) {
-  var lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  try {
-    var data = parseFormSubmission_(e);
-    return createRequestFromNormalizedData_(data);
-  } catch (err) {
-    logError_('createRequestFromFormSubmit', '', err);
-    throw err;
-  } finally {
-    lock.releaseLock();
-  }
+  logWarn_('createRequestFromFormSubmit', '', 'Direct form-submit request creation is disabled. Use processUnprocessedFormResponses() to create requests from the linked response-sheet queue.');
+  return null;
 }
 
 function createRequestFromNormalizedData_(data, sourceInfo) {

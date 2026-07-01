@@ -3,6 +3,10 @@ function logInfo_(action, requestId, message) {
   logSystem_('INFO', action, requestId, message, null);
 }
 
+function logWarn_(action, requestId, message) {
+  logSystem_('WARN', action, requestId, message, null);
+}
+
 function logError_(action, requestId, error) {
   var message = error && error.message ? error.message : safeString_(error);
   logSystem_('ERROR', action, requestId, message, error);

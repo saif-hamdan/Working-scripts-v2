@@ -4,7 +4,7 @@ This folder is the production Apps Script project for the Google Forms + Google 
 
 ## What it implements
 
-- Google Form submission handler.
+- Google Form response-sheet queue processing for submissions.
 - Arabic dashboard sheets:
   - `لوحة الأقسام`
   - `سجل الطلبات`
@@ -39,7 +39,7 @@ This folder is the production Apps Script project for the Google Forms + Google 
 ```text
 DASHBOARD_SPREADSHEET_ID = your dashboard spreadsheet ID
 MAIN_FORM_ID = your main training request Google Form ID
-FORM_RESPONSES_SPREADSHEET_ID = optional linked responses spreadsheet ID
+FORM_RESPONSES_SPREADSHEET_ID = required linked Google Form responses spreadsheet ID
 EVALUATION_FORM_URL = evaluation Google Form published URL
 OWNER_EMAIL = owner email
 ADMIN_EMAILS = comma-separated admin emails
@@ -56,19 +56,20 @@ EVALUATION_ALLOWED_FINAL_STATUSES = معتمد,منجز
 
 Recommended `APPROVER_UNIT_MODE` is `CURRENT_UNIT`, meaning the head of the unit the new employee belongs to approves. Use `TRAINING_UNIT` only if your policy requires the receiving training unit head to approve.
 
-4. Run `setupAll()` once and authorize permissions.
-5. Fill the visible `إدارة الوحدات` and `إدارة الأقسام` sheets with your real unit/section data. The production script syncs these into the hidden runtime `الوحدات` and `الأقسام` sheets.
-6. Deploy the script as a **Web App**:
+4. In the Google Form, use **Responses → Link to Sheets** to create or select the linked response spreadsheet, then set `FORM_RESPONSES_SPREADSHEET_ID` to that spreadsheet ID. This linked response sheet is required: request records are created only when `processUnprocessedFormResponses()` reads the response-sheet queue during sync.
+5. Run `setupAll()` once and authorize permissions.
+6. Fill the visible `إدارة الوحدات` and `إدارة الأقسام` sheets with your real unit/section data. The production script syncs these into the hidden runtime `الوحدات` and `الأقسام` sheets.
+7. Deploy the script as a **Web App**:
    - Execute as: **Me**
    - Access: **Anyone in your domain**
-7. Copy the Web App URL into `WEB_APP_URL` in Script Properties or the hidden `الإعدادات` sheet.
-8. Run `setupAll()` again so the form choices, triggers, protections, dashboard, and charts are refreshed.
+8. Copy the Web App URL into `WEB_APP_URL` in Script Properties or the hidden `الإعدادات` sheet.
+9. Run `setupAll()` again so the form choices, triggers, protections, dashboard, and charts are refreshed.
 
 ## Important notes
 
 Native Google Forms cannot refresh a second dropdown live on the same page after the first dropdown is selected. This implementation uses the recommended Google Forms workaround: the requested training unit dropdown routes to a unit-specific page, where the section dropdown shows only sections under that unit.
 
-The form choices are refreshed by the five-minute trigger and after submissions/decisions. The approval handler still re-checks conflicts atomically with `LockService`, so even if the form choice was stale, the system blocks late conflicts.
+The form choices are refreshed by the five-minute trigger and after decisions. Form submissions are not converted into requests by a direct form-submit trigger; the five-minute sync calls `processUnprocessedFormResponses()` to create requests from the linked response-sheet queue. If `FORM_RESPONSES_SPREADSHEET_ID` is missing, setup and sync log a warning and no submitted form responses can become requests. The approval handler still re-checks conflicts atomically with `LockService`, so even if the form choice was stale, the system blocks late conflicts.
 
 Do not install the five-minute refresh trigger in the setup/resource project. It belongs only in this production workflow project.
 
@@ -78,7 +79,8 @@ Do not install the five-minute refresh trigger in the setup/resource project. It
 - `refreshFormChoices()` — refresh unit/section choices in the Google Form.
 - `refreshDashboard()` — rebuild the clean dashboard sheet.
 - `refreshCharts()` — rebuild KPI tables and charts.
-- `installTriggers()` — install form submit, edit, five-minute sync, and daily evaluation triggers.
+- `installTriggers()` — install edit, five-minute sync, and daily evaluation triggers. It intentionally does not install a direct form-submit request-creation trigger.
+- `processUnprocessedFormResponses()` — create requests from unprocessed rows in the linked Google Form response sheet.
 - `sendEvaluationEmails()` — manually send due evaluation emails.
 
 ## Sheet data requirements
