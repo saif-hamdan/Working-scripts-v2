@@ -61,8 +61,11 @@ function processUnprocessedFormResponses() {
 
       try {
         markResponseRowProcessing_(sheet, rowNumber, map);
-        var event = buildFormSubmitEventFromResponseRow_(headers, row, responseId, responseSourceId, map);
-        var record = createRequestFromFormData_(event);
+        var data = parseLinkedResponseRow_(stripResponseQueueHeaders_(headers, map), stripResponseQueueRow_(row, headers, map));
+        var sourceInfo = buildRequestSourceInfo_(data);
+        sourceInfo.responseId = responseId;
+        sourceInfo.responseSourceId = responseSourceId;
+        var record = createRequestFromNormalizedData_(data, sourceInfo);
         markResponseRowProcessed_(sheet, rowNumber, map, record[H.RECORD.REQUEST_ID] || responseId, '');
         processedCount++;
         logInfo_('processUnprocessedFormResponses', record[H.RECORD.REQUEST_ID], 'Queued form response processed from row ' + rowNumber + '.');
@@ -128,13 +131,22 @@ function isResponseRowProcessed_(row, map) {
   return safeString_(value) === RESPONSE_QUEUE_STATUS.PROCESSED;
 }
 
-function buildFormSubmitEventFromResponseRow_(headers, row, responseId, responseSourceId, map) {
-  var namedValues = {};
+function stripResponseQueueHeaders_(headers, map) {
+  var cleanHeaders = [];
   headers.forEach(function(header, index) {
-    if (!header || isResponseQueueColumnIndex_(index + 1, map)) return;
-    namedValues[header] = [row[index]];
+    if (isResponseQueueColumnIndex_(index + 1, map)) return;
+    cleanHeaders.push(header);
   });
-  return { namedValues: namedValues, responseId: responseId, responseSourceId: responseSourceId };
+  return cleanHeaders;
+}
+
+function stripResponseQueueRow_(row, headers, map) {
+  var cleanRow = [];
+  headers.forEach(function(header, index) {
+    if (isResponseQueueColumnIndex_(index + 1, map)) return;
+    cleanRow.push(row[index]);
+  });
+  return cleanRow;
 }
 
 function isResponseQueueColumnIndex_(columnIndex, map) {

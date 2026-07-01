@@ -3,7 +3,8 @@ function createRequestFromFormSubmit(e) {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    createRequestFromFormData_(e);
+    var data = parseFormSubmission_(e);
+    return createRequestFromNormalizedData_(data);
   } catch (err) {
     logError_('createRequestFromFormSubmit', '', err);
     throw err;
@@ -12,15 +13,18 @@ function createRequestFromFormSubmit(e) {
   }
 }
 
-function createRequestFromFormData_(e) {
+function createRequestFromNormalizedData_(data, sourceInfo) {
   setupSheets();
-  var data = parseFormSubmission_(e);
+  data = data || {};
+  sourceInfo = sourceInfo || buildRequestSourceInfo_(data);
+  if (sourceInfo.responseId) data.responseId = sourceInfo.responseId;
+  if (sourceInfo.responseSourceId) data.responseSourceId = sourceInfo.responseSourceId;
   validateSubmissionData_(data);
 
   if (data.responseId) {
     var existingRecord = findRequestByResponseId_(data.responseId);
     if (existingRecord) {
-      logInfo_('createRequestFromFormData_:idempotent', existingRecord[H.RECORD.REQUEST_ID] || '', 'Request already exists for form response ' + data.responseId + '; skipping duplicate creation.');
+      logInfo_('createRequestFromNormalizedData_:idempotent', existingRecord[H.RECORD.REQUEST_ID] || '', 'Request already exists for form response ' + data.responseId + '; skipping duplicate creation.');
       return existingRecord;
     }
   }
@@ -28,7 +32,7 @@ function createRequestFromFormData_(e) {
   if (data.responseSourceId) {
     var existingSourceRecord = findRequestByResponseSourceId_(data.responseSourceId);
     if (existingSourceRecord) {
-      logInfo_('createRequestFromFormData_:sourceIdempotent', existingSourceRecord[H.RECORD.REQUEST_ID] || '', 'Request already exists for response source ' + data.responseSourceId + '; skipping duplicate creation.');
+      logInfo_('createRequestFromNormalizedData_:sourceIdempotent', existingSourceRecord[H.RECORD.REQUEST_ID] || '', 'Request already exists for response source ' + data.responseSourceId + '; skipping duplicate creation.');
       return existingSourceRecord;
     }
   }
@@ -112,15 +116,15 @@ function createRequestFromFormData_(e) {
 
   if (activeTraining) {
     sendActiveEmployeeRejectedNotification(record, activeTraining);
-    logInfo_('createRequestFromFormSubmit:activeEmployeeRejected', requestId, 'Request rejected because employee already has active approved training.');
+    logInfo_('createRequestFromNormalizedData_:activeEmployeeRejected', requestId, 'Request rejected because employee already has active approved training.');
   } else if (conflict) {
     sendConflictNotification(record, conflict, 'submission');
-    logInfo_('createRequestFromFormSubmit:conflict', requestId, 'Request rejected at submission because of conflict.');
+    logInfo_('createRequestFromNormalizedData_:conflict', requestId, 'Request rejected at submission because of conflict.');
   } else {
     var sent = sendApprovalEmail(record);
     if (sent) updateRequestByRow_(rowNumber, { [H.RECORD.APPROVAL_EMAIL_SENT_AT]: now_() });
     sendSubmissionConfirmationEmail(record);
-    logInfo_('createRequestFromFormSubmit', requestId, 'Request created and approval email processed.');
+    logInfo_('createRequestFromNormalizedData_', requestId, 'Request created and approval email processed.');
   }
 
   refreshDashboard();
@@ -194,6 +198,71 @@ function parseFormSubmission_(e) {
 
   if (!parsed.responseSourceId) parsed.responseSourceId = makeFormResponseSourceId_(parsed);
   return parsed;
+}
+
+function parseLinkedResponseRow_(headers, row) {
+  headers = headers || [];
+  row = row || [];
+
+  function val(title) {
+    for (var i = 0; i < headers.length; i++) {
+      if (safeString_(headers[i]) === title) return row[i];
+    }
+    return '';
+  }
+
+  function firstNonEmpty(titles) {
+    for (var i = 0; i < titles.length; i++) {
+      var s = safeString_(val(titles[i]));
+      if (s) return s;
+    }
+    return '';
+  }
+
+  var section = '';
+  headers.forEach(function(header, index) {
+    header = safeString_(header);
+    if (section || !header) return;
+    if (header.indexOf(FORM.SECTION_QUESTION_PREFIX) === 0 || normalizeKey_(header).indexOf('section') !== -1 || header.indexOf('القسم المطلوب') !== -1) {
+      var candidate = safeString_(row[index]);
+      if (candidate) section = candidate;
+    }
+  });
+
+  var parsed = {
+    timestamp: firstNonEmpty(['Timestamp', 'الطابع الزمني']),
+    submitterEmail: firstNonEmpty(['Email Address', 'البريد الإلكتروني', FORM.TITLES.DIRECT_MANAGER_EMAIL]),
+    directManagerName: firstNonEmpty([FORM.TITLES.DIRECT_MANAGER_NAME, 'اسم المدير المباشر']),
+    directManagerEmail: firstNonEmpty([FORM.TITLES.DIRECT_MANAGER_EMAIL, 'بريد المدير المباشر']),
+    employeeName: firstNonEmpty([FORM.TITLES.EMPLOYEE_NAME, 'اسم الموظف الجديد']),
+    employeeEmail: firstNonEmpty([FORM.TITLES.EMPLOYEE_EMAIL, 'بريد الموظف الجديد']),
+    currentUnit: firstNonEmpty([FORM.TITLES.CURRENT_UNIT, 'الوحدة الحالية للموظف']),
+    trainingUnit: firstNonEmpty([FORM.TITLES.TRAINING_UNIT, 'وحدة التدريب المطلوبة']),
+    section: section,
+    startDate: parseDateFlexible_(firstNonEmpty([FORM.TITLES.START_DATE, 'من تاريخ'])),
+    endDate: parseDateFlexible_(firstNonEmpty([FORM.TITLES.END_DATE, 'إلى تاريخ'])),
+    hours: firstNonEmpty([FORM.TITLES.HOURS, 'عدد الساعات']),
+    notes: firstNonEmpty([FORM.TITLES.NOTES, 'ملاحظات']),
+    responseId: '',
+    responseSourceId: ''
+  };
+
+  parsed.responseSourceId = makeFormResponseSourceId_(parsed);
+  return parsed;
+}
+
+function buildRequestSourceInfo_(data) {
+  data = data || {};
+  return {
+    responseId: data.responseId || '',
+    responseSourceId: data.responseSourceId || '',
+    timestamp: data.timestamp || ''
+  };
+}
+
+function createRequestFromFormData_(e) {
+  var data = parseFormSubmission_(e);
+  return createRequestFromNormalizedData_(data);
 }
 
 function validateSubmissionData_(data) {
