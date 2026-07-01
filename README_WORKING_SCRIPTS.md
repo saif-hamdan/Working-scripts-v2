@@ -69,7 +69,7 @@ Recommended `APPROVER_UNIT_MODE` is `CURRENT_UNIT`, meaning the head of the unit
 
 Native Google Forms cannot refresh a second dropdown live on the same page after the first dropdown is selected. This implementation uses the recommended Google Forms workaround: the requested training unit dropdown routes to a unit-specific page, where the section dropdown shows only sections under that unit.
 
-The form choices are refreshed by the five-minute trigger and after decisions. Form submissions are not converted into requests by a direct form-submit trigger; the five-minute sync calls `processUnprocessedFormResponses()` to create requests from the linked response-sheet queue. If `FORM_RESPONSES_SPREADSHEET_ID` is missing, setup and sync log a warning and no submitted form responses can become requests. The approval handler still re-checks conflicts atomically with `LockService`, so even if the form choice was stale, the system blocks late conflicts.
+The form choices are refreshed by the five-minute trigger and after decisions. Form submissions are not converted into requests by a direct form-submit trigger; the five-minute sync calls `processUnprocessedFormResponses()` to create requests from the linked response-sheet queue. Admins may also run `processResponseQueueOnce()` manually, or use the `معالجة الطلبات غير المعالجة` custom menu item, after a form outage or high-volume submission period; it logs the number of processed, skipped, and failed rows. If `FORM_RESPONSES_SPREADSHEET_ID` is missing, setup and sync log a warning and no submitted form responses can become requests. The approval handler still re-checks conflicts atomically with `LockService`, so even if the form choice was stale, the system blocks late conflicts.
 
 Do not install the five-minute refresh trigger in the setup/resource project. It belongs only in this production workflow project.
 
@@ -81,6 +81,7 @@ Do not install the five-minute refresh trigger in the setup/resource project. It
 - `refreshCharts()` — rebuild KPI tables and charts.
 - `installTriggers()` — install edit, five-minute sync, and daily evaluation triggers. It intentionally does not install a direct form-submit request-creation trigger.
 - `processUnprocessedFormResponses()` — create requests from unprocessed rows in the linked Google Form response sheet.
+- `processResponseQueueOnce()` — manually process the linked response-sheet queue once and log processed, skipped, and failed row counts; useful after a form outage or high-volume submission period.
 - `sendEvaluationEmails()` — manually send due evaluation emails.
 
 ## Sheet data requirements
