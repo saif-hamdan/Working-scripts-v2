@@ -21,7 +21,8 @@ const RESPONSE_QUEUE_STATUS = Object.freeze({
   NEW: 'NEW',
   PROCESSING: 'PROCESSING',
   PROCESSED: 'PROCESSED',
-  ERROR: 'ERROR'
+  ERROR: 'ERROR',
+  ERROR_REQUIRES_REVIEW: 'ERROR_REQUIRES_REVIEW'
 });
 
 function processUnprocessedFormResponses(options) {
@@ -54,22 +55,27 @@ function processUnprocessedFormResponses(options) {
         skippedCount++;
         return;
       }
-      if (isResponseRowProcessed_(row, map) || isResponseRowError_(row, map)) {
+      if (isResponseRowProcessed_(row, map)) {
+        skippedCount++;
+        return;
+      }
+      if (!shouldAttemptResponseRow_(row, map, cfg.RESPONSE_QUEUE_MAX_RETRIES)) {
+        markResponseRowReviewRequiredIfMaxed_(sheet, rowNumber, row, map, cfg.RESPONSE_QUEUE_MAX_RETRIES);
         skippedCount++;
         return;
       }
 
       var responseId = makeResponseQueueId_(ss, sheet, rowNumber);
-      var responseSourceId = makeResponseSourceIdFromRow_(headers, row, map);
-      var existingRecord = findRequestByResponseSourceId_(responseSourceId) || findRequestByResponseId_(responseId);
-      if (existingRecord) {
-        markResponseRowProcessed_(sheet, rowNumber, map, existingRecord[H.RECORD.REQUEST_ID] || responseId, '');
-        skippedCount++;
-        logInfo_('processUnprocessedFormResponses', existingRecord[H.RECORD.REQUEST_ID] || responseId, 'Queued form response from row ' + rowNumber + ' already had a request; marked as processed.');
-        return;
-      }
-
       try {
+        var responseSourceId = makeResponseSourceIdFromRow_(headers, row, map);
+        var existingRecord = findRequestByResponseSourceId_(responseSourceId) || findRequestByResponseId_(responseId);
+        if (existingRecord) {
+          markResponseRowProcessed_(sheet, rowNumber, map, existingRecord[H.RECORD.REQUEST_ID] || responseId, '');
+          skippedCount++;
+          logInfo_('processUnprocessedFormResponses', existingRecord[H.RECORD.REQUEST_ID] || responseId, 'Queued form response from row ' + rowNumber + ' already had a request; marked as processed.');
+          return;
+        }
+
         markResponseRowProcessing_(sheet, rowNumber, map);
         var data = parseLinkedResponseRow_(stripResponseQueueHeaders_(headers, map), stripResponseQueueRow_(row, headers, map));
         var sourceInfo = buildRequestSourceInfo_(data);
@@ -80,7 +86,7 @@ function processUnprocessedFormResponses(options) {
         processedCount++;
         logInfo_('processUnprocessedFormResponses', record[H.RECORD.REQUEST_ID], 'Queued form response processed from row ' + rowNumber + '.');
       } catch (err) {
-        markResponseRowError_(sheet, rowNumber, map, err);
+        markResponseRowError_(sheet, rowNumber, map, err, cfg.RESPONSE_QUEUE_MAX_RETRIES);
         failedCount++;
         logError_('processUnprocessedFormResponses', responseId, err);
       }
@@ -158,9 +164,16 @@ function isResponseRowProcessed_(row, map) {
   return safeString_(value) === RESPONSE_QUEUE_STATUS.PROCESSED;
 }
 
-function isResponseRowError_(row, map) {
-  var value = map[RESPONSE_QUEUE.STATUS] ? row[map[RESPONSE_QUEUE.STATUS] - 1] : '';
-  return safeString_(value) === RESPONSE_QUEUE_STATUS.ERROR;
+function shouldAttemptResponseRow_(row, map, maxRetries) {
+  var status = map[RESPONSE_QUEUE.STATUS] ? safeString_(row[map[RESPONSE_QUEUE.STATUS] - 1]) : '';
+  if (status === RESPONSE_QUEUE_STATUS.ERROR_REQUIRES_REVIEW) return false;
+  if (status !== RESPONSE_QUEUE_STATUS.ERROR) return true;
+  return getResponseRowRetryCount_(row, map) < maxRetries;
+}
+
+function getResponseRowRetryCount_(row, map) {
+  if (!map[RESPONSE_QUEUE.RETRY_COUNT]) return 0;
+  return toNumber_(row[map[RESPONSE_QUEUE.RETRY_COUNT] - 1], 0);
 }
 
 function stripResponseQueueHeaders_(headers, map) {
@@ -241,11 +254,20 @@ function makeResponseSourceIdFromRow_(headers, row, map) {
   return makeFormResponseSourceId_(data);
 }
 
+
+function markResponseRowReviewRequiredIfMaxed_(sheet, rowNumber, row, map, maxRetries) {
+  var status = map[RESPONSE_QUEUE.STATUS] ? safeString_(row[map[RESPONSE_QUEUE.STATUS] - 1]) : '';
+  if (status !== RESPONSE_QUEUE_STATUS.ERROR) return;
+  if (getResponseRowRetryCount_(row, map) < maxRetries) return;
+
+  var updates = {};
+  updates[RESPONSE_QUEUE.STATUS] = RESPONSE_QUEUE_STATUS.ERROR_REQUIRES_REVIEW;
+  updateResponseQueueRow_(sheet, rowNumber, map, updates);
+}
+
 function markResponseRowProcessing_(sheet, rowNumber, map) {
-  var retryCount = Number(sheet.getRange(rowNumber, map[RESPONSE_QUEUE.RETRY_COUNT]).getValue()) || 0;
   var updates = {};
   updates[RESPONSE_QUEUE.STATUS] = RESPONSE_QUEUE_STATUS.PROCESSING;
-  updates[RESPONSE_QUEUE.RETRY_COUNT] = retryCount + 1;
   updates[RESPONSE_QUEUE.LAST_ATTEMPT_AT] = now_();
   updateResponseQueueRow_(sheet, rowNumber, map, updates);
 }
@@ -259,10 +281,13 @@ function markResponseRowProcessed_(sheet, rowNumber, map, requestId, error) {
   updateResponseQueueRow_(sheet, rowNumber, map, updates);
 }
 
-function markResponseRowError_(sheet, rowNumber, map, err) {
+function markResponseRowError_(sheet, rowNumber, map, err, maxRetries) {
+  var retryCount = toNumber_(sheet.getRange(rowNumber, map[RESPONSE_QUEUE.RETRY_COUNT]).getValue(), 0) + 1;
   var updates = {};
-  updates[RESPONSE_QUEUE.STATUS] = RESPONSE_QUEUE_STATUS.ERROR;
+  updates[RESPONSE_QUEUE.STATUS] = retryCount >= maxRetries ? RESPONSE_QUEUE_STATUS.ERROR_REQUIRES_REVIEW : RESPONSE_QUEUE_STATUS.ERROR;
   updates[RESPONSE_QUEUE.LAST_ERROR] = err && err.message ? err.message : safeString_(err);
+  updates[RESPONSE_QUEUE.RETRY_COUNT] = retryCount;
+  updates[RESPONSE_QUEUE.LAST_ATTEMPT_AT] = now_();
   updateResponseQueueRow_(sheet, rowNumber, map, updates);
 }
 
