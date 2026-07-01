@@ -2,12 +2,8 @@
 function installTriggers() {
   deleteExistingTriggers();
   var cfg = getConfig();
-  if (cfg.MAIN_FORM_ID) {
-    ScriptApp.newTrigger('onFormSubmit')
-      .forForm(FormApp.openById(cfg.MAIN_FORM_ID))
-      .onFormSubmit()
-      .create();
-  }
+  // Request creation is handled by processUnprocessedFormResponses() from the
+  // 5-minute sync flow, so no form-submit trigger is installed.
   if (cfg.DASHBOARD_SPREADSHEET_ID) {
     ScriptApp.newTrigger('onEdit')
       .forSpreadsheet(SpreadsheetApp.openById(cfg.DASHBOARD_SPREADSHEET_ID))

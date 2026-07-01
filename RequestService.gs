@@ -3,108 +3,113 @@ function createRequestFromFormSubmit(e) {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    setupSheets();
-    var data = parseFormSubmission_(e);
-    validateSubmissionData_(data);
-
-    var currentUnit = findUnitByName_(data.currentUnit) || { name: data.currentUnit, headName: '', headEmail: '' };
-    var trainingUnit = findUnitByName_(data.trainingUnit) || { name: data.trainingUnit, headName: '', headEmail: '' };
-    var approver = getApproverForRequest_(data.currentUnit, data.trainingUnit);
-    var requestId = makeRequestId_();
-    var token = generateToken_();
-    var type = normalizeKey_(data.currentUnit) === normalizeKey_(data.trainingUnit) ? STATUS.TYPE_INTERNAL : STATUS.TYPE_EXTERNAL;
-
-    var record = {};
-    record[H.RECORD.REQUEST_ID] = requestId;
-    record[H.RECORD.TIMESTAMP] = now_();
-    record[H.RECORD.SUBMITTER_EMAIL] = data.submitterEmail || data.directManagerEmail;
-    record[H.RECORD.DIRECT_MANAGER_NAME] = data.directManagerName;
-    record[H.RECORD.DIRECT_MANAGER_EMAIL] = data.directManagerEmail;
-    record[H.RECORD.EMPLOYEE_NAME] = data.employeeName;
-    record[H.RECORD.EMPLOYEE_EMAIL] = data.employeeEmail;
-    record[H.RECORD.CURRENT_UNIT] = data.currentUnit;
-    record[H.RECORD.CURRENT_UNIT_HEAD] = currentUnit.headName;
-    record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL] = currentUnit.headEmail;
-    record[H.RECORD.TRAINING_UNIT] = data.trainingUnit;
-    record[H.RECORD.SECTION] = data.section;
-    record[H.RECORD.START_DATE] = dateOnly_(data.startDate);
-    record[H.RECORD.END_DATE] = dateOnly_(data.endDate);
-    record[H.RECORD.HOURS] = data.hours;
-    record[H.RECORD.TYPE] = type;
-    record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_PENDING;
-    record[H.RECORD.FINAL_STATUS] = STATUS.FINAL_PENDING;
-    record[H.RECORD.REJECTION_REASON] = '';
-    record[H.RECORD.CONFLICT_ID] = '';
-    record[H.RECORD.CONFLICT_DETAILS] = '';
-    record[H.RECORD.APPROVAL_EMAIL_SENT_AT] = '';
-    record[H.RECORD.DECISION_DATE] = '';
-    record[H.RECORD.EVALUATION_LINK] = getConfig().EVALUATION_FORM_URL;
-    record[H.RECORD.EVALUATION_SENT] = STATUS.NO;
-    record[H.RECORD.EVALUATION_SENT_AT] = '';
-    record[H.RECORD.LAST_UPDATED] = now_();
-    record[H.RECORD.NOTES] = data.notes;
-    record[H.RECORD.TOKEN] = token;
-    record[H.RECORD.APPROVER_EMAIL] = approver.headEmail;
-    record[H.RECORD.FORM_RESPONSE_ID] = data.responseId;
-    record[H.RECORD.LOCK_VERSION] = 1;
-    record[H.RECORD.EMAIL_RETRY_COUNT] = 0;
-    record[H.RECORD.LAST_ERROR] = '';
-
-    var activeTraining = findActiveTrainingByEmployee_(data.employeeEmail, data.employeeName, requestId);
-    var conflict = null;
-
-    if (activeTraining) {
-      record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_EMPLOYEE_ACTIVE;
-      record[H.RECORD.FINAL_STATUS] = STATUS.FINAL_EMPLOYEE_ACTIVE;
-      record[H.RECORD.REJECTION_REASON] = buildActiveEmployeeRejectionReason_(activeTraining);
-      record[H.RECORD.CONFLICT_ID] = activeTraining[H.RECORD.REQUEST_ID];
-      record[H.RECORD.CONFLICT_DETAILS] = formatActiveTrainingDetails_(activeTraining);
-      record[H.RECORD.DECISION_DATE] = now_();
-    } else {
-      conflict = findConflicts({
-        trainingUnit: data.trainingUnit,
-        section: data.section,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        excludeRequestId: requestId
-      });
-    }
-
-    if (conflict) {
-      record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_CONFLICT;
-      record[H.RECORD.FINAL_STATUS] = STATUS.FINAL_CONFLICT;
-      record[H.RECORD.CONFLICT_ID] = conflict[H.RECORD.REQUEST_ID];
-      record[H.RECORD.CONFLICT_DETAILS] = formatConflictDetails_(conflict);
-      record[H.RECORD.DECISION_DATE] = now_();
-    }
-
-    var sheet = getOrCreateSheet_(SHEETS.RECORDS);
-    requireHeaders_(sheet, RECORD_HEADERS);
-    var rowNumber = appendObjectRow_(sheet, RECORD_HEADERS, record);
-    record._rowNumber = rowNumber;
-
-    if (activeTraining) {
-      sendActiveEmployeeRejectedNotification(record, activeTraining);
-      logInfo_('createRequestFromFormSubmit:activeEmployeeRejected', requestId, 'Request rejected because employee already has active approved training.');
-    } else if (conflict) {
-      sendConflictNotification(record, conflict, 'submission');
-      logInfo_('createRequestFromFormSubmit:conflict', requestId, 'Request rejected at submission because of conflict.');
-    } else {
-      var sent = sendApprovalEmail(record);
-      if (sent) updateRequestByRow_(rowNumber, { [H.RECORD.APPROVAL_EMAIL_SENT_AT]: now_() });
-      sendSubmissionConfirmationEmail(record);
-      logInfo_('createRequestFromFormSubmit', requestId, 'Request created and approval email processed.');
-    }
-
-    refreshDashboard();
-    refreshCharts();
-    refreshFormChoices();
+    createRequestFromFormData_(e);
   } catch (err) {
     logError_('createRequestFromFormSubmit', '', err);
     throw err;
   } finally {
     lock.releaseLock();
   }
+}
+
+function createRequestFromFormData_(e) {
+  setupSheets();
+  var data = parseFormSubmission_(e);
+  validateSubmissionData_(data);
+
+  var currentUnit = findUnitByName_(data.currentUnit) || { name: data.currentUnit, headName: '', headEmail: '' };
+  var trainingUnit = findUnitByName_(data.trainingUnit) || { name: data.trainingUnit, headName: '', headEmail: '' };
+  var approver = getApproverForRequest_(data.currentUnit, data.trainingUnit);
+  var requestId = makeRequestId_();
+  var token = generateToken_();
+  var type = normalizeKey_(data.currentUnit) === normalizeKey_(data.trainingUnit) ? STATUS.TYPE_INTERNAL : STATUS.TYPE_EXTERNAL;
+
+  var record = {};
+  record[H.RECORD.REQUEST_ID] = requestId;
+  record[H.RECORD.TIMESTAMP] = now_();
+  record[H.RECORD.SUBMITTER_EMAIL] = data.submitterEmail || data.directManagerEmail;
+  record[H.RECORD.DIRECT_MANAGER_NAME] = data.directManagerName;
+  record[H.RECORD.DIRECT_MANAGER_EMAIL] = data.directManagerEmail;
+  record[H.RECORD.EMPLOYEE_NAME] = data.employeeName;
+  record[H.RECORD.EMPLOYEE_EMAIL] = data.employeeEmail;
+  record[H.RECORD.CURRENT_UNIT] = data.currentUnit;
+  record[H.RECORD.CURRENT_UNIT_HEAD] = currentUnit.headName;
+  record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL] = currentUnit.headEmail;
+  record[H.RECORD.TRAINING_UNIT] = data.trainingUnit;
+  record[H.RECORD.SECTION] = data.section;
+  record[H.RECORD.START_DATE] = dateOnly_(data.startDate);
+  record[H.RECORD.END_DATE] = dateOnly_(data.endDate);
+  record[H.RECORD.HOURS] = data.hours;
+  record[H.RECORD.TYPE] = type;
+  record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_PENDING;
+  record[H.RECORD.FINAL_STATUS] = STATUS.FINAL_PENDING;
+  record[H.RECORD.REJECTION_REASON] = '';
+  record[H.RECORD.CONFLICT_ID] = '';
+  record[H.RECORD.CONFLICT_DETAILS] = '';
+  record[H.RECORD.APPROVAL_EMAIL_SENT_AT] = '';
+  record[H.RECORD.DECISION_DATE] = '';
+  record[H.RECORD.EVALUATION_LINK] = getConfig().EVALUATION_FORM_URL;
+  record[H.RECORD.EVALUATION_SENT] = STATUS.NO;
+  record[H.RECORD.EVALUATION_SENT_AT] = '';
+  record[H.RECORD.LAST_UPDATED] = now_();
+  record[H.RECORD.NOTES] = data.notes;
+  record[H.RECORD.TOKEN] = token;
+  record[H.RECORD.APPROVER_EMAIL] = approver.headEmail;
+  record[H.RECORD.FORM_RESPONSE_ID] = data.responseId;
+  record[H.RECORD.LOCK_VERSION] = 1;
+  record[H.RECORD.EMAIL_RETRY_COUNT] = 0;
+  record[H.RECORD.LAST_ERROR] = '';
+
+  var activeTraining = findActiveTrainingByEmployee_(data.employeeEmail, data.employeeName, requestId);
+  var conflict = null;
+
+  if (activeTraining) {
+    record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_EMPLOYEE_ACTIVE;
+    record[H.RECORD.FINAL_STATUS] = STATUS.FINAL_EMPLOYEE_ACTIVE;
+    record[H.RECORD.REJECTION_REASON] = buildActiveEmployeeRejectionReason_(activeTraining);
+    record[H.RECORD.CONFLICT_ID] = activeTraining[H.RECORD.REQUEST_ID];
+    record[H.RECORD.CONFLICT_DETAILS] = formatActiveTrainingDetails_(activeTraining);
+    record[H.RECORD.DECISION_DATE] = now_();
+  } else {
+    conflict = findConflicts({
+      trainingUnit: data.trainingUnit,
+      section: data.section,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      excludeRequestId: requestId
+    });
+  }
+
+  if (conflict) {
+    record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_CONFLICT;
+    record[H.RECORD.FINAL_STATUS] = STATUS.FINAL_CONFLICT;
+    record[H.RECORD.CONFLICT_ID] = conflict[H.RECORD.REQUEST_ID];
+    record[H.RECORD.CONFLICT_DETAILS] = formatConflictDetails_(conflict);
+    record[H.RECORD.DECISION_DATE] = now_();
+  }
+
+  var sheet = getOrCreateSheet_(SHEETS.RECORDS);
+  requireHeaders_(sheet, RECORD_HEADERS);
+  var rowNumber = appendObjectRow_(sheet, RECORD_HEADERS, record);
+  record._rowNumber = rowNumber;
+
+  if (activeTraining) {
+    sendActiveEmployeeRejectedNotification(record, activeTraining);
+    logInfo_('createRequestFromFormSubmit:activeEmployeeRejected', requestId, 'Request rejected because employee already has active approved training.');
+  } else if (conflict) {
+    sendConflictNotification(record, conflict, 'submission');
+    logInfo_('createRequestFromFormSubmit:conflict', requestId, 'Request rejected at submission because of conflict.');
+  } else {
+    var sent = sendApprovalEmail(record);
+    if (sent) updateRequestByRow_(rowNumber, { [H.RECORD.APPROVAL_EMAIL_SENT_AT]: now_() });
+    sendSubmissionConfirmationEmail(record);
+    logInfo_('createRequestFromFormSubmit', requestId, 'Request created and approval email processed.');
+  }
+
+  refreshDashboard();
+  refreshCharts();
+  refreshFormChoices();
+  return record;
 }
 
 function parseFormSubmission_(e) {
@@ -115,6 +120,8 @@ function parseFormSubmission_(e) {
   if (e && e.namedValues) {
     named = e.namedValues;
   }
+
+  if (e && e.responseId) responseId = safeString_(e.responseId);
 
   if (e && e.response) {
     var response = e.response;
