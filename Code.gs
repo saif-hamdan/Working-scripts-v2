@@ -17,7 +17,7 @@ function setupAll() {
 }
 
 function onFormSubmit(e) {
-  createRequestFromFormSubmit(e);
+  logInfo_('onFormSubmit', '', 'Form submit trigger received; request creation is handled by processUnprocessedFormResponses.');
 }
 
 function onEdit(e) {
@@ -37,6 +37,7 @@ function syncSystem() {
   if (!lock.tryLock(25000)) return;
   try {
     syncReferenceDataFromAdminSheets_();
+    processUnprocessedFormResponses();
     processEmailQueue();
     processPendingApprovalEmails();
     refreshDashboard(true);
