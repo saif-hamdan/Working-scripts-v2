@@ -36,8 +36,9 @@ function syncSystem() {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(25000)) return;
   try {
+    var responseQueueStats = processUnprocessedFormResponses({ skipLock: true });
+    logInfo_('syncSystem', '', formatResponseQueueStats_(responseQueueStats));
     syncReferenceDataFromAdminSheets_();
-    processUnprocessedFormResponses();
     processEmailQueue();
     processPendingApprovalEmails();
     refreshDashboard(true);

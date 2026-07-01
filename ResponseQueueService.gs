@@ -24,38 +24,48 @@ const RESPONSE_QUEUE_STATUS = Object.freeze({
   ERROR: 'ERROR'
 });
 
-function processUnprocessedFormResponses() {
-  var lock = LockService.getScriptLock();
-  lock.waitLock(30000);
+function processUnprocessedFormResponses(options) {
+  options = options || {};
+  var lock = options.skipLock ? null : LockService.getScriptLock();
+  if (lock) lock.waitLock(30000);
 
   try {
     var cfg = getConfig();
     if (!cfg.FORM_RESPONSES_SPREADSHEET_ID) {
       logInfo_('processUnprocessedFormResponses', '', 'FORM_RESPONSES_SPREADSHEET_ID is not configured; skipping response queue.');
-      return 0;
+      return buildResponseQueueStats_(0, 0, 0);
     }
 
     setupSheets();
     var ss = SpreadsheetApp.openById(cfg.FORM_RESPONSES_SPREADSHEET_ID);
     var sheet = findFormResponsesSheet_(ss);
-    if (!sheet || sheet.getLastRow() < 2) return 0;
+    if (!sheet || sheet.getLastRow() < 2) return buildResponseQueueStats_(0, 0, 0);
 
     var map = ensureResponseQueueColumns_(sheet);
     var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(safeString_);
     var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
     var processedCount = 0;
+    var skippedCount = 0;
+    var failedCount = 0;
 
     rows.forEach(function(row, index) {
       var rowNumber = index + 2;
-      if (!hasResponseRowData_(row, headers, map)) return;
-      if (isResponseRowProcessed_(row, map)) return;
+      if (!hasResponseRowData_(row, headers, map)) {
+        skippedCount++;
+        return;
+      }
+      if (isResponseRowProcessed_(row, map) || isResponseRowError_(row, map)) {
+        skippedCount++;
+        return;
+      }
 
       var responseId = makeResponseQueueId_(ss, sheet, rowNumber);
       var responseSourceId = makeResponseSourceIdFromRow_(headers, row, map);
       var existingRecord = findRequestByResponseSourceId_(responseSourceId) || findRequestByResponseId_(responseId);
       if (existingRecord) {
         markResponseRowProcessed_(sheet, rowNumber, map, existingRecord[H.RECORD.REQUEST_ID] || responseId, '');
-        processedCount++;
+        skippedCount++;
+        logInfo_('processUnprocessedFormResponses', existingRecord[H.RECORD.REQUEST_ID] || responseId, 'Queued form response from row ' + rowNumber + ' already had a request; marked as processed.');
         return;
       }
 
@@ -71,14 +81,31 @@ function processUnprocessedFormResponses() {
         logInfo_('processUnprocessedFormResponses', record[H.RECORD.REQUEST_ID], 'Queued form response processed from row ' + rowNumber + '.');
       } catch (err) {
         markResponseRowError_(sheet, rowNumber, map, err);
+        failedCount++;
         logError_('processUnprocessedFormResponses', responseId, err);
       }
     });
 
-    return processedCount;
+    var stats = buildResponseQueueStats_(processedCount, skippedCount, failedCount);
+    logInfo_('processUnprocessedFormResponses', '', formatResponseQueueStats_(stats));
+    return stats;
   } finally {
-    lock.releaseLock();
+    if (lock) lock.releaseLock();
   }
+}
+
+function buildResponseQueueStats_(processed, skipped, failed) {
+  return {
+    processed: processed || 0,
+    skipped: skipped || 0,
+    failed: failed || 0
+  };
+}
+
+function formatResponseQueueStats_(stats) {
+  return 'Queued form responses processed: ' + stats.processed +
+    ', skipped: ' + stats.skipped +
+    ', failed: ' + stats.failed + '.';
 }
 
 function findFormResponsesSheet_(ss) {
@@ -129,6 +156,11 @@ function hasResponseRowData_(row, headers, map) {
 function isResponseRowProcessed_(row, map) {
   var value = map[RESPONSE_QUEUE.STATUS] ? row[map[RESPONSE_QUEUE.STATUS] - 1] : '';
   return safeString_(value) === RESPONSE_QUEUE_STATUS.PROCESSED;
+}
+
+function isResponseRowError_(row, map) {
+  var value = map[RESPONSE_QUEUE.STATUS] ? row[map[RESPONSE_QUEUE.STATUS] - 1] : '';
+  return safeString_(value) === RESPONSE_QUEUE_STATUS.ERROR;
 }
 
 function stripResponseQueueHeaders_(headers, map) {
