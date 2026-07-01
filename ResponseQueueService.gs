@@ -1,9 +1,27 @@
 /** Response-sheet backed queue processing for Google Form submissions. */
 const RESPONSE_QUEUE = Object.freeze({
-  PROCESSED: 'Processed',
+  STATUS: 'Processing Status',
   PROCESSED_AT: 'Processed At',
-  REQUEST_ID: 'Request ID',
-  LAST_ERROR: 'Processing Error'
+  REQUEST_ID: 'Dashboard Request ID',
+  LAST_ERROR: 'Processing Error',
+  RETRY_COUNT: 'Retry Count',
+  LAST_ATTEMPT_AT: 'Last Attempt At'
+});
+
+const RESPONSE_QUEUE_HEADERS = Object.freeze([
+  RESPONSE_QUEUE.STATUS,
+  RESPONSE_QUEUE.PROCESSED_AT,
+  RESPONSE_QUEUE.REQUEST_ID,
+  RESPONSE_QUEUE.LAST_ERROR,
+  RESPONSE_QUEUE.RETRY_COUNT,
+  RESPONSE_QUEUE.LAST_ATTEMPT_AT
+]);
+
+const RESPONSE_QUEUE_STATUS = Object.freeze({
+  NEW: 'NEW',
+  PROCESSING: 'PROCESSING',
+  PROCESSED: 'PROCESSED',
+  ERROR: 'ERROR'
 });
 
 function processUnprocessedFormResponses() {
@@ -17,15 +35,14 @@ function processUnprocessedFormResponses() {
   var sheet = findFormResponsesSheet_(ss);
   if (!sheet || sheet.getLastRow() < 2) return 0;
 
-  ensureResponseQueueColumns_(sheet);
-  var map = getHeaderMap_(sheet);
+  var map = ensureResponseQueueColumns_(sheet);
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(safeString_);
   var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
   var processedCount = 0;
 
   rows.forEach(function(row, index) {
     var rowNumber = index + 2;
-    if (!hasResponseRowData_(row, headers)) return;
+    if (!hasResponseRowData_(row, headers, map)) return;
     if (isResponseRowProcessed_(row, map)) return;
 
     var responseId = makeResponseQueueId_(ss, sheet, rowNumber);
@@ -37,7 +54,8 @@ function processUnprocessedFormResponses() {
     }
 
     try {
-      var event = buildFormSubmitEventFromResponseRow_(headers, row, responseId);
+      markResponseRowProcessing_(sheet, rowNumber, map);
+      var event = buildFormSubmitEventFromResponseRow_(headers, row, responseId, map);
       var record = createRequestFromFormData_(event);
       markResponseRowProcessed_(sheet, rowNumber, map, record[H.RECORD.REQUEST_ID] || responseId, '');
       processedCount++;
@@ -63,43 +81,58 @@ function findFormResponsesSheet_(ss) {
 }
 
 function ensureResponseQueueColumns_(sheet) {
-  var map = getHeaderMap_(sheet);
-  [RESPONSE_QUEUE.PROCESSED, RESPONSE_QUEUE.PROCESSED_AT, RESPONSE_QUEUE.REQUEST_ID, RESPONSE_QUEUE.LAST_ERROR].forEach(function(header) {
-    if (!map[header]) {
-      var col = sheet.getLastColumn() + 1;
-      sheet.getRange(1, col).setValue(header);
-      map[header] = col;
-    }
+  var lastCol = sheet.getLastColumn();
+  var headers = lastCol > 0 ? sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(safeString_) : [];
+  var queueStart = findResponseQueueColumnStart_(headers);
+
+  if (!queueStart) {
+    queueStart = lastCol + 1;
+    sheet.getRange(1, queueStart, 1, RESPONSE_QUEUE_HEADERS.length).setValues([RESPONSE_QUEUE_HEADERS]);
+  }
+
+  var map = {};
+  RESPONSE_QUEUE_HEADERS.forEach(function(header, index) {
+    map[header] = queueStart + index;
   });
+  return map;
 }
 
-function hasResponseRowData_(row, headers) {
+function findResponseQueueColumnStart_(headers) {
+  if (headers.length < RESPONSE_QUEUE_HEADERS.length) return 0;
+  var start = headers.length - RESPONSE_QUEUE_HEADERS.length;
+  for (var i = 0; i < RESPONSE_QUEUE_HEADERS.length; i++) {
+    if (headers[start + i] !== RESPONSE_QUEUE_HEADERS[i]) return 0;
+  }
+  return start + 1;
+}
+
+function hasResponseRowData_(row, headers, map) {
   for (var i = 0; i < headers.length; i++) {
-    if (isResponseQueueHeader_(headers[i])) continue;
+    if (isResponseQueueColumnIndex_(i + 1, map)) continue;
     if (row[i] !== '' && row[i] !== null) return true;
   }
   return false;
 }
 
 function isResponseRowProcessed_(row, map) {
-  var value = map[RESPONSE_QUEUE.PROCESSED] ? row[map[RESPONSE_QUEUE.PROCESSED] - 1] : '';
-  return normalizeKey_(value) === 'yes' || normalizeKey_(value) === 'true' || safeString_(value) === STATUS.YES;
+  var value = map[RESPONSE_QUEUE.STATUS] ? row[map[RESPONSE_QUEUE.STATUS] - 1] : '';
+  return safeString_(value) === RESPONSE_QUEUE_STATUS.PROCESSED;
 }
 
-function buildFormSubmitEventFromResponseRow_(headers, row, responseId) {
+function buildFormSubmitEventFromResponseRow_(headers, row, responseId, map) {
   var namedValues = {};
   headers.forEach(function(header, index) {
-    if (!header || isResponseQueueHeader_(header)) return;
+    if (!header || isResponseQueueColumnIndex_(index + 1, map)) return;
     namedValues[header] = [row[index]];
   });
   return { namedValues: namedValues, responseId: responseId };
 }
 
-function isResponseQueueHeader_(header) {
-  return header === RESPONSE_QUEUE.PROCESSED ||
-    header === RESPONSE_QUEUE.PROCESSED_AT ||
-    header === RESPONSE_QUEUE.REQUEST_ID ||
-    header === RESPONSE_QUEUE.LAST_ERROR;
+function isResponseQueueColumnIndex_(columnIndex, map) {
+  for (var i = 0; i < RESPONSE_QUEUE_HEADERS.length; i++) {
+    if (map[RESPONSE_QUEUE_HEADERS[i]] === columnIndex) return true;
+  }
+  return false;
 }
 
 function makeResponseQueueId_(ss, sheet, rowNumber) {
@@ -116,18 +149,34 @@ function findRequestByResponseId_(responseId) {
   return findObjectByValue_(sheet, H.RECORD.FORM_RESPONSE_ID, responseId);
 }
 
+function markResponseRowProcessing_(sheet, rowNumber, map) {
+  var retryCount = Number(sheet.getRange(rowNumber, map[RESPONSE_QUEUE.RETRY_COUNT]).getValue()) || 0;
+  var updates = {};
+  updates[RESPONSE_QUEUE.STATUS] = RESPONSE_QUEUE_STATUS.PROCESSING;
+  updates[RESPONSE_QUEUE.RETRY_COUNT] = retryCount + 1;
+  updates[RESPONSE_QUEUE.LAST_ATTEMPT_AT] = now_();
+  updateResponseQueueRow_(sheet, rowNumber, map, updates);
+}
+
 function markResponseRowProcessed_(sheet, rowNumber, map, requestId, error) {
   var updates = {};
-  updates[RESPONSE_QUEUE.PROCESSED] = STATUS.YES;
+  updates[RESPONSE_QUEUE.STATUS] = RESPONSE_QUEUE_STATUS.PROCESSED;
   updates[RESPONSE_QUEUE.PROCESSED_AT] = now_();
   updates[RESPONSE_QUEUE.REQUEST_ID] = requestId || '';
   updates[RESPONSE_QUEUE.LAST_ERROR] = error || '';
-  updateObjectRow_(sheet, rowNumber, updates);
+  updateResponseQueueRow_(sheet, rowNumber, map, updates);
 }
 
 function markResponseRowError_(sheet, rowNumber, map, err) {
   var updates = {};
-  updates[RESPONSE_QUEUE.PROCESSED] = STATUS.NO;
+  updates[RESPONSE_QUEUE.STATUS] = RESPONSE_QUEUE_STATUS.ERROR;
   updates[RESPONSE_QUEUE.LAST_ERROR] = err && err.message ? err.message : safeString_(err);
-  updateObjectRow_(sheet, rowNumber, updates);
+  updateResponseQueueRow_(sheet, rowNumber, map, updates);
+}
+
+function updateResponseQueueRow_(sheet, rowNumber, map, updates) {
+  Object.keys(updates).forEach(function(header) {
+    if (!map[header]) throw new Error('Cannot update missing response queue column: ' + header);
+    sheet.getRange(rowNumber, map[header]).setValue(updates[header]);
+  });
 }
