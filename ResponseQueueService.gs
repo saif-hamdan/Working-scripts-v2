@@ -35,6 +35,7 @@ function processUnprocessedFormResponses() {
       return 0;
     }
 
+    setupSheets();
     var ss = SpreadsheetApp.openById(cfg.FORM_RESPONSES_SPREADSHEET_ID);
     var sheet = findFormResponsesSheet_(ss);
     if (!sheet || sheet.getLastRow() < 2) return 0;
@@ -50,7 +51,8 @@ function processUnprocessedFormResponses() {
       if (isResponseRowProcessed_(row, map)) return;
 
       var responseId = makeResponseQueueId_(ss, sheet, rowNumber);
-      var existingRecord = findRequestByResponseId_(responseId);
+      var responseSourceId = makeResponseSourceIdFromRow_(headers, row, map);
+      var existingRecord = findRequestByResponseSourceId_(responseSourceId) || findRequestByResponseId_(responseId);
       if (existingRecord) {
         markResponseRowProcessed_(sheet, rowNumber, map, existingRecord[H.RECORD.REQUEST_ID] || responseId, '');
         processedCount++;
@@ -59,7 +61,7 @@ function processUnprocessedFormResponses() {
 
       try {
         markResponseRowProcessing_(sheet, rowNumber, map);
-        var event = buildFormSubmitEventFromResponseRow_(headers, row, responseId, map);
+        var event = buildFormSubmitEventFromResponseRow_(headers, row, responseId, responseSourceId, map);
         var record = createRequestFromFormData_(event);
         markResponseRowProcessed_(sheet, rowNumber, map, record[H.RECORD.REQUEST_ID] || responseId, '');
         processedCount++;
@@ -126,13 +128,13 @@ function isResponseRowProcessed_(row, map) {
   return safeString_(value) === RESPONSE_QUEUE_STATUS.PROCESSED;
 }
 
-function buildFormSubmitEventFromResponseRow_(headers, row, responseId, map) {
+function buildFormSubmitEventFromResponseRow_(headers, row, responseId, responseSourceId, map) {
   var namedValues = {};
   headers.forEach(function(header, index) {
     if (!header || isResponseQueueColumnIndex_(index + 1, map)) return;
     namedValues[header] = [row[index]];
   });
-  return { namedValues: namedValues, responseId: responseId };
+  return { namedValues: namedValues, responseId: responseId, responseSourceId: responseSourceId };
 }
 
 function isResponseQueueColumnIndex_(columnIndex, map) {
@@ -154,6 +156,45 @@ function findRequestByResponseId_(responseId) {
   var sheet = getSheet_(SHEETS.RECORDS);
   if (!sheet) return null;
   return findObjectByValue_(sheet, H.RECORD.FORM_RESPONSE_ID, responseId);
+}
+
+function findRequestByResponseSourceId_(responseSourceId) {
+  var sheet = getSheet_(SHEETS.RECORDS);
+  if (!sheet || !responseSourceId) return null;
+  return findObjectByValue_(sheet, H.RECORD.FORM_RESPONSE_SOURCE_ID, responseSourceId);
+}
+
+function makeResponseSourceIdFromRow_(headers, row, map) {
+  function valueFor(candidates) {
+    for (var i = 0; i < candidates.length; i++) {
+      var wanted = candidates[i];
+      for (var j = 0; j < headers.length; j++) {
+        if (isResponseQueueColumnIndex_(j + 1, map)) continue;
+        if (headers[j] === wanted) return row[j];
+      }
+    }
+    return '';
+  }
+
+  var data = {
+    timestamp: valueFor(['Timestamp', 'الطابع الزمني']),
+    submitterEmail: valueFor(['Email Address', 'البريد الإلكتروني', FORM.TITLES.DIRECT_MANAGER_EMAIL]),
+    employeeEmail: valueFor([FORM.TITLES.EMPLOYEE_EMAIL, 'بريد الموظف الجديد']),
+    startDate: parseDateFlexible_(valueFor([FORM.TITLES.START_DATE, 'من تاريخ'])),
+    endDate: parseDateFlexible_(valueFor([FORM.TITLES.END_DATE, 'إلى تاريخ'])),
+    trainingUnit: valueFor([FORM.TITLES.TRAINING_UNIT, 'وحدة التدريب المطلوبة']),
+    section: ''
+  };
+
+  for (var k = 0; k < headers.length; k++) {
+    if (isResponseQueueColumnIndex_(k + 1, map)) continue;
+    if (headers[k].indexOf(FORM.SECTION_QUESTION_PREFIX) === 0 || normalizeKey_(headers[k]).indexOf('section') !== -1 || headers[k].indexOf('القسم المطلوب') !== -1) {
+      data.section = row[k];
+      break;
+    }
+  }
+
+  return makeFormResponseSourceId_(data);
 }
 
 function markResponseRowProcessing_(sheet, rowNumber, map) {
