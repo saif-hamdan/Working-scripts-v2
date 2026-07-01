@@ -25,6 +25,14 @@ function createRequestFromFormData_(e) {
     }
   }
 
+  if (data.responseSourceId) {
+    var existingSourceRecord = findRequestByResponseSourceId_(data.responseSourceId);
+    if (existingSourceRecord) {
+      logInfo_('createRequestFromFormData_:sourceIdempotent', existingSourceRecord[H.RECORD.REQUEST_ID] || '', 'Request already exists for response source ' + data.responseSourceId + '; skipping duplicate creation.');
+      return existingSourceRecord;
+    }
+  }
+
   var currentUnit = findUnitByName_(data.currentUnit) || { name: data.currentUnit, headName: '', headEmail: '' };
   var trainingUnit = findUnitByName_(data.trainingUnit) || { name: data.trainingUnit, headName: '', headEmail: '' };
   var approver = getApproverForRequest_(data.currentUnit, data.trainingUnit);
@@ -67,6 +75,7 @@ function createRequestFromFormData_(e) {
   record[H.RECORD.LOCK_VERSION] = 1;
   record[H.RECORD.EMAIL_RETRY_COUNT] = 0;
   record[H.RECORD.LAST_ERROR] = '';
+  record[H.RECORD.FORM_RESPONSE_SOURCE_ID] = data.responseSourceId;
 
   var activeTraining = findActiveTrainingByEmployee_(data.employeeEmail, data.employeeName, requestId);
   var conflict = null;
@@ -135,6 +144,7 @@ function parseFormSubmission_(e) {
     var response = e.response;
     try { submitterEmail = response.getRespondentEmail() || ''; } catch (ignore) {}
     try { responseId = response.getId ? response.getId() : ''; } catch (ignore2) {}
+    try { named.Timestamp = [response.getTimestamp ? response.getTimestamp() : '']; } catch (ignore3) {}
     response.getItemResponses().forEach(function(ir) {
       var title = ir.getItem().getTitle();
       named[title] = [ir.getResponse()];
@@ -164,7 +174,8 @@ function parseFormSubmission_(e) {
     }
   });
 
-  return {
+  var parsed = {
+    timestamp: firstNonEmpty(['Timestamp', 'الطابع الزمني']),
     submitterEmail: submitterEmail || firstNonEmpty(['Email Address', 'البريد الإلكتروني', FORM.TITLES.DIRECT_MANAGER_EMAIL]),
     directManagerName: firstNonEmpty([FORM.TITLES.DIRECT_MANAGER_NAME, 'اسم المدير المباشر']),
     directManagerEmail: firstNonEmpty([FORM.TITLES.DIRECT_MANAGER_EMAIL, 'بريد المدير المباشر']),
@@ -177,8 +188,12 @@ function parseFormSubmission_(e) {
     endDate: parseDateFlexible_(firstNonEmpty([FORM.TITLES.END_DATE, 'إلى تاريخ'])),
     hours: firstNonEmpty([FORM.TITLES.HOURS, 'عدد الساعات']),
     notes: firstNonEmpty([FORM.TITLES.NOTES, 'ملاحظات']),
-    responseId: responseId
+    responseId: responseId,
+    responseSourceId: e && e.responseSourceId ? safeString_(e.responseSourceId) : ''
   };
+
+  if (!parsed.responseSourceId) parsed.responseSourceId = makeFormResponseSourceId_(parsed);
+  return parsed;
 }
 
 function validateSubmissionData_(data) {

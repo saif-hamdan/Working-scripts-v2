@@ -37,6 +37,30 @@ function normalizeEmail_(value) {
   return safeString_(value).toLowerCase();
 }
 
+function makeStableSourceKey_(parts) {
+  var normalized = (parts || []).map(function(part) {
+    if (part instanceof Date) return formatDate_(part);
+    return normalizeKey_(part);
+  }).join('\u001f');
+  var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, normalized);
+  return digest.map(function(byte) {
+    var unsigned = byte < 0 ? byte + 256 : byte;
+    return ('0' + unsigned.toString(16)).slice(-2);
+  }).join('');
+}
+
+function makeFormResponseSourceId_(data) {
+  return makeStableSourceKey_([
+    data && data.timestamp,
+    data && data.submitterEmail,
+    data && data.employeeEmail,
+    data && data.startDate,
+    data && data.endDate,
+    data && data.trainingUnit,
+    data && data.section
+  ]);
+}
+
 function isActiveFlag_(value) {
   var s = normalizeKey_(value);
   return s === '' || s === 'yes' || s === 'y' || s === 'true' || s === '1' || s === 'نعم' || s === 'نشط';
