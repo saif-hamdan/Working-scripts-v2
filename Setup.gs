@@ -11,6 +11,7 @@ function setupAllSystem() {
     refreshCharts();
     refreshFormChoices();
     installTriggers();
+    warnIfResponseQueueMissing_();
     logInfo_('setupAllSystem', '', 'Setup completed successfully.');
   } catch (err) {
     logError_('setupAllSystem', '', err);
@@ -86,4 +87,12 @@ function ensureSystemSheets_(ss) {
 function setupAllFromMenu() {
   setupAllSystem();
   SpreadsheetApp.getActive().toast('تم إعداد النظام بنجاح / System setup completed.');
+}
+
+
+function warnIfResponseQueueMissing_() {
+  var cfg = getConfig();
+  if (!cfg.FORM_RESPONSES_SPREADSHEET_ID) {
+    logWarn_('setupAllSystem', '', 'FORM_RESPONSES_SPREADSHEET_ID is required because requests are created only by processUnprocessedFormResponses() from the linked Google Form response sheet.');
+  }
 }

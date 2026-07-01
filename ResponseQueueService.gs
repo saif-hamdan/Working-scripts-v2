@@ -32,7 +32,7 @@ function processUnprocessedFormResponses(options) {
   try {
     var cfg = getConfig();
     if (!cfg.FORM_RESPONSES_SPREADSHEET_ID) {
-      logInfo_('processUnprocessedFormResponses', '', 'FORM_RESPONSES_SPREADSHEET_ID is not configured; skipping response queue.');
+      logWarn_('processUnprocessedFormResponses', '', 'FORM_RESPONSES_SPREADSHEET_ID is not configured; linked Google Form response-sheet queue cannot be processed and no requests will be created.');
       return buildResponseQueueStats_(0, 0, 0);
     }
 
