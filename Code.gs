@@ -6,6 +6,7 @@ function onOpen() {
       .addItem('إعداد/تحديث النظام', 'setupAllFromMenu')
       .addItem('تحديث لوحة الأقسام', 'refreshDashboard')
       .addItem('تحديث القوائم في النموذج', 'refreshFormChoices')
+      .addItem('معالجة الطلبات غير المعالجة', 'processResponseQueueOnce')
       .addItem('إرسال تقييمات مستحقة', 'sendEvaluationEmails')
       .addItem('إعادة تثبيت المشغلات', 'installTriggers')
       .addToUi();
@@ -14,6 +15,18 @@ function onOpen() {
 
 function setupAll() {
   setupAllSystem();
+}
+
+
+function processResponseQueueOnce() {
+  try {
+    var stats = processUnprocessedFormResponses();
+    logInfo_('processResponseQueueOnce', '', formatResponseQueueStats_(stats));
+    return stats;
+  } catch (err) {
+    logError_('processResponseQueueOnce', '', err);
+    throw err;
+  }
 }
 
 function onFormSubmit(e) {
