@@ -25,48 +25,55 @@ const RESPONSE_QUEUE_STATUS = Object.freeze({
 });
 
 function processUnprocessedFormResponses() {
-  var cfg = getConfig();
-  if (!cfg.FORM_RESPONSES_SPREADSHEET_ID) {
-    logInfo_('processUnprocessedFormResponses', '', 'FORM_RESPONSES_SPREADSHEET_ID is not configured; skipping response queue.');
-    return 0;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    var cfg = getConfig();
+    if (!cfg.FORM_RESPONSES_SPREADSHEET_ID) {
+      logInfo_('processUnprocessedFormResponses', '', 'FORM_RESPONSES_SPREADSHEET_ID is not configured; skipping response queue.');
+      return 0;
+    }
+
+    var ss = SpreadsheetApp.openById(cfg.FORM_RESPONSES_SPREADSHEET_ID);
+    var sheet = findFormResponsesSheet_(ss);
+    if (!sheet || sheet.getLastRow() < 2) return 0;
+
+    var map = ensureResponseQueueColumns_(sheet);
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(safeString_);
+    var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+    var processedCount = 0;
+
+    rows.forEach(function(row, index) {
+      var rowNumber = index + 2;
+      if (!hasResponseRowData_(row, headers, map)) return;
+      if (isResponseRowProcessed_(row, map)) return;
+
+      var responseId = makeResponseQueueId_(ss, sheet, rowNumber);
+      var existingRecord = findRequestByResponseId_(responseId);
+      if (existingRecord) {
+        markResponseRowProcessed_(sheet, rowNumber, map, existingRecord[H.RECORD.REQUEST_ID] || responseId, '');
+        processedCount++;
+        return;
+      }
+
+      try {
+        markResponseRowProcessing_(sheet, rowNumber, map);
+        var event = buildFormSubmitEventFromResponseRow_(headers, row, responseId, map);
+        var record = createRequestFromFormData_(event);
+        markResponseRowProcessed_(sheet, rowNumber, map, record[H.RECORD.REQUEST_ID] || responseId, '');
+        processedCount++;
+        logInfo_('processUnprocessedFormResponses', record[H.RECORD.REQUEST_ID], 'Queued form response processed from row ' + rowNumber + '.');
+      } catch (err) {
+        markResponseRowError_(sheet, rowNumber, map, err);
+        logError_('processUnprocessedFormResponses', responseId, err);
+      }
+    });
+
+    return processedCount;
+  } finally {
+    lock.releaseLock();
   }
-
-  var ss = SpreadsheetApp.openById(cfg.FORM_RESPONSES_SPREADSHEET_ID);
-  var sheet = findFormResponsesSheet_(ss);
-  if (!sheet || sheet.getLastRow() < 2) return 0;
-
-  var map = ensureResponseQueueColumns_(sheet);
-  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(safeString_);
-  var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
-  var processedCount = 0;
-
-  rows.forEach(function(row, index) {
-    var rowNumber = index + 2;
-    if (!hasResponseRowData_(row, headers, map)) return;
-    if (isResponseRowProcessed_(row, map)) return;
-
-    var responseId = makeResponseQueueId_(ss, sheet, rowNumber);
-    var existingRecord = findRequestByResponseId_(responseId);
-    if (existingRecord) {
-      markResponseRowProcessed_(sheet, rowNumber, map, existingRecord[H.RECORD.REQUEST_ID] || responseId, '');
-      processedCount++;
-      return;
-    }
-
-    try {
-      markResponseRowProcessing_(sheet, rowNumber, map);
-      var event = buildFormSubmitEventFromResponseRow_(headers, row, responseId, map);
-      var record = createRequestFromFormData_(event);
-      markResponseRowProcessed_(sheet, rowNumber, map, record[H.RECORD.REQUEST_ID] || responseId, '');
-      processedCount++;
-      logInfo_('processUnprocessedFormResponses', record[H.RECORD.REQUEST_ID], 'Queued form response processed from row ' + rowNumber + '.');
-    } catch (err) {
-      markResponseRowError_(sheet, rowNumber, map, err);
-      logError_('processUnprocessedFormResponses', responseId, err);
-    }
-  });
-
-  return processedCount;
 }
 
 function findFormResponsesSheet_(ss) {

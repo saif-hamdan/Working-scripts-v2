@@ -17,6 +17,14 @@ function createRequestFromFormData_(e) {
   var data = parseFormSubmission_(e);
   validateSubmissionData_(data);
 
+  if (data.responseId) {
+    var existingRecord = findRequestByResponseId_(data.responseId);
+    if (existingRecord) {
+      logInfo_('createRequestFromFormData_:idempotent', existingRecord[H.RECORD.REQUEST_ID] || '', 'Request already exists for form response ' + data.responseId + '; skipping duplicate creation.');
+      return existingRecord;
+    }
+  }
+
   var currentUnit = findUnitByName_(data.currentUnit) || { name: data.currentUnit, headName: '', headEmail: '' };
   var trainingUnit = findUnitByName_(data.trainingUnit) || { name: data.trainingUnit, headName: '', headEmail: '' };
   var approver = getApproverForRequest_(data.currentUnit, data.trainingUnit);
