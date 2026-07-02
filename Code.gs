@@ -70,6 +70,44 @@ function shouldStopSync_(startedAt) {
   return true;
 }
 
+function getSyncRuntimeDateKey_(date) {
+  return SYNC_CONFIG.RUNTIME_KEY_PREFIX + Utilities.formatDate(date || new Date(), SYNC_CONFIG.TIMEZONE, 'yyyy-MM-dd');
+}
+
+function getSyncRuntimeUsedToday_() {
+  var value = PropertiesService.getScriptProperties().getProperty(getSyncRuntimeDateKey_());
+  var runtimeMs = Number(value);
+  return isNaN(runtimeMs) || runtimeMs < 0 ? 0 : runtimeMs;
+}
+
+function hasSyncDailyBudgetRemaining_() {
+  return getSyncRuntimeUsedToday_() < SYNC_CONFIG.DAILY_RUNTIME_BUDGET_MS;
+}
+
+function addSyncRuntimeToday_(elapsedMs) {
+  var props = PropertiesService.getScriptProperties();
+  var key = getSyncRuntimeDateKey_();
+  var currentRuntimeMs = Number(props.getProperty(key));
+  if (isNaN(currentRuntimeMs) || currentRuntimeMs < 0) currentRuntimeMs = 0;
+  var updatedRuntimeMs = currentRuntimeMs + Math.max(0, Number(elapsedMs) || 0);
+  props.setProperty(key, String(updatedRuntimeMs));
+  return updatedRuntimeMs;
+}
+
+function cleanupOldSyncRuntimeProperties_() {
+  var props = PropertiesService.getScriptProperties();
+  var allProperties = props.getProperties();
+  var cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - SYNC_CONFIG.RUNTIME_RETENTION_DAYS);
+  var cutoffDateText = Utilities.formatDate(cutoff, SYNC_CONFIG.TIMEZONE, 'yyyy-MM-dd');
+  Object.keys(allProperties).forEach(function(key) {
+    if (key.indexOf(SYNC_CONFIG.RUNTIME_KEY_PREFIX) !== 0) return;
+    var dateText = key.substring(SYNC_CONFIG.RUNTIME_KEY_PREFIX.length);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText)) return;
+    if (dateText < cutoffDateText) props.deleteProperty(key);
+  });
+}
+
 function syncSystem() {
   var startedAt = Date.now();
   if (!isSyncActiveHour_()) {
@@ -85,6 +123,11 @@ function syncSystem() {
   }
 
   try {
+    cleanupOldSyncRuntimeProperties_();
+    if (!hasSyncDailyBudgetRemaining_()) {
+      logInfo_('syncSystem', '', 'syncSystem skipped: estimated daily runtime budget reached.');
+      return;
+    }
     if (shouldStopSync_(startedAt)) return;
     var responseQueueStats = processUnprocessedFormResponses({ skipLock: true, startedAt: startedAt });
     logInfo_('syncSystem', '', formatResponseQueueStats_(responseQueueStats));
@@ -108,7 +151,15 @@ function syncSystem() {
     logError_('syncSystem', '', err);
   } finally {
     if (lockAcquired) {
-      lock.releaseLock();
+      try {
+        var elapsedMs = Date.now() - startedAt;
+        var runtimeUsedTodayMs = addSyncRuntimeToday_(elapsedMs);
+        logInfo_('syncSystem', '', 'Estimated sync runtime used today: ' + runtimeUsedTodayMs + ' ms.');
+      } catch (runtimeErr) {
+        logError_('syncSystem:runtimeTracking', '', runtimeErr);
+      } finally {
+        lock.releaseLock();
+      }
     }
   }
 }
