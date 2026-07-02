@@ -60,6 +60,8 @@ function syncSystem() {
   try {
     var responseQueueStats = processUnprocessedFormResponses({ skipLock: true });
     logInfo_('syncSystem', '', formatResponseQueueStats_(responseQueueStats));
+    var approvalActionQueueStats = processApprovalActionQueue({ skipLock: true });
+    logInfo_('syncSystem', '', formatApprovalActionQueueStats_(approvalActionQueueStats));
     syncReferenceDataFromAdminSheets_();
     processEmailQueue();
     processPendingApprovalEmails();
