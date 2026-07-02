@@ -28,49 +28,80 @@ function handleWebPost(e) {
 }
 
 function handleApprove_(token) {
+  var requestStartMs = Date.now();
   throwIfMissing_(token, 'Missing approval token.');
+
   var lock = LockService.getScriptLock();
-  lock.waitLock(30000);
+  var lockStartMs = Date.now();
+  var lockAcquired = lock.tryLock(5000);
+  var lockWaitMs = Date.now() - lockStartMs;
+  logInfo_('handleApprove_:lock', '', 'Lock acquisition ' + (lockAcquired ? 'succeeded' : 'timed out') + ' after ' + lockWaitMs + ' ms.');
+
+  if (!lockAcquired) {
+    logWarn_('handleApprove_:busy', '', 'System busy; total request time ' + (Date.now() - requestStartMs) + ' ms.');
+    return renderMessagePage_('النظام مشغول', 'System busy', 'النظام مشغول حالياً. يرجى المحاولة مرة أخرى بعد قليل. / The system is busy right now. Please retry in a moment.', false);
+  }
+
+  var requestId = '';
+  var page;
+  var conflictNotification = null;
+
   try {
-    var record = getRequestByToken_(token);
-    if (!record) return renderMessagePage_('رابط غير صالح', 'Invalid link', 'لم يتم العثور على الطلب. / Request was not found.', false);
+    try {
+      var record = getRequestByToken_(token);
+      if (!record) {
+        page = renderMessagePage_('رابط غير صالح', 'Invalid link', 'لم يتم العثور على الطلب. / Request was not found.', false);
+        return page;
+      }
 
-    var requestId = safeString_(record[H.RECORD.REQUEST_ID]);
-    if (safeString_(record[H.RECORD.HEAD_STATUS]) !== STATUS.HEAD_PENDING || safeString_(record[H.RECORD.FINAL_STATUS]) !== STATUS.FINAL_PENDING) {
-      return renderMessagePage_('تمت معالجة الطلب مسبقاً', 'Already processed', 'حالة الطلب الحالية: ' + safeString_(record[H.RECORD.FINAL_STATUS]), true);
-    }
+      requestId = safeString_(record[H.RECORD.REQUEST_ID]);
+      if (safeString_(record[H.RECORD.HEAD_STATUS]) !== STATUS.HEAD_PENDING || safeString_(record[H.RECORD.FINAL_STATUS]) !== STATUS.FINAL_PENDING) {
+        page = renderMessagePage_('تمت معالجة الطلب مسبقاً', 'Already processed', 'حالة الطلب الحالية: ' + safeString_(record[H.RECORD.FINAL_STATUS]), true);
+        return page;
+      }
 
-    var conflict = findConflicts({
-      trainingUnit: record[H.RECORD.TRAINING_UNIT],
-      section: record[H.RECORD.SECTION],
-      startDate: record[H.RECORD.START_DATE],
-      endDate: record[H.RECORD.END_DATE],
-      excludeRequestId: requestId
-    });
+      var conflict = findConflicts({
+        trainingUnit: record[H.RECORD.TRAINING_UNIT],
+        section: record[H.RECORD.SECTION],
+        startDate: record[H.RECORD.START_DATE],
+        endDate: record[H.RECORD.END_DATE],
+        excludeRequestId: requestId
+      });
 
-    if (conflict) {
+      if (conflict) {
+        updateRequestByRow_(record._rowNumber, {
+          [H.RECORD.HEAD_STATUS]: STATUS.HEAD_CONFLICT,
+          [H.RECORD.FINAL_STATUS]: STATUS.FINAL_CONFLICT,
+          [H.RECORD.CONFLICT_ID]: conflict[H.RECORD.REQUEST_ID],
+          [H.RECORD.CONFLICT_DETAILS]: formatConflictDetails_(conflict),
+          [H.RECORD.DECISION_DATE]: now_()
+        });
+        record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_CONFLICT;
+        record[H.RECORD.FINAL_STATUS] = STATUS.FINAL_CONFLICT;
+        record[H.RECORD.CONFLICT_ID] = conflict[H.RECORD.REQUEST_ID];
+        record[H.RECORD.CONFLICT_DETAILS] = formatConflictDetails_(conflict);
+        conflictNotification = { record: record, conflict: conflict, source: 'late_approval' };
+        logInfo_('handleApprove_:conflict', requestId, 'Approval blocked because of conflict.');
+        page = renderMessagePage_('تعذر الاعتماد بسبب التعارض', 'Approval blocked due to conflict', 'يوجد طلب آخر معتمد لنفس القسم وفي فترة متداخلة. سيتم إرسال التفاصيل بالبريد الإلكتروني.', false);
+        return page;
+      }
+
       updateRequestByRow_(record._rowNumber, {
-        [H.RECORD.HEAD_STATUS]: STATUS.HEAD_CONFLICT,
-        [H.RECORD.FINAL_STATUS]: STATUS.FINAL_CONFLICT,
-        [H.RECORD.CONFLICT_ID]: conflict[H.RECORD.REQUEST_ID],
-        [H.RECORD.CONFLICT_DETAILS]: formatConflictDetails_(conflict),
+        [H.RECORD.HEAD_STATUS]: STATUS.HEAD_ACCEPTED,
+        [H.RECORD.FINAL_STATUS]: STATUS.FINAL_PENDING,
         [H.RECORD.DECISION_DATE]: now_()
       });
-      var updated = getRequestById_(requestId);
-      queueConflictNotification(updated, conflict, 'late_approval');
-      logInfo_('handleApprove_:conflict', requestId, 'Approval blocked because of conflict.');
-      return renderMessagePage_('تعذر الاعتماد بسبب التعارض', 'Approval blocked due to conflict', 'يوجد طلب آخر معتمد لنفس القسم وفي فترة متداخلة. سيتم إرسال التفاصيل بالبريد الإلكتروني.', false);
+      logInfo_('handleApprove_', requestId, 'Request approved by unit head; final admin approval remains pending.');
+      page = renderMessagePage_('تم تسجيل القرار', 'Decision Recorded', 'تم تسجيل قرارك بنجاح. يمكنك الآن إغلاق هذه الصفحة. / Your decision has been recorded successfully. You may now close this page.', true);
+      return page;
+    } finally {
+      lock.releaseLock();
     }
-
-    updateRequestByRow_(record._rowNumber, {
-      [H.RECORD.HEAD_STATUS]: STATUS.HEAD_ACCEPTED,
-      [H.RECORD.FINAL_STATUS]: STATUS.FINAL_PENDING,
-      [H.RECORD.DECISION_DATE]: now_()
-    });
-    logInfo_('handleApprove_', requestId, 'Request approved by unit head; final admin approval remains pending.');
-    return renderMessagePage_('تم تسجيل القرار', 'Decision Recorded', 'تم تسجيل قرارك بنجاح. يمكنك الآن إغلاق هذه الصفحة. / Your decision has been recorded successfully. You may now close this page.', true);
   } finally {
-    lock.releaseLock();
+    if (conflictNotification) {
+      queueConflictNotification(conflictNotification.record, conflictNotification.conflict, conflictNotification.source);
+    }
+    logInfo_('handleApprove_:timing', requestId, 'Lock wait ' + lockWaitMs + ' ms; total request time ' + (Date.now() - requestStartMs) + ' ms.');
   }
 }
 
@@ -112,64 +143,87 @@ function rejectRequestFromPage(token, reason) {
 }
 
 function rejectRequest_(token, reason) {
+  var requestStartMs = Date.now();
   throwIfMissing_(token, 'Missing rejection token.');
   throwIfMissing_(reason, 'Rejection reason is required.');
+
   var lock = LockService.getScriptLock();
-  lock.waitLock(30000);
+  var lockStartMs = Date.now();
+  var lockAcquired = lock.tryLock(5000);
+  var lockWaitMs = Date.now() - lockStartMs;
+  logInfo_('handleRejectSubmit_:lock', '', 'Lock acquisition ' + (lockAcquired ? 'succeeded' : 'timed out') + ' after ' + lockWaitMs + ' ms.');
+
+  if (!lockAcquired) {
+    logWarn_('handleRejectSubmit_:busy', '', 'System busy; total request time ' + (Date.now() - requestStartMs) + ' ms.');
+    return {
+      titleAr: 'النظام مشغول',
+      titleEn: 'System busy',
+      message: 'النظام مشغول حالياً. يرجى المحاولة مرة أخرى بعد قليل. / The system is busy right now. Please retry in a moment.',
+      success: false
+    };
+  }
+
+  var requestId = '';
+  var rejectedRecord = null;
+  var result;
+
   try {
-    var record = getRequestByToken_(token);
-    if (!record) {
-      return {
-        titleAr: 'رابط غير صالح',
-        titleEn: 'Invalid link',
-        message: 'لم يتم العثور على الطلب. / Request was not found.',
-        success: false
-      };
-    }
-    var requestId = safeString_(record[H.RECORD.REQUEST_ID]);
-    if (safeString_(record[H.RECORD.HEAD_STATUS]) !== STATUS.HEAD_PENDING || safeString_(record[H.RECORD.FINAL_STATUS]) !== STATUS.FINAL_PENDING) {
-      return {
-        titleAr: 'تمت معالجة الطلب مسبقاً',
-        titleEn: 'Already processed',
-        message: 'حالة الطلب الحالية: ' + safeString_(record[H.RECORD.FINAL_STATUS]),
+    try {
+      var record = getRequestByToken_(token);
+      if (!record) {
+        result = {
+          titleAr: 'رابط غير صالح',
+          titleEn: 'Invalid link',
+          message: 'لم يتم العثور على الطلب. / Request was not found.',
+          success: false
+        };
+        return result;
+      }
+      requestId = safeString_(record[H.RECORD.REQUEST_ID]);
+      if (safeString_(record[H.RECORD.HEAD_STATUS]) !== STATUS.HEAD_PENDING || safeString_(record[H.RECORD.FINAL_STATUS]) !== STATUS.FINAL_PENDING) {
+        result = {
+          titleAr: 'تمت معالجة الطلب مسبقاً',
+          titleEn: 'Already processed',
+          message: 'حالة الطلب الحالية: ' + safeString_(record[H.RECORD.FINAL_STATUS]),
+          success: true
+        };
+        return result;
+      }
+
+      rejectedRecord = Object.assign({}, record);
+      rejectedRecord[H.RECORD.HEAD_STATUS] = STATUS.HEAD_REJECTED;
+      rejectedRecord[H.RECORD.FINAL_STATUS] = STATUS.FINAL_REJECTED;
+      rejectedRecord[H.RECORD.REJECTION_REASON] = reason;
+      rejectedRecord[H.RECORD.DECISION_DATE] = now_();
+
+      updateRequestByRow_(record._rowNumber, {
+        [H.RECORD.HEAD_STATUS]: STATUS.HEAD_REJECTED,
+        [H.RECORD.FINAL_STATUS]: STATUS.FINAL_REJECTED,
+        [H.RECORD.REJECTION_REASON]: reason,
+        [H.RECORD.DECISION_DATE]: rejectedRecord[H.RECORD.DECISION_DATE]
+      });
+      logInfo_('handleRejectSubmit_', requestId, 'Request rejected by unit head; rejection email will be sent outside the lock.');
+      result = {
+        titleAr: 'تم تسجيل القرار',
+        titleEn: 'Decision Recorded',
+        message: 'تم تسجيل قرارك بنجاح وسيتم إرسال البريد. يمكنك الآن إغلاق هذه الصفحة. / Your decision was recorded successfully and the email will be sent. You may now close this page.',
         success: true
       };
+      return result;
+    } finally {
+      lock.releaseLock();
     }
-    var rejectedRecord = Object.assign({}, record);
-    rejectedRecord[H.RECORD.HEAD_STATUS] = STATUS.HEAD_REJECTED;
-    rejectedRecord[H.RECORD.FINAL_STATUS] = STATUS.FINAL_REJECTED;
-    rejectedRecord[H.RECORD.REJECTION_REASON] = reason;
-    rejectedRecord[H.RECORD.DECISION_DATE] = now_();
-
-    if (sendRejectedNotification(rejectedRecord) !== true) {
-      logInfo_(
-        'handleRejectSubmit_:emailPendingRetry',
-        requestId,
-        'Unit-head rejection was not recorded because the rejection email was not sent; sendEmailSafe_ queued it for retry.'
-      );
-      return {
-        titleAr: 'تعذر إرسال البريد',
-        titleEn: 'Email Failed',
-        message: 'تعذر إرسال بريد الرفض؛ لم يتم تغيير حالة الطلب، والبريد بانتظار إعادة المحاولة. / Failed to send rejection email; request status was not changed. Email is pending retry.',
-        success: false
-      };
-    }
-
-    updateRequestByRow_(record._rowNumber, {
-      [H.RECORD.HEAD_STATUS]: STATUS.HEAD_REJECTED,
-      [H.RECORD.FINAL_STATUS]: STATUS.FINAL_REJECTED,
-      [H.RECORD.REJECTION_REASON]: reason,
-      [H.RECORD.DECISION_DATE]: rejectedRecord[H.RECORD.DECISION_DATE]
-    });
-    logInfo_('handleRejectSubmit_', requestId, 'Request rejected after email was sent.');
-    return {
-      titleAr: 'تم تسجيل القرار',
-      titleEn: 'Decision Recorded',
-      message: 'تم إرسال البريد وتسجيل قرارك بنجاح. يمكنك الآن إغلاق هذه الصفحة. / Email was sent and your decision was recorded successfully. You may now close this page.',
-      success: true
-    };
   } finally {
-    lock.releaseLock();
+    if (rejectedRecord) {
+      if (sendRejectedNotification(rejectedRecord) !== true) {
+        logInfo_(
+          'handleRejectSubmit_:emailPendingRetry',
+          requestId,
+          'Unit-head rejection was recorded; rejection email was queued for retry outside the lock.'
+        );
+      }
+    }
+    logInfo_('handleRejectSubmit_:timing', requestId, 'Lock wait ' + lockWaitMs + ' ms; total request time ' + (Date.now() - requestStartMs) + ' ms.');
   }
 }
 
