@@ -16,7 +16,15 @@
         <div class="intro-ar">تم رفض طلب التدريب تلقائياً لأن الموظف لديه تدريب معتمد ونشط حالياً.</div>
         <div class="intro-en">The training request was automatically rejected because the employee currently has active approved training.</div>
 
-        <?!= include('RequestDetailsPartial'); ?>
+        <table class="details">
+          <tr><th>البيان / Field</th><th>القيمة / Value</th></tr>
+          <? for (var i = 0; i < data.rows.length; i++) { ?>
+            <tr>
+              <th><?= data.rows[i].ar ?> / <?= data.rows[i].en ?></th>
+              <td><?= data.rows[i].value ?></td>
+            </tr>
+          <? } ?>
+        </table>
 
         <div class="danger" dir="rtl">
           <strong>سبب الرفض / Rejection Reason:</strong><br>
