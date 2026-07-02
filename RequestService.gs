@@ -303,16 +303,19 @@ function isRecordActiveOrApproved_(record) {
   return head === STATUS.HEAD_ACCEPTED && ACTIVE_FINAL_STATUSES.indexOf(finalStatus) !== -1;
 }
 
-function processPendingApprovalEmails() {
+function processPendingApprovalEmails(options) {
+  options = options || {};
   var records = getRecords_();
-  records.forEach(function(record) {
-    if (safeString_(record[H.RECORD.HEAD_STATUS]) !== STATUS.HEAD_PENDING) return;
-    if (safeString_(record[H.RECORD.FINAL_STATUS]) !== STATUS.FINAL_PENDING) return;
-    if (safeString_(record[H.RECORD.APPROVAL_EMAIL_SENT_AT])) return;
+  for (var i = 0; i < records.length; i++) {
+    var record = records[i];
+    if (safeString_(record[H.RECORD.HEAD_STATUS]) !== STATUS.HEAD_PENDING) continue;
+    if (safeString_(record[H.RECORD.FINAL_STATUS]) !== STATUS.FINAL_PENDING) continue;
+    if (safeString_(record[H.RECORD.APPROVAL_EMAIL_SENT_AT])) continue;
     var retryCount = toNumber_(record[H.RECORD.EMAIL_RETRY_COUNT], 0);
-    if (retryCount > 0) return;
+    if (retryCount > 0) continue;
+    if (shouldStopSync_(options.startedAt)) break;
     var sent = sendApprovalEmail(record);
     if (sent) updateRequestByRow_(record._rowNumber, { [H.RECORD.APPROVAL_EMAIL_SENT_AT]: now_() });
     else updateRequestByRow_(record._rowNumber, { [H.RECORD.EMAIL_RETRY_COUNT]: retryCount + 1 });
-  });
+  }
 }

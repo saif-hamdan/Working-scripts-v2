@@ -201,14 +201,17 @@ function queueEmail_(payload, context, error) {
   try { sheet.hideSheet(); } catch (ignore) {}
 }
 
-function processEmailQueue() {
+function processEmailQueue(options) {
+  options = options || {};
   var sheet = getOrCreateSheet_(SHEETS.EMAIL_QUEUE);
   setSheetHeaders_(sheet, QUEUE_HEADERS);
   var rows = getDataObjects_(sheet);
-  rows.forEach(function(row) {
-    if (safeString_(row[H.QUEUE.STATUS]) === STATUS.QUEUE_SENT) return;
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    if (safeString_(row[H.QUEUE.STATUS]) === STATUS.QUEUE_SENT) continue;
     var attempts = toNumber_(row[H.QUEUE.ATTEMPTS], 0);
-    if (attempts >= 5) return;
+    if (attempts >= 5) continue;
+    if (shouldStopSync_(options.startedAt)) break;
     var context = parseJsonSafe_(row[H.QUEUE.CONTEXT_JSON], {});
     try {
       MailApp.sendEmail({
@@ -241,5 +244,5 @@ function processEmailQueue() {
       });
       logError_('processEmailQueue', context.requestId || '', err);
     }
-  });
+  }
 }
