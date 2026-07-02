@@ -85,6 +85,11 @@ function syncReferenceDataFromAdminSheets_(options) {
     applyCleanTableFormatting_(runtimeSections, SECTION_HEADERS.length);
   }
   try { runtimeUnits.hideSheet(); runtimeSections.hideSheet(); } catch (ignore) {}
+  return {
+    unitsChanged: unitsChanged,
+    sectionsChanged: sectionsChanged,
+    changed: unitsChanged || sectionsChanged
+  };
 }
 
 
