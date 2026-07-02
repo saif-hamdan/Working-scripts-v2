@@ -108,6 +108,43 @@ function cleanupOldSyncRuntimeProperties_() {
   });
 }
 
+function getSyncLastFullRefreshAt_() {
+  var value = PropertiesService.getScriptProperties().getProperty(SYNC_CONFIG.LAST_FULL_REFRESH_KEY);
+  var timestamp = Number(value);
+  return isNaN(timestamp) || timestamp < 0 ? 0 : timestamp;
+}
+
+function setSyncLastFullRefreshAt_(timestamp) {
+  PropertiesService.getScriptProperties().setProperty(
+    SYNC_CONFIG.LAST_FULL_REFRESH_KEY,
+    String(timestamp || Date.now())
+  );
+}
+
+function shouldRunScheduledFullRefresh_(nowMs) {
+  var lastFullRefreshAt = getSyncLastFullRefreshAt_();
+  return !lastFullRefreshAt || nowMs - lastFullRefreshAt >= SYNC_CONFIG.FULL_REFRESH_INTERVAL_MS;
+}
+
+function hasSyncQueueChanges_(responseQueueStats, approvalActionQueueStats, emailQueueStats) {
+  return toNumber_(responseQueueStats && responseQueueStats.processed, 0) > 0 ||
+    toNumber_(responseQueueStats && responseQueueStats.failed, 0) > 0 ||
+    toNumber_(approvalActionQueueStats && approvalActionQueueStats.processed, 0) > 0 ||
+    toNumber_(approvalActionQueueStats && approvalActionQueueStats.failed, 0) > 0 ||
+    toNumber_(emailQueueStats && emailQueueStats.sent, 0) > 0 ||
+    toNumber_(emailQueueStats && emailQueueStats.failed, 0) > 0;
+}
+
+function runFullSyncRefresh_(startedAt) {
+  refreshDashboard(true);
+  if (shouldStopSync_(startedAt)) return false;
+  refreshCharts();
+  if (shouldStopSync_(startedAt)) return false;
+  refreshFormChoices(true);
+  setSyncLastFullRefreshAt_(Date.now());
+  return true;
+}
+
 function syncSystem() {
   var startedAt = Date.now();
   if (!isSyncActiveHour_()) {
@@ -137,15 +174,18 @@ function syncSystem() {
     if (shouldStopSync_(startedAt)) return;
     syncReferenceDataFromAdminSheets_();
     if (shouldStopSync_(startedAt)) return;
-    processEmailQueue({ startedAt: startedAt });
+    var emailQueueStats = processEmailQueue({ startedAt: startedAt });
     if (shouldStopSync_(startedAt)) return;
     processPendingApprovalEmails({ startedAt: startedAt });
     if (shouldStopSync_(startedAt)) return;
-    refreshDashboard(true);
-    if (shouldStopSync_(startedAt)) return;
-    refreshCharts();
-    if (shouldStopSync_(startedAt)) return;
-    refreshFormChoices(true);
+    var queueChanged = hasSyncQueueChanges_(responseQueueStats, approvalActionQueueStats, emailQueueStats);
+    var scheduledRefreshDue = shouldRunScheduledFullRefresh_(Date.now());
+    if (queueChanged || scheduledRefreshDue) {
+      if (!runFullSyncRefresh_(startedAt)) return;
+      logInfo_('syncSystem', '', 'Full refresh completed; reason: ' + (queueChanged ? 'queue changes' : 'scheduled interval') + '.');
+    } else {
+      logInfo_('syncSystem', '', 'Full refresh skipped: no queue changes and scheduled interval has not elapsed.');
+    }
     logInfo_('syncSystem', '', 'Sync completed in ' + (Date.now() - startedAt) + ' ms.');
   } catch (err) {
     logError_('syncSystem', '', err);

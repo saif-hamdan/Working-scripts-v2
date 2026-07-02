@@ -206,11 +206,18 @@ function processEmailQueue(options) {
   var sheet = getOrCreateSheet_(SHEETS.EMAIL_QUEUE);
   setSheetHeaders_(sheet, QUEUE_HEADERS);
   var rows = getDataObjects_(sheet);
+  var stats = { sent: 0, failed: 0, skipped: 0 };
   for (var i = 0; i < rows.length; i++) {
     var row = rows[i];
-    if (safeString_(row[H.QUEUE.STATUS]) === STATUS.QUEUE_SENT) continue;
+    if (safeString_(row[H.QUEUE.STATUS]) === STATUS.QUEUE_SENT) {
+      stats.skipped++;
+      continue;
+    }
     var attempts = toNumber_(row[H.QUEUE.ATTEMPTS], 0);
-    if (attempts >= 5) continue;
+    if (attempts >= 5) {
+      stats.skipped++;
+      continue;
+    }
     if (shouldStopSync_(options.startedAt)) break;
     var context = parseJsonSafe_(row[H.QUEUE.CONTEXT_JSON], {});
     try {
@@ -235,6 +242,7 @@ function processEmailQueue(options) {
           updateRequestByRow_(record._rowNumber, { [H.RECORD.APPROVAL_EMAIL_SENT_AT]: now_() });
         }
       }
+      stats.sent++;
     } catch (err) {
       updateObjectRow_(sheet, row._rowNumber, {
         [H.QUEUE.STATUS]: attempts + 1 >= 5 ? STATUS.QUEUE_FAILED : STATUS.QUEUE_PENDING,
@@ -242,7 +250,12 @@ function processEmailQueue(options) {
         [H.QUEUE.LAST_ATTEMPT_AT]: now_(),
         [H.QUEUE.LAST_ERROR]: err.message
       });
+      stats.failed++;
       logError_('processEmailQueue', context.requestId || '', err);
     }
   }
+  logInfo_('processEmailQueue', '', 'Email queue sent: ' + stats.sent +
+    ', skipped: ' + stats.skipped +
+    ', failed: ' + stats.failed + '.');
+  return stats;
 }
