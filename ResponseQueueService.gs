@@ -28,6 +28,7 @@ const RESPONSE_QUEUE_STATUS = Object.freeze({
 function processUnprocessedFormResponses(options) {
   options = options || {};
   var lock = options.skipLock ? null : LockService.getScriptLock();
+  var requestCreationOptions = { deferRefresh: options.deferRefresh === true };
   if (lock) lock.waitLock(30000);
 
   try {
@@ -88,7 +89,7 @@ function processUnprocessedFormResponses(options) {
         var sourceInfo = buildRequestSourceInfo_(data);
         sourceInfo.responseId = responseId;
         sourceInfo.responseSourceId = responseSourceId;
-        var record = createRequestFromNormalizedData_(data, sourceInfo);
+        var record = createRequestFromNormalizedData_(data, sourceInfo, requestCreationOptions);
         markResponseRowProcessed_(sheet, rowNumber, map, record[H.RECORD.REQUEST_ID] || responseId, '');
         processedCount++;
         logInfo_('processUnprocessedFormResponses', record[H.RECORD.REQUEST_ID], 'Queued form response processed from row ' + rowNumber + '.');
