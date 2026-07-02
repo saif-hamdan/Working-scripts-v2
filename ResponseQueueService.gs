@@ -39,6 +39,16 @@ function processUnprocessedFormResponses(options) {
     }
 
     setupSheets();
+    var existingRecords = getRecords_();
+    var recordsByResponseSourceId = {};
+    var recordsByResponseId = {};
+    existingRecords.forEach(function(record) {
+      var responseSourceId = safeString_(record[H.RECORD.FORM_RESPONSE_SOURCE_ID]);
+      var responseId = safeString_(record[H.RECORD.FORM_RESPONSE_ID]);
+      if (responseSourceId && !recordsByResponseSourceId[responseSourceId]) recordsByResponseSourceId[responseSourceId] = record;
+      if (responseId && !recordsByResponseId[responseId]) recordsByResponseId[responseId] = record;
+    });
+
     var ss = SpreadsheetApp.openById(cfg.FORM_RESPONSES_SPREADSHEET_ID);
     var sheet = findFormResponsesSheet_(ss);
     if (!sheet || sheet.getLastRow() < 2) return buildResponseQueueStats_(0, 0, 0);
@@ -76,7 +86,7 @@ function processUnprocessedFormResponses(options) {
       try {
         var data = null;
         var responseSourceId = makeResponseSourceIdFromRow_(headers, row, map);
-        var existingRecord = findRequestByResponseSourceId_(responseSourceId) || findRequestByResponseId_(responseId);
+        var existingRecord = (responseSourceId ? recordsByResponseSourceId[responseSourceId] : null) || recordsByResponseId[responseId];
         if (existingRecord) {
           markResponseRowProcessed_(sheet, rowNumber, map, existingRecord[H.RECORD.REQUEST_ID] || responseId, '');
           skippedCount++;
@@ -90,6 +100,8 @@ function processUnprocessedFormResponses(options) {
         sourceInfo.responseId = responseId;
         sourceInfo.responseSourceId = responseSourceId;
         var record = createRequestFromNormalizedData_(data, sourceInfo, requestCreationOptions);
+        if (responseSourceId && !recordsByResponseSourceId[responseSourceId]) recordsByResponseSourceId[responseSourceId] = record;
+        if (responseId && !recordsByResponseId[responseId]) recordsByResponseId[responseId] = record;
         markResponseRowProcessed_(sheet, rowNumber, map, record[H.RECORD.REQUEST_ID] || responseId, '');
         processedCount++;
         logInfo_('processUnprocessedFormResponses', record[H.RECORD.REQUEST_ID], 'Queued form response processed from row ' + rowNumber + '.');
