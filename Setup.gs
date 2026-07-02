@@ -5,13 +5,13 @@ function setupAllSystem() {
   try {
     setupSheets();
     setupFormStructure();
+    setupResponseQueueSheet_();
     setupValidations();
     protectDashboardSheets();
     refreshDashboard();
     refreshCharts();
     refreshFormChoices();
     installTriggers();
-    warnIfResponseQueueMissing_();
     logInfo_('setupAllSystem', '', 'Setup completed successfully.');
   } catch (err) {
     logError_('setupAllSystem', '', err);
@@ -92,9 +92,31 @@ function setupAllFromMenu() {
 }
 
 
+function setupResponseQueueSheet_() {
+  var cfg = getConfig();
+  if (!cfg.FORM_RESPONSES_SPREADSHEET_ID) {
+    warnIfResponseQueueMissing_();
+    return false;
+  }
+
+  var ss = SpreadsheetApp.openById(cfg.FORM_RESPONSES_SPREADSHEET_ID);
+  var sheet = findFormResponsesSheet_(ss);
+  if (!sheet) {
+    throw new Error('Could not find a Google Form responses sheet in FORM_RESPONSES_SPREADSHEET_ID.');
+  }
+
+  ensureResponseQueueColumns_(sheet);
+  logInfo_('setupResponseQueueSheet_', '', 'Response queue sheet verified: ' + sheet.getName());
+  return true;
+}
+
 function warnIfResponseQueueMissing_() {
   var cfg = getConfig();
   if (!cfg.FORM_RESPONSES_SPREADSHEET_ID) {
-    logWarn_('setupAllSystem', '', 'FORM_RESPONSES_SPREADSHEET_ID is required because requests are created only by processUnprocessedFormResponses() from the linked Google Form response sheet.');
+    logWarn_(
+      'setupResponseQueueSheet_',
+      '',
+      'FORM_RESPONSES_SPREADSHEET_ID is not configured; response queue columns could not be verified.'
+    );
   }
 }
