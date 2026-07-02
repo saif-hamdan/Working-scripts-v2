@@ -38,7 +38,9 @@ function getRecords_() {
   return getDataObjects_(sheet);
 }
 
-function syncReferenceDataFromAdminSheets_() {
+function syncReferenceDataFromAdminSheets_(options) {
+  options = options || {};
+  var forceFormat = options.forceFormat === true;
   var ss = openDashboardSpreadsheet_();
   var adminUnits = ensureSheet_(ss, SHEETS.ADMIN_UNITS);
   var adminSections = ensureSheet_(ss, SHEETS.ADMIN_SECTIONS);
@@ -59,14 +61,40 @@ function syncReferenceDataFromAdminSheets_() {
 
   var units = normalizeAdminUnitRows_(getDataObjects_(adminUnits));
   var sections = normalizeAdminSectionRows_(getDataObjects_(adminSections));
-  if (units.length) clearAndWriteObjects_(runtimeUnits, UNIT_HEADERS, units);
-  if (sections.length) clearAndWriteObjects_(runtimeSections, SECTION_HEADERS, sections);
+  var props = PropertiesService.getScriptProperties();
+  var unitsChecksum = makeReferenceChecksum_(units);
+  var sectionsChecksum = makeReferenceChecksum_(sections);
+  var unitsChanged = unitsChecksum !== props.getProperty('REFERENCE_UNITS_CHECKSUM');
+  var sectionsChanged = sectionsChecksum !== props.getProperty('REFERENCE_SECTIONS_CHECKSUM');
 
-  applyCleanTableFormatting_(adminUnits, UNIT_HEADERS.length);
-  applyCleanTableFormatting_(adminSections, SECTION_HEADERS.length);
-  applyCleanTableFormatting_(runtimeUnits, UNIT_HEADERS.length);
-  applyCleanTableFormatting_(runtimeSections, SECTION_HEADERS.length);
+  if (units.length && unitsChanged) {
+    clearAndWriteObjects_(runtimeUnits, UNIT_HEADERS, units);
+  }
+  if (sections.length && sectionsChanged) {
+    clearAndWriteObjects_(runtimeSections, SECTION_HEADERS, sections);
+  }
+  props.setProperties({
+    REFERENCE_UNITS_CHECKSUM: unitsChecksum,
+    REFERENCE_SECTIONS_CHECKSUM: sectionsChecksum
+  }, false);
+
+  if (forceFormat) {
+    applyCleanTableFormatting_(adminUnits, UNIT_HEADERS.length);
+    applyCleanTableFormatting_(adminSections, SECTION_HEADERS.length);
+    applyCleanTableFormatting_(runtimeUnits, UNIT_HEADERS.length);
+    applyCleanTableFormatting_(runtimeSections, SECTION_HEADERS.length);
+  }
   try { runtimeUnits.hideSheet(); runtimeSections.hideSheet(); } catch (ignore) {}
+}
+
+
+function makeReferenceChecksum_(rows) {
+  var json = JSON.stringify(rows || []);
+  var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, json, Utilities.Charset.UTF_8);
+  return digest.map(function(byte) {
+    var value = byte < 0 ? byte + 256 : byte;
+    return ('0' + value.toString(16)).slice(-2);
+  }).join('');
 }
 
 function normalizeAdminUnitRows_(rows) {

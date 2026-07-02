@@ -27,7 +27,7 @@ function setupSheets() {
   writeSettingsFromConfig_(ss);
   ensureReferenceSheets_(ss);
   ensureSystemSheets_(ss);
-  syncReferenceDataFromAdminSheets_();
+  syncReferenceDataFromAdminSheets_({ forceFormat: true });
 }
 
 function ensureMainSheets_(ss) {

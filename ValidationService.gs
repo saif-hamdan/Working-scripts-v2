@@ -235,7 +235,7 @@ function handleAdminReferenceEdit_(e) {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(25000)) return;
   try {
-    syncReferenceDataFromAdminSheets_();
+    syncReferenceDataFromAdminSheets_({ forceFormat: true });
     refreshDashboard(true);
     refreshCharts();
     refreshFormChoices(true);
