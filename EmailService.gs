@@ -206,7 +206,7 @@ function processEmailQueue(options) {
   var sheet = getOrCreateSheet_(SHEETS.EMAIL_QUEUE);
   setSheetHeaders_(sheet, QUEUE_HEADERS);
   var rows = getDataObjects_(sheet);
-  var stats = { sent: 0, failed: 0, skipped: 0 };
+  var stats = { sent: 0, processed: 0, failed: 0, skipped: 0, stoppedEarly: false };
   for (var i = 0; i < rows.length; i++) {
     var row = rows[i];
     if (safeString_(row[H.QUEUE.STATUS]) === STATUS.QUEUE_SENT) {
@@ -218,7 +218,10 @@ function processEmailQueue(options) {
       stats.skipped++;
       continue;
     }
-    if (shouldStopSync_(options.startedAt)) break;
+    if (shouldStopSync_(options.startedAt)) {
+      stats.stoppedEarly = true;
+      break;
+    }
     var context = parseJsonSafe_(row[H.QUEUE.CONTEXT_JSON], {});
     try {
       MailApp.sendEmail({
@@ -243,6 +246,7 @@ function processEmailQueue(options) {
         }
       }
       stats.sent++;
+      stats.processed++;
     } catch (err) {
       updateObjectRow_(sheet, row._rowNumber, {
         [H.QUEUE.STATUS]: attempts + 1 >= 5 ? STATUS.QUEUE_FAILED : STATUS.QUEUE_PENDING,
@@ -256,6 +260,7 @@ function processEmailQueue(options) {
   }
   logInfo_('processEmailQueue', '', 'Email queue sent: ' + stats.sent +
     ', skipped: ' + stats.skipped +
-    ', failed: ' + stats.failed + '.');
+    ', failed: ' + stats.failed +
+    ', stoppedEarly: ' + stats.stoppedEarly + '.');
   return stats;
 }
