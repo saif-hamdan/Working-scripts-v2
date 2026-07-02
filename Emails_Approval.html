@@ -13,8 +13,8 @@
         <div class="title-en">New Employee Training Approval Request</div>
       </div>
       <div class="content">
-        <div class="intro-ar">يرجى مراجعة تفاصيل الطلب أدناه ثم اختيار الموافقة أو الرفض. هذه الرسالة مخصصة لرئيس الوحدة فقط. سيتم التحقق من التعارضات مرة أخرى عند الضغط على زر الموافقة.</div>
-        <div class="intro-en">Please review the request details below, then approve or reject. This message is intended only for the unit head. The system will re-check conflicts again when you click Approve.</div>
+        <div class="intro-ar">يرجى مراجعة الطلب. اختر موافقة أو رفض.</div>
+        <div class="intro-en">Please review the request. Then approve or reject.</div>
         
 <table class="details">
   <tr><th>البيان / Field</th><th>القيمة / Value</th></tr>
@@ -31,13 +31,13 @@
           <a class="btn btn-approve" href="<?= data.approveUrl ?>">موافقة / Approve</a>
           <a class="btn btn-reject" href="<?= data.rejectUrl ?>">رفض / Reject</a>
         </div>
-        <div class="note" dir="rtl">ملاحظة: إذا تم اعتماد طلب آخر لنفس القسم وفي نفس الفترة قبل موافقتكم، سيتم منع الاعتماد تلقائياً وإرسال تفاصيل التعارض.</div>
-        <div class="note">Note: If another overlapping request is approved first for the same section, this approval will be blocked automatically and conflict details will be emailed.</div>
+        <div class="note" dir="rtl">ملاحظة: قد يتم منع الاعتماد إذا ظهر تعارض.</div>
+        <div class="note">Note: Approval may be blocked if a conflict appears.</div>
 
       </div>
       <div class="footer">
-        <div dir="rtl">هذه رسالة آلية من <?= data.orgAr ?>، يرجى عدم الرد على هذه الرسالة.</div>
-        <div>This is an automated message from <?= data.orgEn ?>. Please do not reply to this email.</div>
+        <div dir="rtl">رسالة آلية من <?= data.orgAr ?>. يرجى عدم الرد.</div>
+        <div>Automated message from <?= data.orgEn ?>. Please do not reply.</div>
       </div>
     </div>
   </div>
