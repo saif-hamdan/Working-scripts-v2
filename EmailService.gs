@@ -233,10 +233,17 @@ function processEmailQueue(options) {
   options = options || {};
   var sheet = getOrCreateSheet_(SHEETS.EMAIL_QUEUE);
   setSheetHeaders_(sheet, QUEUE_HEADERS);
-  var rows = getDataObjects_(sheet);
-  var stats = { sent: 0, processed: 0, failed: 0, skipped: 0, stoppedEarly: false };
-  for (var i = 0; i < rows.length; i++) {
-    var row = rows[i];
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  var scanWindow = Math.max(EMAIL_QUEUE_BATCH_SIZE, QUEUE_SCAN_WINDOW_ROWS);
+  var startRow = Math.max(2, lastRow - scanWindow + 1);
+  var headers = lastRow >= 1 ? sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(safeString_) : [];
+  var rows = lastRow >= 2 ? sheet.getRange(startRow, 1, lastRow - startRow + 1, lastCol).getValues() : [];
+  var stats = { sent: 0, processed: 0, failed: 0, skipped: 0, scanned: 0, remainingLikely: startRow > 2, stoppedEarly: false };
+  var actionableCount = 0;
+  for (var i = rows.length - 1; i >= 0; i--) {
+    var row = objectFromQueueRow_(headers, rows[i], startRow + i);
+    stats.scanned++;
     if (safeString_(row[H.QUEUE.STATUS]) === STATUS.QUEUE_SENT) {
       stats.skipped++;
       continue;
@@ -246,10 +253,16 @@ function processEmailQueue(options) {
       stats.skipped++;
       continue;
     }
-    if (shouldStopSync_(options.startedAt)) {
-      stats.stoppedEarly = true;
+    if (actionableCount >= EMAIL_QUEUE_BATCH_SIZE) {
+      stats.remainingLikely = true;
       break;
     }
+    if (shouldStopSync_(options.startedAt)) {
+      stats.stoppedEarly = true;
+      stats.remainingLikely = true;
+      break;
+    }
+    actionableCount++;
     var context = parseJsonSafe_(row[H.QUEUE.CONTEXT_JSON], {});
     try {
       var message = {
@@ -289,6 +302,8 @@ function processEmailQueue(options) {
   logInfo_('processEmailQueue', '', 'Email queue sent: ' + stats.sent +
     ', skipped: ' + stats.skipped +
     ', failed: ' + stats.failed +
+    ', scanned: ' + stats.scanned +
+    ', remainingLikely: ' + stats.remainingLikely +
     ', stoppedEarly: ' + stats.stoppedEarly + '.');
   return stats;
 }

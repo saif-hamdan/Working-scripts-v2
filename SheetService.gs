@@ -71,6 +71,15 @@ function getDataObjects_(sheet) {
   return objects;
 }
 
+
+function objectFromQueueRow_(headers, row, rowNumber) {
+  var obj = { _rowNumber: rowNumber };
+  headers.forEach(function(header, colIndex) {
+    if (header) obj[header] = row[colIndex];
+  });
+  return obj;
+}
+
 function appendObjectRow_(sheet, headers, obj) {
   var row = headers.map(function(header) {
     return obj[header] === undefined ? '' : obj[header];
