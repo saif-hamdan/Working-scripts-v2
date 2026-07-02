@@ -19,7 +19,7 @@ This folder is the production Apps Script project for the Google Forms + Google 
   - `سجل النظام`
   - `طابور البريد`
 - Unit → section Google Form branching, so the form does not show 500+ sections at once.
-- Approval/rejection web app links with secure tokens.
+- Approval/rejection web app links with secure tokens; approval emails are sent only to the unit head.
 - Required rejection reason page.
 - Conflict checking on submission and again on approval.
 - Immediate auto-rejection if the employee already has active approved training.
