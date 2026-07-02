@@ -35,7 +35,7 @@ function processUnprocessedFormResponses(options) {
     var cfg = getConfig();
     if (!cfg.FORM_RESPONSES_SPREADSHEET_ID) {
       logWarn_('processUnprocessedFormResponses', '', 'FORM_RESPONSES_SPREADSHEET_ID is not configured; linked Google Form response-sheet queue cannot be processed and no requests will be created.');
-      return buildResponseQueueStats_(0, 0, 0);
+      return buildResponseQueueStats_(0, 0, 0, false, 0, false);
     }
 
     setupSheets();
@@ -51,19 +51,26 @@ function processUnprocessedFormResponses(options) {
 
     var ss = SpreadsheetApp.openById(cfg.FORM_RESPONSES_SPREADSHEET_ID);
     var sheet = findFormResponsesSheet_(ss);
-    if (!sheet || sheet.getLastRow() < 2) return buildResponseQueueStats_(0, 0, 0);
+    if (!sheet || sheet.getLastRow() < 2) return buildResponseQueueStats_(0, 0, 0, false, 0, false);
 
     var map = ensureResponseQueueColumns_(sheet);
     var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(safeString_);
-    var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+    var lastRow = sheet.getLastRow();
+    var scanWindow = Math.max(RESPONSE_QUEUE_BATCH_SIZE, QUEUE_SCAN_WINDOW_ROWS);
+    var startRow = Math.max(2, lastRow - scanWindow + 1);
+    var rows = sheet.getRange(startRow, 1, lastRow - startRow + 1, sheet.getLastColumn()).getValues();
     var processedCount = 0;
     var skippedCount = 0;
     var failedCount = 0;
     var stoppedEarly = false;
+    var scannedCount = 0;
+    var actionableCount = 0;
+    var remainingLikely = startRow > 2;
 
-    for (var index = 0; index < rows.length; index++) {
+    for (var index = rows.length - 1; index >= 0; index--) {
       var row = rows[index];
-      var rowNumber = index + 2;
+      var rowNumber = startRow + index;
+      scannedCount++;
       if (!hasResponseRowData_(row, headers, map)) {
         skippedCount++;
         continue;
@@ -77,10 +84,16 @@ function processUnprocessedFormResponses(options) {
         skippedCount++;
         continue;
       }
-      if (shouldStopSync_(options.startedAt)) {
-        stoppedEarly = true;
+      if (actionableCount >= RESPONSE_QUEUE_BATCH_SIZE) {
+        remainingLikely = true;
         break;
       }
+      if (shouldStopSync_(options.startedAt)) {
+        stoppedEarly = true;
+        remainingLikely = true;
+        break;
+      }
+      actionableCount++;
 
       var responseId = makeResponseQueueId_(ss, sheet, rowNumber);
       try {
@@ -117,7 +130,7 @@ function processUnprocessedFormResponses(options) {
       }
     }
 
-    var stats = buildResponseQueueStats_(processedCount, skippedCount, failedCount, stoppedEarly);
+    var stats = buildResponseQueueStats_(processedCount, skippedCount, failedCount, stoppedEarly, scannedCount, remainingLikely);
     logInfo_('processUnprocessedFormResponses', '', formatResponseQueueStats_(stats));
     return stats;
   } finally {
@@ -125,12 +138,14 @@ function processUnprocessedFormResponses(options) {
   }
 }
 
-function buildResponseQueueStats_(processed, skipped, failed, stoppedEarly) {
+function buildResponseQueueStats_(processed, skipped, failed, stoppedEarly, scanned, remainingLikely) {
   return {
     processed: processed || 0,
     skipped: skipped || 0,
     failed: failed || 0,
-    stoppedEarly: Boolean(stoppedEarly)
+    stoppedEarly: Boolean(stoppedEarly),
+    scanned: scanned || 0,
+    remainingLikely: Boolean(remainingLikely)
   };
 }
 
@@ -138,6 +153,8 @@ function formatResponseQueueStats_(stats) {
   return 'Queued form responses processed: ' + stats.processed +
     ', skipped: ' + stats.skipped +
     ', failed: ' + stats.failed +
+    ', scanned: ' + stats.scanned +
+    ', remainingLikely: ' + stats.remainingLikely +
     ', stoppedEarly: ' + stats.stoppedEarly + '.';
 }
 
