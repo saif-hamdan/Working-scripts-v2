@@ -108,22 +108,35 @@ function cleanupOldSyncRuntimeProperties_() {
   });
 }
 
-function getSyncLastFullRefreshAt_() {
-  var value = PropertiesService.getScriptProperties().getProperty(SYNC_CONFIG.LAST_FULL_REFRESH_KEY);
+function getSyncLastRefreshAt_(propertyKey) {
+  var value = PropertiesService.getScriptProperties().getProperty(propertyKey);
   var timestamp = Number(value);
   return isNaN(timestamp) || timestamp < 0 ? 0 : timestamp;
 }
 
-function setSyncLastFullRefreshAt_(timestamp) {
-  PropertiesService.getScriptProperties().setProperty(
-    SYNC_CONFIG.LAST_FULL_REFRESH_KEY,
-    String(timestamp || Date.now())
+function setSyncLastRefreshAt_(propertyKey, timestamp) {
+  PropertiesService.getScriptProperties().setProperty(propertyKey, String(timestamp || Date.now()));
+}
+
+function shouldRunScheduledRefresh_(propertyKey, intervalMs, nowMs) {
+  var lastRefreshAt = getSyncLastRefreshAt_(propertyKey);
+  return !lastRefreshAt || nowMs - lastRefreshAt >= intervalMs;
+}
+
+function shouldRunScheduledDashboardRefresh_(nowMs) {
+  return shouldRunScheduledRefresh_(
+    SYNC_CONFIG.LAST_DASHBOARD_REFRESH_KEY,
+    SYNC_CONFIG.DASHBOARD_REFRESH_INTERVAL_MS,
+    nowMs
   );
 }
 
-function shouldRunScheduledFullRefresh_(nowMs) {
-  var lastFullRefreshAt = getSyncLastFullRefreshAt_();
-  return !lastFullRefreshAt || nowMs - lastFullRefreshAt >= SYNC_CONFIG.FULL_REFRESH_INTERVAL_MS;
+function shouldRunScheduledChartRefresh_(nowMs) {
+  return shouldRunScheduledRefresh_(
+    SYNC_CONFIG.LAST_CHART_REFRESH_KEY,
+    SYNC_CONFIG.CHART_REFRESH_INTERVAL_MS,
+    nowMs
+  );
 }
 
 function hasSyncQueueChanges_(responseQueueStats, approvalActionQueueStats, emailQueueStats) {
@@ -135,15 +148,36 @@ function hasSyncQueueChanges_(responseQueueStats, approvalActionQueueStats, emai
     toNumber_(emailQueueStats && emailQueueStats.failed, 0) > 0;
 }
 
-function runFullSyncRefresh_(startedAt) {
-  var records = getRecords_();
+function refreshDashboardFromSync_(records) {
   var dashboardRows = calculateSectionSummary_(records);
   renderDashboardRows_(dashboardRows);
-  if (shouldStopSync_(startedAt)) return false;
+  setSyncLastRefreshAt_(SYNC_CONFIG.LAST_DASHBOARD_REFRESH_KEY);
+  return dashboardRows;
+}
+
+function refreshChartsFromSync_(records, dashboardRows) {
   refreshChartsFromData_(records, dashboardRows);
-  if (shouldStopSync_(startedAt)) return false;
+  setSyncLastRefreshAt_(SYNC_CONFIG.LAST_CHART_REFRESH_KEY);
+}
+
+function refreshFormChoicesFromSync_() {
   refreshFormChoices(true);
-  setSyncLastFullRefreshAt_(Date.now());
+  setSyncLastRefreshAt_(SYNC_CONFIG.LAST_FORM_REFRESH_KEY);
+}
+
+function hasCapacityAffectingQueueChanges_(responseQueueStats, approvalActionQueueStats) {
+  return toNumber_(responseQueueStats && responseQueueStats.processed, 0) > 0 ||
+    toNumber_(approvalActionQueueStats && approvalActionQueueStats.processed, 0) > 0;
+}
+
+function runFullSyncRefresh_(startedAt) {
+  var records = getRecords_();
+  if (shouldStopSync_(startedAt)) return false;
+  var dashboardRows = refreshDashboardFromSync_(records);
+  if (shouldStopSync_(startedAt)) return false;
+  refreshChartsFromSync_(records, dashboardRows);
+  if (shouldStopSync_(startedAt)) return false;
+  refreshFormChoicesFromSync_();
   return true;
 }
 
@@ -174,19 +208,44 @@ function syncSystem() {
     var approvalActionQueueStats = processApprovalActionQueue({ skipLock: true, startedAt: startedAt });
     logInfo_('syncSystem', '', formatApprovalActionQueueStats_(approvalActionQueueStats));
     if (shouldStopSync_(startedAt)) return;
-    syncReferenceDataFromAdminSheets_();
+    var referenceSyncStats = syncReferenceDataFromAdminSheets_();
     if (shouldStopSync_(startedAt)) return;
     var emailQueueStats = processEmailQueue({ startedAt: startedAt });
     if (shouldStopSync_(startedAt)) return;
     processPendingApprovalEmails({ startedAt: startedAt });
     if (shouldStopSync_(startedAt)) return;
+
+    var nowMs = Date.now();
     var queueChanged = hasSyncQueueChanges_(responseQueueStats, approvalActionQueueStats, emailQueueStats);
-    var scheduledRefreshDue = shouldRunScheduledFullRefresh_(Date.now());
-    if (queueChanged || scheduledRefreshDue) {
-      if (!runFullSyncRefresh_(startedAt)) return;
-      logInfo_('syncSystem', '', 'Full refresh completed; reason: ' + (queueChanged ? 'queue changes' : 'scheduled interval') + '.');
+    var referenceChanged = Boolean(referenceSyncStats && referenceSyncStats.changed);
+    var capacityChanged = referenceChanged || hasCapacityAffectingQueueChanges_(responseQueueStats, approvalActionQueueStats);
+    var dashboardRefreshDue = shouldRunScheduledDashboardRefresh_(nowMs);
+    var chartRefreshDue = shouldRunScheduledChartRefresh_(nowMs);
+    var needsDashboardRefresh = queueChanged || referenceChanged || dashboardRefreshDue;
+    var needsChartRefresh = referenceChanged || chartRefreshDue;
+    var needsFormRefresh = referenceChanged || capacityChanged;
+
+    if (needsDashboardRefresh || needsChartRefresh || needsFormRefresh) {
+      var records = getRecords_();
+      var dashboardRows = null;
+      if (shouldStopSync_(startedAt)) return;
+      if (needsDashboardRefresh) {
+        dashboardRows = refreshDashboardFromSync_(records);
+        logInfo_('syncSystem', '', 'Dashboard refresh completed; reason: ' + (queueChanged ? 'queue changes' : (referenceChanged ? 'reference data changes' : 'scheduled interval')) + '.');
+      }
+      if (shouldStopSync_(startedAt)) return;
+      if (needsChartRefresh) {
+        dashboardRows = dashboardRows || calculateSectionSummary_(records);
+        refreshChartsFromSync_(records, dashboardRows);
+        logInfo_('syncSystem', '', 'Chart refresh completed; reason: ' + (referenceChanged ? 'reference data changes' : 'scheduled interval') + '.');
+      }
+      if (shouldStopSync_(startedAt)) return;
+      if (needsFormRefresh) {
+        refreshFormChoicesFromSync_();
+        logInfo_('syncSystem', '', 'Form choice refresh completed; reason: ' + (referenceChanged ? 'reference data changes' : 'capacity-affecting queue changes') + '.');
+      }
     } else {
-      logInfo_('syncSystem', '', 'Full refresh skipped: no queue changes and scheduled interval has not elapsed.');
+      logInfo_('syncSystem', '', 'Refresh phases skipped: no queue/reference changes and scheduled intervals have not elapsed.');
     }
     logInfo_('syncSystem', '', 'Sync completed in ' + (Date.now() - startedAt) + ' ms.');
   } catch (err) {
