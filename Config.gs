@@ -24,8 +24,8 @@ function getConfig() {
     ADMIN_EMAILS: adminEmails,
     APPROVER_UNIT_MODE: normalizeApproverUnitMode_(value(SETTINGS_KEYS.APPROVER_UNIT_MODE, APPROVER_UNIT_MODE.CURRENT_UNIT)),
     EMAIL_SENDER_NAME: value(SETTINGS_KEYS.EMAIL_SENDER_NAME, 'SQU Training System'),
-    ORGANIZATION_NAME_AR: value(SETTINGS_KEYS.ORGANIZATION_NAME_AR, 'جامعة السلطان قابوس'),
-    ORGANIZATION_NAME_EN: value(SETTINGS_KEYS.ORGANIZATION_NAME_EN, 'Sultan Qaboos University'),
+    ORGANIZATION_NAME_AR: value(SETTINGS_KEYS.ORGANIZATION_NAME_AR, 'قسم خدمات الموظفين والمتقاعدين'),
+    ORGANIZATION_NAME_EN: value(SETTINGS_KEYS.ORGANIZATION_NAME_EN, 'Employees and Retirees Services Section'),
     BRAND: {
       primaryColor: value(SETTINGS_KEYS.BRAND_PRIMARY_COLOR, '#004B3A'),
       secondaryColor: value(SETTINGS_KEYS.BRAND_SECONDARY_COLOR, '#B08D57'),
@@ -85,8 +85,8 @@ function writeSettingsFromConfig_(ss) {
   defaults[SETTINGS_KEYS.ADMIN_EMAILS] = Session.getEffectiveUser().getEmail() || '';
   defaults[SETTINGS_KEYS.APPROVER_UNIT_MODE] = APPROVER_UNIT_MODE.CURRENT_UNIT;
   defaults[SETTINGS_KEYS.EMAIL_SENDER_NAME] = 'SQU Training System';
-  defaults[SETTINGS_KEYS.ORGANIZATION_NAME_AR] = 'جامعة السلطان قابوس';
-  defaults[SETTINGS_KEYS.ORGANIZATION_NAME_EN] = 'Sultan Qaboos University';
+  defaults[SETTINGS_KEYS.ORGANIZATION_NAME_AR] = 'قسم خدمات الموظفين والمتقاعدين';
+  defaults[SETTINGS_KEYS.ORGANIZATION_NAME_EN] = 'Employees and Retirees Services Section';
   defaults[SETTINGS_KEYS.BRAND_PRIMARY_COLOR] = '#004B3A';
   defaults[SETTINGS_KEYS.BRAND_SECONDARY_COLOR] = '#B08D57';
   defaults[SETTINGS_KEYS.BRAND_ACCENT_COLOR] = '#F5F1E8';
