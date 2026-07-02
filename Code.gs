@@ -8,9 +8,18 @@ function onOpen() {
       .addItem('تحديث القوائم في النموذج', 'refreshFormChoices')
       .addItem('معالجة الطلبات غير المعالجة', 'processResponseQueueOnce')
       .addItem('إرسال تقييمات مستحقة', 'sendEvaluationEmails')
+      .addItem('تغيير حالة الاعتماد النهائي', 'showFinalStatusDialog')
       .addItem('إعادة تثبيت المشغلات', 'installTriggers')
       .addToUi();
   } catch (ignore) {}
+}
+
+
+function showFinalStatusDialog() {
+  var html = HtmlService.createHtmlOutputFromFile('FinalStatusDialog')
+    .setWidth(460)
+    .setHeight(430);
+  SpreadsheetApp.getUi().showModalDialog(html, 'تغيير حالة الاعتماد النهائي');
 }
 
 function setupAll() {

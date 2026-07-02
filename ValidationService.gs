@@ -39,36 +39,98 @@ function handleFinalStatusEdit(e) {
   }
 
   if (editedCol === finalStatusCol) {
-    var newValue = safeString_(e.value || e.range.getValue());
-    var row = e.range.getRow();
-    var headStatus = safeString_(sheet.getRange(row, map[H.RECORD.HEAD_STATUS]).getValue());
-    var requestId = safeString_(sheet.getRange(row, map[H.RECORD.REQUEST_ID]).getValue());
-    if (ACTIVE_FINAL_STATUSES.indexOf(newValue) !== -1 && headStatus !== STATUS.HEAD_ACCEPTED) {
-      revertEdit_(e);
-      logInfo_('handleFinalStatusEdit:blockedActiveFinalStatus', requestId, 'Cannot set final admin approval status before unit head approval.');
-      SpreadsheetApp.getActive().toast('لا يمكن تغيير الحالة إلى اعتماد نهائي أو قيد التنفيذ أو منجز قبل موافقة رئيس الوحدة.');
-      return;
+    var requestId = '';
+    try {
+      requestId = safeString_(sheet.getRange(e.range.getRow(), map[H.RECORD.REQUEST_ID]).getValue());
+    } catch (ignore) {}
+    revertEdit_(e);
+    logInfo_('handleFinalStatusEdit:manualFinalStatusEditBlocked', requestId, 'Manual final status edit reverted; use the final approval menu/dialog.');
+    SpreadsheetApp.getActive().toast('يرجى استخدام القائمة: تغيير حالة الاعتماد النهائي. / Use the final approval menu/dialog.');
+    return;
+  }
+}
+
+function getSelectedFinalStatusContext() {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet() || openDashboardSpreadsheet_();
+    var sheet = ss.getActiveSheet();
+    if (!sheet || sheet.getName() !== SHEETS.RECORDS) {
+      return { success: false, message: 'يرجى اختيار صف من ورقة سجل الطلبات. / Select a row on the records sheet.' };
+    }
+    var range = sheet.getActiveRange();
+    if (!range || range.getRow() <= 1) {
+      return { success: false, message: 'يرجى اختيار صف طلب صالح. / Select a valid request row.' };
+    }
+    var rowNumber = range.getRow();
+    var record = getRecordFromSheetRow_(sheet, rowNumber);
+    if (!safeString_(record[H.RECORD.REQUEST_ID])) {
+      return { success: false, message: 'الصف المحدد لا يحتوي على رقم طلب. / Selected row has no request ID.' };
+    }
+    return {
+      success: true,
+      rowNumber: rowNumber,
+      requestId: safeString_(record[H.RECORD.REQUEST_ID]),
+      employeeName: safeString_(record[H.RECORD.EMPLOYEE_NAME]),
+      headStatus: safeString_(record[H.RECORD.HEAD_STATUS]),
+      finalStatus: safeString_(record[H.RECORD.FINAL_STATUS]),
+      actions: [STATUS.FINAL_APPROVED, STATUS.FINAL_REJECTED]
+    };
+  } catch (err) {
+    logError_('getSelectedFinalStatusContext', '', err);
+    return { success: false, message: 'تعذر قراءة الصف المحدد: ' + (err && err.message ? err.message : err) };
+  }
+}
+
+function confirmFinalStatusChange(rowNumber, targetStatus) {
+  try {
+    rowNumber = parseInt(rowNumber, 10);
+    targetStatus = safeString_(targetStatus);
+    if (!rowNumber || rowNumber <= 1) return { success: false, message: 'رقم الصف غير صالح. / Invalid row number.' };
+    if (targetStatus !== STATUS.FINAL_APPROVED && targetStatus !== STATUS.FINAL_REJECTED) {
+      return { success: false, message: 'إجراء غير صالح. / Invalid final status action.' };
     }
 
-    if (newValue === STATUS.FINAL_APPROVED || newValue === STATUS.FINAL_REJECTED) {
-      var record = getRecordFromSheetRow_(sheet, row);
-      record[H.RECORD.FINAL_STATUS] = newValue;
-      revertEdit_(e);
-      var sent = newValue === STATUS.FINAL_APPROVED
-        ? sendFinalApprovedNotification(record)
-        : sendFinalRejectedNotification(record);
-      if (!sent) {
-        logInfo_('handleFinalStatusEdit:emailFailed', requestId, 'Final status edit reverted because notification email was not sent.');
-        SpreadsheetApp.getActive().toast('تعذر إرسال إشعار البريد، لم يتم تغيير الحالة النهائية. / Email notification failed; final status was not changed.');
-        return;
-      }
-      e.range.setValue(newValue);
+    var userEmail = getActiveUserEmail_();
+    if (!isAuthorizedEditor_(userEmail)) {
+      return { success: false, message: 'غير مصرح لك بتنفيذ هذا الإجراء. / You are not authorized.' };
     }
 
-    sheet.getRange(row, map[H.RECORD.LAST_UPDATED]).setValue(now_());
+    var ss = SpreadsheetApp.getActiveSpreadsheet() || openDashboardSpreadsheet_();
+    var sheet = ss.getSheetByName(SHEETS.RECORDS) || getOrCreateSheet_(SHEETS.RECORDS);
+    if (rowNumber > sheet.getLastRow()) return { success: false, message: 'الصف المحدد خارج نطاق البيانات. / Selected row is outside the data range.' };
+    requireHeaders_(sheet, RECORD_HEADERS);
+    var record = getRecordFromSheetRow_(sheet, rowNumber);
+    var requestId = safeString_(record[H.RECORD.REQUEST_ID]);
+    if (!requestId) return { success: false, message: 'الصف المحدد لا يحتوي على رقم طلب. / Selected row has no request ID.' };
+    if (safeString_(record[H.RECORD.HEAD_STATUS]) !== STATUS.HEAD_ACCEPTED) {
+      return { success: false, message: 'لا يمكن الاعتماد النهائي قبل موافقة رئيس الوحدة. / Unit-head approval is required first.' };
+    }
+    var currentFinalStatus = safeString_(record[H.RECORD.FINAL_STATUS]);
+    if (currentFinalStatus === targetStatus) {
+      return { success: false, message: 'الحالة النهائية مطابقة للإجراء المطلوب بالفعل. / Final status already matches the requested action.' };
+    }
+
+    record[H.RECORD.FINAL_STATUS] = targetStatus;
+    var sent = targetStatus === STATUS.FINAL_APPROVED
+      ? sendFinalApprovedNotification(record)
+      : sendFinalRejectedNotification(record);
+    if (sent !== true) {
+      logInfo_('confirmFinalStatusChange:emailFailed', requestId, 'Final status was not updated because notification email was not sent.');
+      return { success: false, message: 'تعذر إرسال البريد؛ لم يتم تغيير الحالة النهائية. / Email failed; final status was not changed.' };
+    }
+
+    updateObjectRow_(sheet, rowNumber, {
+      [H.RECORD.FINAL_STATUS]: targetStatus,
+      [H.RECORD.LAST_UPDATED]: now_()
+    });
     refreshDashboard();
     refreshCharts();
     refreshFormChoices();
+    logInfo_('confirmFinalStatusChange', requestId, 'Final status changed to ' + targetStatus + ' by ' + userEmail + ' after email was sent.');
+    return { success: true, message: 'تم إرسال البريد وتحديث الحالة إلى: ' + targetStatus + ' / Email sent and final status updated.' };
+  } catch (err) {
+    logError_('confirmFinalStatusChange', '', err);
+    return { success: false, message: 'حدث خطأ: ' + (err && err.message ? err.message : err) };
   }
 }
 
