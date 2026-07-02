@@ -20,7 +20,15 @@
         <div class="title-en">Reject Training Request</div>
       </div>
       <div class="content">
-        <?!= include('RequestDetailsPartial'); ?>
+        <table class="details">
+          <tr><th>البيان / Field</th><th>القيمة / Value</th></tr>
+          <? for (var i = 0; i < data.rows.length; i++) { ?>
+            <tr>
+              <th><?= data.rows[i].ar ?> / <?= data.rows[i].en ?></th>
+              <td><?= data.rows[i].value ?></td>
+            </tr>
+          <? } ?>
+        </table>
         <form method="post" action="<?= data.actionUrl ?>" onsubmit="return disableRejectSubmit_(this);">
           <input type="hidden" name="action" value="reject">
           <input type="hidden" name="token" value="<?= data.token ?>">
