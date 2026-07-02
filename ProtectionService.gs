@@ -33,7 +33,8 @@ function protectRecordsSheet_(sheet, admins) {
   var map = getHeaderMap_(sheet);
   var editableRanges = [];
   if (map[H.RECORD.NOTES]) editableRanges.push(sheet.getRange(2, map[H.RECORD.NOTES], Math.max(sheet.getMaxRows() - 1, 1), 1));
-  var protection = sheet.protect().setDescription('Records protected; only notes are directly editable. Use the menu/dialog for final status changes.');
+  if (map[H.RECORD.FINAL_STATUS]) editableRanges.push(sheet.getRange(2, map[H.RECORD.FINAL_STATUS], Math.max(sheet.getMaxRows() - 1, 1), 1));
+  var protection = sheet.protect().setDescription('Records protected; only notes and final status are directly editable by admins.');
   if (editableRanges.length) protection.setUnprotectedRanges(editableRanges);
   applyProtectionEditors_(protection, admins);
 }
