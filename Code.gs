@@ -168,7 +168,7 @@ function syncSystem() {
       return;
     }
     if (shouldStopSync_(startedAt)) return;
-    var responseQueueStats = processUnprocessedFormResponses({ skipLock: true, startedAt: startedAt });
+    var responseQueueStats = processUnprocessedFormResponses({ skipLock: true, startedAt: startedAt, deferRefresh: true });
     logInfo_('syncSystem', '', formatResponseQueueStats_(responseQueueStats));
     if (shouldStopSync_(startedAt)) return;
     var approvalActionQueueStats = processApprovalActionQueue({ skipLock: true, startedAt: startedAt });

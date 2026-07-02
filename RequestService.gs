@@ -4,9 +4,10 @@ function createRequestFromFormSubmit(e) {
   return null;
 }
 
-function createRequestFromNormalizedData_(data, sourceInfo) {
+function createRequestFromNormalizedData_(data, sourceInfo, options) {
   setupSheets();
   data = data || {};
+  options = options || {};
   sourceInfo = sourceInfo || buildRequestSourceInfo_(data);
   if (sourceInfo.responseId) data.responseId = sourceInfo.responseId;
   if (sourceInfo.responseSourceId) data.responseSourceId = sourceInfo.responseSourceId;
@@ -118,9 +119,11 @@ function createRequestFromNormalizedData_(data, sourceInfo) {
     logInfo_('createRequestFromNormalizedData_', requestId, 'Request created and approval email processed.');
   }
 
-  refreshDashboard();
-  refreshCharts();
-  refreshFormChoices();
+  if (options.deferRefresh !== true) {
+    refreshDashboard();
+    refreshCharts();
+    refreshFormChoices();
+  }
   return record;
 }
 
