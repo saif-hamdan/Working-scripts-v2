@@ -54,7 +54,18 @@ function doPost(e) {
   return handleWebPost(e);
 }
 
+
+function isSyncActiveHour_(date) {
+  var hour = Number(Utilities.formatDate(date || new Date(), SYNC_CONFIG.TIMEZONE, 'H'));
+  return hour >= SYNC_CONFIG.ACTIVE_START_HOUR && hour < SYNC_CONFIG.ACTIVE_END_HOUR;
+}
+
 function syncSystem() {
+  if (!isSyncActiveHour_()) {
+    logInfo_('syncSystem', '', 'syncSystem skipped: outside active hours.');
+    return;
+  }
+
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(25000)) return;
   try {
