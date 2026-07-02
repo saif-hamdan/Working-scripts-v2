@@ -135,19 +135,37 @@ function rejectRequest_(token, reason) {
         success: true
       };
     }
+    var rejectedRecord = Object.assign({}, record);
+    rejectedRecord[H.RECORD.HEAD_STATUS] = STATUS.HEAD_REJECTED;
+    rejectedRecord[H.RECORD.FINAL_STATUS] = STATUS.FINAL_REJECTED;
+    rejectedRecord[H.RECORD.REJECTION_REASON] = reason;
+    rejectedRecord[H.RECORD.DECISION_DATE] = now_();
+
+    if (sendRejectedNotification(rejectedRecord) !== true) {
+      logInfo_(
+        'handleRejectSubmit_:emailPendingRetry',
+        requestId,
+        'Unit-head rejection was not recorded because the rejection email was not sent; sendEmailSafe_ queued it for retry.'
+      );
+      return {
+        titleAr: 'تعذر إرسال البريد',
+        titleEn: 'Email Failed',
+        message: 'تعذر إرسال بريد الرفض؛ لم يتم تغيير حالة الطلب، والبريد بانتظار إعادة المحاولة. / Failed to send rejection email; request status was not changed. Email is pending retry.',
+        success: false
+      };
+    }
+
     updateRequestByRow_(record._rowNumber, {
       [H.RECORD.HEAD_STATUS]: STATUS.HEAD_REJECTED,
       [H.RECORD.FINAL_STATUS]: STATUS.FINAL_REJECTED,
       [H.RECORD.REJECTION_REASON]: reason,
-      [H.RECORD.DECISION_DATE]: now_()
+      [H.RECORD.DECISION_DATE]: rejectedRecord[H.RECORD.DECISION_DATE]
     });
-    var rejectedRecord = getRequestById_(requestId);
-    queueRejectedNotification(rejectedRecord);
-    logInfo_('handleRejectSubmit_', requestId, 'Request rejected.');
+    logInfo_('handleRejectSubmit_', requestId, 'Request rejected after email was sent.');
     return {
       titleAr: 'تم تسجيل القرار',
       titleEn: 'Decision Recorded',
-      message: 'تم تسجيل قرارك بنجاح. يمكنك الآن إغلاق هذه الصفحة. / Your decision has been recorded successfully. You may now close this page.',
+      message: 'تم إرسال البريد وتسجيل قرارك بنجاح. يمكنك الآن إغلاق هذه الصفحة. / Email was sent and your decision was recorded successfully. You may now close this page.',
       success: true
     };
   } finally {
