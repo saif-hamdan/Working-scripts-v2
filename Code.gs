@@ -61,13 +61,19 @@ function isSyncActiveHour_(date) {
 }
 
 function syncSystem() {
+  var startedAt = Date.now();
   if (!isSyncActiveHour_()) {
     logInfo_('syncSystem', '', 'syncSystem skipped: outside active hours.');
     return;
   }
 
   var lock = LockService.getScriptLock();
-  if (!lock.tryLock(25000)) return;
+  var lockAcquired = lock.tryLock(SYNC_CONFIG.LOCK_WAIT_MS);
+  if (!lockAcquired) {
+    logInfo_('syncSystem', '', 'syncSystem skipped: another execution is already running.');
+    return;
+  }
+
   try {
     var responseQueueStats = processUnprocessedFormResponses({ skipLock: true });
     logInfo_('syncSystem', '', formatResponseQueueStats_(responseQueueStats));
@@ -79,11 +85,13 @@ function syncSystem() {
     refreshDashboard(true);
     refreshCharts();
     refreshFormChoices(true);
-    logInfo_('syncSystem', '', 'Sync completed.');
+    logInfo_('syncSystem', '', 'Sync completed in ' + (Date.now() - startedAt) + ' ms.');
   } catch (err) {
     logError_('syncSystem', '', err);
   } finally {
-    lock.releaseLock();
+    if (lockAcquired) {
+      lock.releaseLock();
+    }
   }
 }
 
