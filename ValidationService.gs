@@ -115,8 +115,15 @@ function confirmFinalStatusChange(rowNumber, targetStatus) {
       ? sendFinalApprovedNotification(record)
       : sendFinalRejectedNotification(record);
     if (sent !== true) {
-      logInfo_('confirmFinalStatusChange:emailFailed', requestId, 'Final status was not updated because notification email was not sent.');
-      return { success: false, message: 'تعذر إرسال البريد؛ لم يتم تغيير الحالة النهائية. / Email failed; final status was not changed.' };
+      logInfo_(
+        'confirmFinalStatusChange:emailPendingRetry',
+        requestId,
+        'Final status was not updated because the final-decision email was not sent; sendEmailSafe_ queued it for retry.'
+      );
+      return {
+        success: false,
+        message: 'تعذر إرسال البريد؛ لم يتم تغيير الحالة النهائية، والبريد بانتظار إعادة المحاولة. / Failed to send email; status was not changed. Email is pending retry.'
+      };
     }
 
     updateObjectRow_(sheet, rowNumber, {
