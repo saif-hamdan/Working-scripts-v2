@@ -13,8 +13,8 @@
         <div class="title-en">Training Request Could Not Be Submitted</div>
       </div>
       <div class="content">
-        <div class="intro-ar">تعذر معالجة طلب التدريب لأن تاريخ البداية بعد تاريخ النهاية. يرجى إرسال النموذج مرة أخرى بالتواريخ الصحيحة.</div>
-        <div class="intro-en">Your training request could not be processed because the start date is after the end date. Please submit the form again with the correct dates.</div>
+        <div class="intro-ar">تاريخ البداية بعد تاريخ النهاية. يرجى إرسال الطلب بتواريخ صحيحة.</div>
+        <div class="intro-en">The start date is after the end date. Please submit again with correct dates.</div>
 
 <table class="details">
   <tr><th>البيان / Field</th><th>القيمة / Value</th></tr>
@@ -26,11 +26,11 @@
   <? } ?>
 </table>
 
-        <div class="note">لن يتم إرسال هذا الطلب للموافقة. / This request will not be sent for approval.</div>
+        <div class="note">لن يتم إرسال الطلب. / The request will not be sent.</div>
       </div>
       <div class="footer">
-        <div dir="rtl">هذه رسالة آلية من <?= data.orgAr ?>، يرجى عدم الرد على هذه الرسالة.</div>
-        <div>This is an automated message from <?= data.orgEn ?>. Please do not reply to this email.</div>
+        <div dir="rtl">رسالة آلية من <?= data.orgAr ?>. يرجى عدم الرد.</div>
+        <div>Automated message from <?= data.orgEn ?>. Please do not reply.</div>
       </div>
     </div>
   </div>
