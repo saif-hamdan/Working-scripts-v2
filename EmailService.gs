@@ -27,26 +27,42 @@ function sendSubmissionConfirmationEmail(record) {
   }, { kind: 'submitted', requestId: record[H.RECORD.REQUEST_ID] });
 }
 
-function sendApprovedNotification(record) {
+function buildApprovedNotificationPayload_(record) {
   var data = buildTemplateData_(record, {});
   var html = renderTemplate_('Emails_Approved', data);
-  return sendEmailSafe_({
+  return {
     to: uniqueNonEmpty_([record[H.RECORD.DIRECT_MANAGER_EMAIL], record[H.RECORD.EMPLOYEE_EMAIL]]).join(','),
     cc: uniqueNonEmpty_([record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL], record[H.RECORD.APPROVER_EMAIL]]).join(','),
     subject: 'تمت موافقة رئيس الوحدة - الاعتماد النهائي معلق / Unit Head Approved - Final Admin Decision Pending - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
-  }, { kind: 'approved', requestId: record[H.RECORD.REQUEST_ID] });
+  };
 }
 
-function sendRejectedNotification(record) {
+function sendApprovedNotification(record) {
+  return sendEmailSafe_(buildApprovedNotificationPayload_(record), { kind: 'approved', requestId: record[H.RECORD.REQUEST_ID] });
+}
+
+function queueApprovedNotification(record) {
+  return queueEmailForLater_(buildApprovedNotificationPayload_(record), { kind: 'approved', requestId: record[H.RECORD.REQUEST_ID] });
+}
+
+function buildRejectedNotificationPayload_(record) {
   var data = buildTemplateData_(record, {});
   var html = renderTemplate_('Emails_Rejected', data);
-  return sendEmailSafe_({
+  return {
     to: uniqueNonEmpty_([record[H.RECORD.DIRECT_MANAGER_EMAIL], record[H.RECORD.EMPLOYEE_EMAIL]]).join(','),
     cc: uniqueNonEmpty_([record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL], record[H.RECORD.APPROVER_EMAIL]]).join(','),
     subject: 'تم رفض طلب التدريب / Training Request Rejected - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
-  }, { kind: 'rejected', requestId: record[H.RECORD.REQUEST_ID] });
+  };
+}
+
+function sendRejectedNotification(record) {
+  return sendEmailSafe_(buildRejectedNotificationPayload_(record), { kind: 'rejected', requestId: record[H.RECORD.REQUEST_ID] });
+}
+
+function queueRejectedNotification(record) {
+  return queueEmailForLater_(buildRejectedNotificationPayload_(record), { kind: 'rejected', requestId: record[H.RECORD.REQUEST_ID] });
 }
 
 function sendActiveEmployeeRejectedNotification(record, activeTraining) {
@@ -63,18 +79,26 @@ function sendActiveEmployeeRejectedNotification(record, activeTraining) {
   }, { kind: 'active_employee_rejected', requestId: record[H.RECORD.REQUEST_ID] });
 }
 
-function sendConflictNotification(record, conflict, source) {
+function buildConflictNotificationPayload_(record, conflict, source) {
   var data = buildTemplateData_(record, {
     conflict: conflict,
     conflictDetails: formatConflictDetails_(conflict),
     source: source
   });
   var html = renderTemplate_('Emails_Conflict', data);
-  return sendEmailSafe_({
+  return {
     to: uniqueNonEmpty_([record[H.RECORD.APPROVER_EMAIL], record[H.RECORD.EMPLOYEE_EMAIL], record[H.RECORD.DIRECT_MANAGER_EMAIL], record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]]).join(','),
     subject: 'تعارض في طلب التدريب / Training Request Conflict - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
-  }, { kind: 'conflict', requestId: record[H.RECORD.REQUEST_ID] });
+  };
+}
+
+function sendConflictNotification(record, conflict, source) {
+  return sendEmailSafe_(buildConflictNotificationPayload_(record, conflict, source), { kind: 'conflict', requestId: record[H.RECORD.REQUEST_ID] });
+}
+
+function queueConflictNotification(record, conflict, source) {
+  return queueEmailForLater_(buildConflictNotificationPayload_(record, conflict, source), { kind: 'conflict', requestId: record[H.RECORD.REQUEST_ID] });
 }
 
 function sendEvaluationEmail(record) {
@@ -105,6 +129,18 @@ function sendEmailSafe_(payload, context) {
   } catch (err) {
     queueEmail_(payload, context, err);
     logError_('sendEmailSafe_:' + (context && context.kind || ''), context && context.requestId, err);
+    return false;
+  }
+}
+
+function queueEmailForLater_(payload, context) {
+  try {
+    if (!safeString_(payload.to)) throw new Error('Email recipient is empty.');
+    queueEmail_(payload, context, null);
+    logInfo_('queueEmailForLater_:' + (context && context.kind || ''), context && context.requestId, 'Email queued to: ' + payload.to);
+    return true;
+  } catch (err) {
+    logError_('queueEmailForLater_:' + (context && context.kind || ''), context && context.requestId, err);
     return false;
   }
 }
