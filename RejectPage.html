@@ -9,6 +9,9 @@
     button[disabled] { cursor:not-allowed; opacity:.7; }
     .loading-note { color:#555; display:none; margin-top:10px; }
     .is-submitting .loading-note { display:block; }
+    .result-message { border-radius:12px; display:none; margin-top:16px; padding:12px; }
+    .result-message.success { background:#e8f5e9; border:1px solid #2e7d32; color:#1b5e20; display:block; }
+    .result-message.error { background:#ffebee; border:1px solid #c62828; color:#8e0000; display:block; }
   </style>
 </head>
 <body>
@@ -29,7 +32,7 @@
             </tr>
           <? } ?>
         </table>
-        <form method="post" action="<?= data.actionUrl ?>" onsubmit="return disableRejectSubmit_(this);">
+        <form method="post" action="<?= data.actionUrl ?>" onsubmit="return submitRejectRequest_(this);">
           <input type="hidden" name="action" value="reject">
           <input type="hidden" name="token" value="<?= data.token ?>">
           <p dir="rtl"><strong>سبب الرفض / Rejection reason</strong></p>
@@ -38,6 +41,7 @@
             <button class="btn btn-reject" type="submit" data-loading-text="جاري الإرسال... / Submitting...">إرسال الرفض / Submit Rejection</button>
             <div class="loading-note" dir="rtl">جاري تسجيل قرارك، يرجى الانتظار... / Recording your decision, please wait...</div>
           </div>
+          <div id="reject-result" class="result-message" role="status" aria-live="polite"></div>
         </form>
       </div>
       <div class="footer">
@@ -56,6 +60,57 @@
       button.textContent = button.getAttribute('data-loading-text') || 'Submitting...';
     }
     return true;
+  }
+</script>
+<script>
+  function submitRejectRequest_(form) {
+    if (!window.google || !google.script || !google.script.run) {
+      return disableRejectSubmit_(form);
+    }
+    if (!disableRejectSubmit_(form)) return false;
+
+    var token = form.querySelector('input[name="token"]').value;
+    var reason = form.querySelector('textarea[name="reason"]').value;
+    google.script.run
+      .withSuccessHandler(function(result) {
+        showRejectResult_(form, result || {
+          titleEn: 'Unknown response',
+          message: 'The server returned an empty response.',
+          success: false
+        });
+      })
+      .withFailureHandler(function(error) {
+        showRejectResult_(form, {
+          titleEn: 'Error',
+          message: error && error.message ? error.message : 'Unable to submit rejection.',
+          success: false
+        });
+      })
+      .rejectRequestFromPage(token, reason);
+    return false;
+  }
+
+  function showRejectResult_(form, result) {
+    var resultBox = document.getElementById('reject-result');
+    var button = form.querySelector('button[type="submit"]');
+    form.className = form.className.replace(/\bis-submitting\b/g, '').replace(/\s+/g, ' ').trim();
+    if (button) {
+      button.disabled = !!result.success;
+      button.textContent = result.success ? 'تم الإرسال / Submitted' : 'إرسال الرفض / Submit Rejection';
+    }
+    if (resultBox) {
+      resultBox.className = 'result-message ' + (result.success ? 'success' : 'error');
+      resultBox.innerHTML = '<strong>' + escapeHtml_(result.titleAr || result.titleEn || '') + '</strong><br>' + escapeHtml_(result.message || '');
+    }
+  }
+
+  function escapeHtml_(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 </script>
 </body>
