@@ -11,7 +11,8 @@ const SYSTEM = Object.freeze({
 const SYNC_CONFIG = Object.freeze({
   TIMEZONE: SYSTEM.TIME_ZONE,
   ACTIVE_START_HOUR: 5,
-  ACTIVE_END_HOUR: 22
+  ACTIVE_END_HOUR: 22,
+  LOCK_WAIT_MS: 3000
 });
 
 const SHEETS = Object.freeze({
