@@ -73,6 +73,7 @@ function processUnprocessedFormResponses(options) {
 
       var responseId = makeResponseQueueId_(ss, sheet, rowNumber);
       try {
+        var data = null;
         var responseSourceId = makeResponseSourceIdFromRow_(headers, row, map);
         var existingRecord = findRequestByResponseSourceId_(responseSourceId) || findRequestByResponseId_(responseId);
         if (existingRecord) {
@@ -83,7 +84,7 @@ function processUnprocessedFormResponses(options) {
         }
 
         markResponseRowProcessing_(sheet, rowNumber, map);
-        var data = parseLinkedResponseRow_(stripResponseQueueHeaders_(headers, map), stripResponseQueueRow_(row, headers, map));
+        data = parseLinkedResponseRow_(stripResponseQueueHeaders_(headers, map), stripResponseQueueRow_(row, headers, map));
         var sourceInfo = buildRequestSourceInfo_(data);
         sourceInfo.responseId = responseId;
         sourceInfo.responseSourceId = responseSourceId;
@@ -92,7 +93,12 @@ function processUnprocessedFormResponses(options) {
         processedCount++;
         logInfo_('processUnprocessedFormResponses', record[H.RECORD.REQUEST_ID], 'Queued form response processed from row ' + rowNumber + '.');
       } catch (err) {
-        markResponseRowError_(sheet, rowNumber, map, err, cfg.RESPONSE_QUEUE_MAX_RETRIES);
+        if (isInvalidDateOrderError_(err) && data) {
+          markResponseRowRequiresReview_(sheet, rowNumber, map, err);
+          sendInvalidDatesSubmissionEmail(data, responseId, err);
+        } else {
+          markResponseRowError_(sheet, rowNumber, map, err, cfg.RESPONSE_QUEUE_MAX_RETRIES);
+        }
         failedCount++;
         logError_('processUnprocessedFormResponses', responseId, err);
       }
@@ -262,6 +268,20 @@ function makeResponseSourceIdFromRow_(headers, row, map) {
   return makeFormResponseSourceId_(data);
 }
 
+
+function isInvalidDateOrderError_(err) {
+  return safeString_(err && err.message ? err.message : err) === 'Start date cannot be after end date.';
+}
+
+function markResponseRowRequiresReview_(sheet, rowNumber, map, err) {
+  var retryCount = toNumber_(sheet.getRange(rowNumber, map[RESPONSE_QUEUE.RETRY_COUNT]).getValue(), 0) + 1;
+  var updates = {};
+  updates[RESPONSE_QUEUE.STATUS] = RESPONSE_QUEUE_STATUS.ERROR_REQUIRES_REVIEW;
+  updates[RESPONSE_QUEUE.LAST_ERROR] = err && err.message ? err.message : safeString_(err);
+  updates[RESPONSE_QUEUE.RETRY_COUNT] = retryCount;
+  updates[RESPONSE_QUEUE.LAST_ATTEMPT_AT] = now_();
+  updateResponseQueueRow_(sheet, rowNumber, map, updates);
+}
 
 function markResponseRowReviewRequiredIfMaxed_(sheet, rowNumber, row, map, maxRetries) {
   var status = map[RESPONSE_QUEUE.STATUS] ? safeString_(row[map[RESPONSE_QUEUE.STATUS] - 1]) : '';

@@ -23,6 +23,38 @@ function sendSubmissionConfirmationEmail(record) {
   }, { kind: 'submitted', requestId: record[H.RECORD.REQUEST_ID] });
 }
 
+
+function sendInvalidDatesSubmissionEmail(data, responseId, error) {
+  data = data || {};
+  var cfg = getConfig();
+  var templateData = {
+    brand: cfg.BRAND,
+    orgAr: cfg.ORGANIZATION_NAME_AR,
+    orgEn: cfg.ORGANIZATION_NAME_EN,
+    responseId: responseId || '',
+    errorMessage: error && error.message ? error.message : safeString_(error),
+    rows: [
+      { ar: 'اسم الموظف الجديد', en: 'New Employee', value: data.employeeName || '' },
+      { ar: 'بريد الموظف الجديد', en: 'Employee Email', value: data.employeeEmail || '' },
+      { ar: 'المدير المباشر', en: 'Direct Manager', value: data.directManagerName || '' },
+      { ar: 'بريد المدير المباشر', en: 'Direct Manager Email', value: data.directManagerEmail || '' },
+      { ar: 'الوحدة الحالية', en: 'Current Unit', value: data.currentUnit || '' },
+      { ar: 'وحدة التدريب المطلوبة', en: 'Requested Training Unit', value: data.trainingUnit || '' },
+      { ar: 'القسم المطلوب', en: 'Requested Section', value: data.section || '' },
+      { ar: 'تاريخ البداية المرسل', en: 'Submitted Start Date', value: formatDate_(data.startDate) },
+      { ar: 'تاريخ النهاية المرسل', en: 'Submitted End Date', value: formatDate_(data.endDate) },
+      { ar: 'سبب عدم المعالجة', en: 'Processing Error', value: error && error.message ? error.message : safeString_(error) }
+    ]
+  };
+  var html = renderTemplate_('Emails_InvalidDates', templateData);
+  return sendEmailSafe_({
+    to: uniqueNonEmpty_([data.directManagerEmail, data.submitterEmail]).join(','),
+    cc: uniqueNonEmpty_([data.employeeEmail]).join(','),
+    subject: 'تعذر استلام طلب التدريب - التواريخ غير صحيحة / Training Request Not Submitted - Incorrect Dates',
+    htmlBody: html
+  }, { kind: 'invalid_dates_submission', requestId: responseId || '' });
+}
+
 function buildApprovedNotificationPayload_(record) {
   var data = buildTemplateData_(record, {});
   var html = renderTemplate_('Emails_Approved', data);
