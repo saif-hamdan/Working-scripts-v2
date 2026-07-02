@@ -15,6 +15,9 @@ function setupValidations() {
   hideInternalColumns_(sheet);
 }
 
+const FINAL_STATUS_HEAD_PENDING_MESSAGE = 'لا يمكن تغيير حالة الاعتماد النهائي قبل اتخاذ رئيس الوحدة قراراً. / Cannot change final approval status before the unit head makes a decision.';
+const SYSTEM_OWNED_FINAL_STATUS_MESSAGE = 'هذه الحالة النهائية تلقائية ويديرها النظام فقط. / This automatic final status is managed by the system only.';
+
 function handleFinalStatusEdit(e) {
   if (!e || !e.range) return;
   var sheet = e.range.getSheet();
@@ -40,14 +43,40 @@ function handleFinalStatusEdit(e) {
 
   if (editedCol === finalStatusCol) {
     var requestId = '';
+    var headStatus = '';
     try {
-      requestId = safeString_(sheet.getRange(e.range.getRow(), map[H.RECORD.REQUEST_ID]).getValue());
+      var rowRecord = getRecordFromSheetRow_(sheet, e.range.getRow());
+      requestId = safeString_(rowRecord[H.RECORD.REQUEST_ID]);
+      headStatus = safeString_(rowRecord[H.RECORD.HEAD_STATUS]);
     } catch (ignore) {}
+
+    if (isMeaningfulFinalStatusChange_(e) && headStatus === STATUS.HEAD_PENDING) {
+      revertEdit_(e);
+      logInfo_('handleFinalStatusEdit:headPendingBlocked', requestId, 'Final status edit blocked while unit-head decision is pending.');
+      SpreadsheetApp.getActive().toast(FINAL_STATUS_HEAD_PENDING_MESSAGE);
+      return;
+    }
+
+    if (isSystemOwnedFinalStatus_(safeString_(e.value))) {
+      revertEdit_(e);
+      logInfo_('handleFinalStatusEdit:systemOwnedStatusBlocked', requestId, 'Manual system-owned final status edit reverted.');
+      SpreadsheetApp.getActive().toast(SYSTEM_OWNED_FINAL_STATUS_MESSAGE);
+      return;
+    }
+
     revertEdit_(e);
     logInfo_('handleFinalStatusEdit:manualFinalStatusEditBlocked', requestId, 'Manual final status edit reverted; use the final approval menu/dialog.');
     SpreadsheetApp.getActive().toast('يرجى استخدام القائمة: تغيير حالة الاعتماد النهائي. / Use the final approval menu/dialog.');
     return;
   }
+}
+
+function isMeaningfulFinalStatusChange_(e) {
+  return safeString_(e && e.oldValue) !== safeString_(e && e.value);
+}
+
+function isSystemOwnedFinalStatus_(status) {
+  return status === STATUS.FINAL_CONFLICT || status === STATUS.FINAL_EMPLOYEE_ACTIVE;
 }
 
 function getSelectedFinalStatusContext() {
@@ -86,6 +115,9 @@ function confirmFinalStatusChange(rowNumber, targetStatus) {
     rowNumber = parseInt(rowNumber, 10);
     targetStatus = safeString_(targetStatus);
     if (!rowNumber || rowNumber <= 1) return { success: false, message: 'رقم الصف غير صالح. / Invalid row number.' };
+    if (isSystemOwnedFinalStatus_(targetStatus)) {
+      return { success: false, message: SYSTEM_OWNED_FINAL_STATUS_MESSAGE };
+    }
     if (targetStatus !== STATUS.FINAL_APPROVED && targetStatus !== STATUS.FINAL_REJECTED) {
       return { success: false, message: 'إجراء غير صالح. / Invalid final status action.' };
     }
@@ -102,6 +134,9 @@ function confirmFinalStatusChange(rowNumber, targetStatus) {
     var record = getRecordFromSheetRow_(sheet, rowNumber);
     var requestId = safeString_(record[H.RECORD.REQUEST_ID]);
     if (!requestId) return { success: false, message: 'الصف المحدد لا يحتوي على رقم طلب. / Selected row has no request ID.' };
+    if (safeString_(record[H.RECORD.HEAD_STATUS]) === STATUS.HEAD_PENDING) {
+      return { success: false, message: FINAL_STATUS_HEAD_PENDING_MESSAGE };
+    }
     if (safeString_(record[H.RECORD.HEAD_STATUS]) !== STATUS.HEAD_ACCEPTED) {
       return { success: false, message: 'لا يمكن الاعتماد النهائي قبل موافقة رئيس الوحدة. / Unit-head approval is required first.' };
     }
