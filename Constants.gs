@@ -18,7 +18,8 @@ const SHEETS = Object.freeze({
   SECTIONS: 'الأقسام',
   SETTINGS: 'الإعدادات',
   LOG: 'سجل النظام',
-  EMAIL_QUEUE: 'طابور البريد'
+  EMAIL_QUEUE: 'طابور البريد',
+  ACTION_QUEUE: 'طابور القرارات'
 });
 
 const H = Object.freeze({
@@ -98,6 +99,17 @@ const H = Object.freeze({
     MESSAGE: 'الرسالة',
     ERROR_JSON: 'تفاصيل الخطأ'
   }),
+  ACTION_QUEUE: Object.freeze({
+    ACTION_ID: 'معرف القرار',
+    CREATED_AT: 'أنشئ في',
+    TOKEN: 'رمز الموافقة',
+    ACTION: 'الإجراء',
+    REASON: 'سبب الرفض',
+    STATUS: 'الحالة',
+    ATTEMPTS: 'عدد المحاولات',
+    LAST_ERROR: 'آخر خطأ',
+    PROCESSED_AT: 'تاريخ المعالجة'
+  }),
   QUEUE: Object.freeze({
     MESSAGE_ID: 'معرف الرسالة',
     STATUS: 'الحالة',
@@ -121,6 +133,7 @@ const SECTION_HEADERS = Object.freeze(Object.values(H.SECTION));
 const SETTINGS_HEADERS = Object.freeze(Object.values(H.SETTINGS));
 const LOG_HEADERS = Object.freeze(Object.values(H.LOG));
 const QUEUE_HEADERS = Object.freeze(Object.values(H.QUEUE));
+const ACTION_QUEUE_HEADERS = Object.freeze(Object.values(H.ACTION_QUEUE));
 
 const STATUS = Object.freeze({
   YES: 'نعم',
@@ -143,7 +156,10 @@ const STATUS = Object.freeze({
   FINAL_EMPLOYEE_ACTIVE: 'مرفوض تلقائياً لوجود تدريب نشط للموظف',
   QUEUE_PENDING: 'بانتظار الإرسال',
   QUEUE_SENT: 'تم الإرسال',
-  QUEUE_FAILED: 'فشل الإرسال'
+  QUEUE_FAILED: 'فشل الإرسال',
+  ACTION_QUEUE_PENDING: 'بانتظار المعالجة',
+  ACTION_QUEUE_PROCESSED: 'تمت المعالجة',
+  ACTION_QUEUE_FAILED: 'فشلت المعالجة'
 });
 
 const FINAL_STATUS_OPTIONS = Object.freeze([

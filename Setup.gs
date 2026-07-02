@@ -81,7 +81,9 @@ function ensureSystemSheets_(ss) {
   setSheetHeaders_(log, LOG_HEADERS);
   var queue = ensureSheet_(ss, SHEETS.EMAIL_QUEUE);
   setSheetHeaders_(queue, QUEUE_HEADERS);
-  try { log.hideSheet(); queue.hideSheet(); } catch (ignore) {}
+  var actionQueue = ensureSheet_(ss, SHEETS.ACTION_QUEUE);
+  setSheetHeaders_(actionQueue, ACTION_QUEUE_HEADERS);
+  try { log.hideSheet(); queue.hideSheet(); actionQueue.hideSheet(); } catch (ignore) {}
 }
 
 function setupAllFromMenu() {
