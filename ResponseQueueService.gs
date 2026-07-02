@@ -48,6 +48,7 @@ function processUnprocessedFormResponses(options) {
     var processedCount = 0;
     var skippedCount = 0;
     var failedCount = 0;
+    var stoppedEarly = false;
 
     for (var index = 0; index < rows.length; index++) {
       var row = rows[index];
@@ -65,7 +66,10 @@ function processUnprocessedFormResponses(options) {
         skippedCount++;
         continue;
       }
-      if (shouldStopSync_(options.startedAt)) break;
+      if (shouldStopSync_(options.startedAt)) {
+        stoppedEarly = true;
+        break;
+      }
 
       var responseId = makeResponseQueueId_(ss, sheet, rowNumber);
       try {
@@ -94,7 +98,7 @@ function processUnprocessedFormResponses(options) {
       }
     }
 
-    var stats = buildResponseQueueStats_(processedCount, skippedCount, failedCount);
+    var stats = buildResponseQueueStats_(processedCount, skippedCount, failedCount, stoppedEarly);
     logInfo_('processUnprocessedFormResponses', '', formatResponseQueueStats_(stats));
     return stats;
   } finally {
@@ -102,18 +106,20 @@ function processUnprocessedFormResponses(options) {
   }
 }
 
-function buildResponseQueueStats_(processed, skipped, failed) {
+function buildResponseQueueStats_(processed, skipped, failed, stoppedEarly) {
   return {
     processed: processed || 0,
     skipped: skipped || 0,
-    failed: failed || 0
+    failed: failed || 0,
+    stoppedEarly: Boolean(stoppedEarly)
   };
 }
 
 function formatResponseQueueStats_(stats) {
   return 'Queued form responses processed: ' + stats.processed +
     ', skipped: ' + stats.skipped +
-    ', failed: ' + stats.failed + '.';
+    ', failed: ' + stats.failed +
+    ', stoppedEarly: ' + stats.stoppedEarly + '.';
 }
 
 function findFormResponsesSheet_(ss) {

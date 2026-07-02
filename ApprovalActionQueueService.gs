@@ -42,7 +42,7 @@ function processApprovalActionQueue(options) {
     var sheet = getOrCreateSheet_(SHEETS.ACTION_QUEUE);
     setSheetHeaders_(sheet, ACTION_QUEUE_HEADERS);
     var rows = getDataObjects_(sheet);
-    var stats = { processed: 0, failed: 0, skipped: 0 };
+    var stats = { processed: 0, failed: 0, skipped: 0, stoppedEarly: false };
 
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i];
@@ -50,7 +50,10 @@ function processApprovalActionQueue(options) {
         stats.skipped++;
         continue;
       }
-      if (shouldStopSync_(options.startedAt)) break;
+      if (shouldStopSync_(options.startedAt)) {
+        stats.stoppedEarly = true;
+        break;
+      }
       var attempts = toNumber_(row[H.ACTION_QUEUE.ATTEMPTS], 0);
       var action = safeString_(row[H.ACTION_QUEUE.ACTION]);
       var actionId = safeString_(row[H.ACTION_QUEUE.ACTION_ID]);
@@ -92,5 +95,6 @@ function processApprovalActionQueue(options) {
 function formatApprovalActionQueueStats_(stats) {
   return 'Queued approval actions processed: ' + stats.processed +
     ', skipped: ' + stats.skipped +
-    ', failed: ' + stats.failed + '.';
+    ', failed: ' + stats.failed +
+    ', stoppedEarly: ' + stats.stoppedEarly + '.';
 }
