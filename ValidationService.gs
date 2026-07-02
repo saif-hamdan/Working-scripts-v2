@@ -49,6 +49,22 @@ function handleFinalStatusEdit(e) {
       SpreadsheetApp.getActive().toast('لا يمكن تغيير الحالة إلى اعتماد نهائي أو قيد التنفيذ أو منجز قبل موافقة رئيس الوحدة.');
       return;
     }
+
+    if (newValue === STATUS.FINAL_APPROVED || newValue === STATUS.FINAL_REJECTED) {
+      var record = getRecordFromSheetRow_(sheet, row);
+      record[H.RECORD.FINAL_STATUS] = newValue;
+      revertEdit_(e);
+      var sent = newValue === STATUS.FINAL_APPROVED
+        ? sendFinalApprovedNotification(record)
+        : sendFinalRejectedNotification(record);
+      if (!sent) {
+        logInfo_('handleFinalStatusEdit:emailFailed', requestId, 'Final status edit reverted because notification email was not sent.');
+        SpreadsheetApp.getActive().toast('تعذر إرسال إشعار البريد، لم يتم تغيير الحالة النهائية. / Email notification failed; final status was not changed.');
+        return;
+      }
+      e.range.setValue(newValue);
+    }
+
     sheet.getRange(row, map[H.RECORD.LAST_UPDATED]).setValue(now_());
     refreshDashboard();
     refreshCharts();
@@ -91,4 +107,14 @@ function isAuthorizedEditor_(email) {
 function revertEdit_(e) {
   if (e.oldValue !== undefined) e.range.setValue(e.oldValue);
   else e.range.clearContent();
+}
+
+function getRecordFromSheetRow_(sheet, row) {
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(safeString_);
+  var values = sheet.getRange(row, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var record = { _rowNumber: row };
+  headers.forEach(function(header, index) {
+    if (header) record[header] = values[index];
+  });
+  return record;
 }

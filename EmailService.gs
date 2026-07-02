@@ -65,6 +65,42 @@ function queueRejectedNotification(record) {
   return queueEmailForLater_(buildRejectedNotificationPayload_(record), { kind: 'rejected', requestId: record[H.RECORD.REQUEST_ID] });
 }
 
+function buildFinalApprovedNotificationPayload_(record) {
+  var data = buildTemplateData_(record, {});
+  var html = renderTemplate_('Emails_FinalApproved', data);
+  return {
+    to: uniqueNonEmpty_([
+      record[H.RECORD.EMPLOYEE_EMAIL],
+      record[H.RECORD.DIRECT_MANAGER_EMAIL],
+      record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]
+    ]).join(','),
+    subject: 'تم الاعتماد النهائي لطلب التدريب / Training Request Finally Approved - ' + record[H.RECORD.REQUEST_ID],
+    htmlBody: html
+  };
+}
+
+function sendFinalApprovedNotification(record) {
+  return sendEmailSafe_(buildFinalApprovedNotificationPayload_(record), { kind: 'final_approved', requestId: record[H.RECORD.REQUEST_ID] }) === true;
+}
+
+function buildFinalRejectedNotificationPayload_(record) {
+  var data = buildTemplateData_(record, {});
+  var html = renderTemplate_('Emails_FinalRejected', data);
+  return {
+    to: uniqueNonEmpty_([
+      record[H.RECORD.EMPLOYEE_EMAIL],
+      record[H.RECORD.DIRECT_MANAGER_EMAIL],
+      record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]
+    ]).join(','),
+    subject: 'تم الرفض النهائي لطلب التدريب / Training Request Finally Rejected - ' + record[H.RECORD.REQUEST_ID],
+    htmlBody: html
+  };
+}
+
+function sendFinalRejectedNotification(record) {
+  return sendEmailSafe_(buildFinalRejectedNotificationPayload_(record), { kind: 'final_rejected', requestId: record[H.RECORD.REQUEST_ID] }) === true;
+}
+
 function sendActiveEmployeeRejectedNotification(record, activeTraining) {
   var data = buildTemplateData_(record, {
     activeTraining: activeTraining,
