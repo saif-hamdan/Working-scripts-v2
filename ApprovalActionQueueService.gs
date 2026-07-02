@@ -44,11 +44,13 @@ function processApprovalActionQueue(options) {
     var rows = getDataObjects_(sheet);
     var stats = { processed: 0, failed: 0, skipped: 0 };
 
-    rows.forEach(function(row) {
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
       if (safeString_(row[H.ACTION_QUEUE.STATUS]) !== STATUS.ACTION_QUEUE_PENDING) {
         stats.skipped++;
-        return;
+        continue;
       }
+      if (shouldStopSync_(options.startedAt)) break;
       var attempts = toNumber_(row[H.ACTION_QUEUE.ATTEMPTS], 0);
       var action = safeString_(row[H.ACTION_QUEUE.ACTION]);
       var actionId = safeString_(row[H.ACTION_QUEUE.ACTION_ID]);
@@ -78,7 +80,7 @@ function processApprovalActionQueue(options) {
         stats.failed++;
         logError_('processApprovalActionQueue', actionId, err);
       }
-    });
+    }
 
     logInfo_('processApprovalActionQueue', '', formatApprovalActionQueueStats_(stats));
     return stats;

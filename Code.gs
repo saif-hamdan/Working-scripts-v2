@@ -60,6 +60,16 @@ function isSyncActiveHour_(date) {
   return hour >= SYNC_CONFIG.ACTIVE_START_HOUR && hour < SYNC_CONFIG.ACTIVE_END_HOUR;
 }
 
+function isSyncNearTimeout_(startedAt) {
+  return startedAt && Date.now() - startedAt >= SYNC_CONFIG.MAX_SINGLE_RUN_MS;
+}
+
+function shouldStopSync_(startedAt) {
+  if (!isSyncNearTimeout_(startedAt)) return false;
+  logInfo_('syncSystem', '', 'syncSystem stopped early to avoid timeout. Remaining work will continue in the next run.');
+  return true;
+}
+
 function syncSystem() {
   var startedAt = Date.now();
   if (!isSyncActiveHour_()) {
@@ -75,15 +85,23 @@ function syncSystem() {
   }
 
   try {
-    var responseQueueStats = processUnprocessedFormResponses({ skipLock: true });
+    if (shouldStopSync_(startedAt)) return;
+    var responseQueueStats = processUnprocessedFormResponses({ skipLock: true, startedAt: startedAt });
     logInfo_('syncSystem', '', formatResponseQueueStats_(responseQueueStats));
-    var approvalActionQueueStats = processApprovalActionQueue({ skipLock: true });
+    if (shouldStopSync_(startedAt)) return;
+    var approvalActionQueueStats = processApprovalActionQueue({ skipLock: true, startedAt: startedAt });
     logInfo_('syncSystem', '', formatApprovalActionQueueStats_(approvalActionQueueStats));
+    if (shouldStopSync_(startedAt)) return;
     syncReferenceDataFromAdminSheets_();
-    processEmailQueue();
-    processPendingApprovalEmails();
+    if (shouldStopSync_(startedAt)) return;
+    processEmailQueue({ startedAt: startedAt });
+    if (shouldStopSync_(startedAt)) return;
+    processPendingApprovalEmails({ startedAt: startedAt });
+    if (shouldStopSync_(startedAt)) return;
     refreshDashboard(true);
+    if (shouldStopSync_(startedAt)) return;
     refreshCharts();
+    if (shouldStopSync_(startedAt)) return;
     refreshFormChoices(true);
     logInfo_('syncSystem', '', 'Sync completed in ' + (Date.now() - startedAt) + ' ms.');
   } catch (err) {

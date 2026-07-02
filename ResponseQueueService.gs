@@ -49,21 +49,23 @@ function processUnprocessedFormResponses(options) {
     var skippedCount = 0;
     var failedCount = 0;
 
-    rows.forEach(function(row, index) {
+    for (var index = 0; index < rows.length; index++) {
+      var row = rows[index];
       var rowNumber = index + 2;
       if (!hasResponseRowData_(row, headers, map)) {
         skippedCount++;
-        return;
+        continue;
       }
       if (isResponseRowProcessed_(row, map)) {
         skippedCount++;
-        return;
+        continue;
       }
       if (!shouldAttemptResponseRow_(row, map, cfg.RESPONSE_QUEUE_MAX_RETRIES)) {
         markResponseRowReviewRequiredIfMaxed_(sheet, rowNumber, row, map, cfg.RESPONSE_QUEUE_MAX_RETRIES);
         skippedCount++;
-        return;
+        continue;
       }
+      if (shouldStopSync_(options.startedAt)) break;
 
       var responseId = makeResponseQueueId_(ss, sheet, rowNumber);
       try {
@@ -73,7 +75,7 @@ function processUnprocessedFormResponses(options) {
           markResponseRowProcessed_(sheet, rowNumber, map, existingRecord[H.RECORD.REQUEST_ID] || responseId, '');
           skippedCount++;
           logInfo_('processUnprocessedFormResponses', existingRecord[H.RECORD.REQUEST_ID] || responseId, 'Queued form response from row ' + rowNumber + ' already had a request; marked as processed.');
-          return;
+          continue;
         }
 
         markResponseRowProcessing_(sheet, rowNumber, map);
@@ -90,7 +92,7 @@ function processUnprocessedFormResponses(options) {
         failedCount++;
         logError_('processUnprocessedFormResponses', responseId, err);
       }
-    });
+    }
 
     var stats = buildResponseQueueStats_(processedCount, skippedCount, failedCount);
     logInfo_('processUnprocessedFormResponses', '', formatResponseQueueStats_(stats));
