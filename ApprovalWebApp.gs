@@ -57,12 +57,9 @@ function handleApprove_(token) {
         [H.RECORD.DECISION_DATE]: now_()
       });
       var updated = getRequestById_(requestId);
-      sendConflictNotification(updated, conflict, 'late_approval');
-      refreshDashboard();
-      refreshCharts();
-      refreshFormChoices();
+      queueConflictNotification(updated, conflict, 'late_approval');
       logInfo_('handleApprove_:conflict', requestId, 'Approval blocked because of conflict.');
-      return renderMessagePage_('تعذر الاعتماد بسبب التعارض', 'Approval blocked due to conflict', 'يوجد طلب آخر معتمد لنفس القسم وفي فترة متداخلة. تم إرسال التفاصيل بالبريد الإلكتروني.', false);
+      return renderMessagePage_('تعذر الاعتماد بسبب التعارض', 'Approval blocked due to conflict', 'يوجد طلب آخر معتمد لنفس القسم وفي فترة متداخلة. سيتم إرسال التفاصيل بالبريد الإلكتروني.', false);
     }
 
     updateRequestByRow_(record._rowNumber, {
@@ -71,12 +68,9 @@ function handleApprove_(token) {
       [H.RECORD.DECISION_DATE]: now_()
     });
     var approvedRecord = getRequestById_(requestId);
-    sendApprovedNotification(approvedRecord);
-    refreshDashboard();
-    refreshCharts();
-    refreshFormChoices();
+    queueApprovedNotification(approvedRecord);
     logInfo_('handleApprove_', requestId, 'Request approved by unit head; final admin approval remains pending.');
-    return renderMessagePage_('تمت موافقة رئيس الوحدة', 'Unit Head Approved', 'تمت موافقة رئيس الوحدة وبقي الاعتماد النهائي من الإدارة معلقاً. / The unit head approved the request; final admin approval remains pending.', true);
+    return renderMessagePage_('تم تسجيل القرار', 'Decision Recorded', 'تم تسجيل قرارك بنجاح. يمكنك الآن إغلاق هذه الصفحة. / Your decision has been recorded successfully. You may now close this page.', true);
   } finally {
     lock.releaseLock();
   }
@@ -110,12 +104,9 @@ function handleRejectSubmit_(token, reason) {
       [H.RECORD.DECISION_DATE]: now_()
     });
     var rejectedRecord = getRequestById_(requestId);
-    sendRejectedNotification(rejectedRecord);
-    refreshDashboard();
-    refreshCharts();
-    refreshFormChoices();
+    queueRejectedNotification(rejectedRecord);
     logInfo_('handleRejectSubmit_', requestId, 'Request rejected.');
-    return renderMessagePage_('تم رفض الطلب', 'Rejected', 'تم حفظ سبب الرفض وإرسال الإشعارات. / Rejection reason saved and notifications sent.', true);
+    return renderMessagePage_('تم تسجيل القرار', 'Decision Recorded', 'تم تسجيل قرارك بنجاح. يمكنك الآن إغلاق هذه الصفحة. / Your decision has been recorded successfully. You may now close this page.', true);
   } finally {
     lock.releaseLock();
   }

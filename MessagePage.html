@@ -3,6 +3,21 @@
 <head>
   <meta charset="utf-8">
   <?!= include('EmailStyles'); ?>
+  <style>
+    .final-actions { margin-top: 22px; text-align: center; }
+    .close-button {
+      background: <?= data.brand.primaryColor ?>;
+      border: 0;
+      border-radius: 10px;
+      color: #fff;
+      cursor: pointer;
+      font-family: Arial,Tahoma,sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      padding: 12px 22px;
+    }
+    .fallback-note { color: #555; line-height: 1.7; margin-top: 14px; }
+  </style>
 </head>
 <body>
   <div class="wrap">
@@ -14,6 +29,15 @@
       </div>
       <div class="content">
         <div class="<?= data.success ? 'success' : 'danger' ?>" dir="rtl"><?= data.message ?></div>
+        <? if (data.success) { ?>
+          <div class="final-actions">
+            <button class="close-button" type="button" onclick="window.close();">إغلاق الصفحة / Close page</button>
+            <div class="fallback-note">
+              <div dir="rtl">إذا لم تغلق الصفحة تلقائياً، يرجى إغلاقها يدوياً.</div>
+              <div>If the page does not close automatically, please close it manually.</div>
+            </div>
+          </div>
+        <? } ?>
       </div>
       <div class="footer">
         <div dir="rtl"><?= data.orgAr ?></div>
