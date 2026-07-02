@@ -352,6 +352,11 @@ function markResponseRowError_(sheet, rowNumber, map, err, maxRetries) {
 function updateResponseQueueRow_(sheet, rowNumber, map, updates) {
   Object.keys(updates).forEach(function(header) {
     if (!map[header]) throw new Error('Cannot update missing response queue column: ' + header);
-    sheet.getRange(rowNumber, map[header]).setValue(updates[header]);
   });
+  var lastCol = sheet.getLastColumn();
+  var row = sheet.getRange(rowNumber, 1, 1, lastCol).getValues()[0];
+  Object.keys(updates).forEach(function(header) {
+    row[map[header] - 1] = updates[header];
+  });
+  sheet.getRange(rowNumber, 1, 1, lastCol).setValues([row]);
 }
