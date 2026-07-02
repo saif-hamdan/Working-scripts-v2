@@ -151,15 +151,17 @@ function sendEvaluationEmail(record) {
 function sendEmailSafe_(payload, context) {
   try {
     if (!safeString_(payload.to)) throw new Error('Email recipient is empty.');
-    MailApp.sendEmail({
+    var message = {
       to: payload.to,
       cc: payload.cc || '',
       bcc: payload.bcc || '',
       subject: payload.subject,
       body: payload.body || 'يرجى عرض هذه الرسالة بصيغة HTML. / Please view this message in HTML.',
-      htmlBody: payload.htmlBody,
-      name: getConfig().EMAIL_SENDER_NAME
-    });
+      htmlBody: payload.htmlBody
+    };
+    var senderName = safeString_(getConfig().EMAIL_SENDER_NAME);
+    if (senderName) message.name = senderName;
+    MailApp.sendEmail(message);
     logInfo_('sendEmailSafe_:' + (context && context.kind || ''), context && context.requestId, 'Email sent to: ' + payload.to);
     return true;
   } catch (err) {
@@ -224,15 +226,17 @@ function processEmailQueue(options) {
     }
     var context = parseJsonSafe_(row[H.QUEUE.CONTEXT_JSON], {});
     try {
-      MailApp.sendEmail({
+      var message = {
         to: safeString_(row[H.QUEUE.TO]),
         cc: safeString_(row[H.QUEUE.CC]),
         bcc: safeString_(row[H.QUEUE.BCC]),
         subject: safeString_(row[H.QUEUE.SUBJECT]),
         body: 'يرجى عرض هذه الرسالة بصيغة HTML. / Please view this message in HTML.',
-        htmlBody: safeString_(row[H.QUEUE.HTML]),
-        name: getConfig().EMAIL_SENDER_NAME
-      });
+        htmlBody: safeString_(row[H.QUEUE.HTML])
+      };
+      var senderName = safeString_(getConfig().EMAIL_SENDER_NAME);
+      if (senderName) message.name = senderName;
+      MailApp.sendEmail(message);
       updateObjectRow_(sheet, row._rowNumber, {
         [H.QUEUE.STATUS]: STATUS.QUEUE_SENT,
         [H.QUEUE.ATTEMPTS]: attempts + 1,
