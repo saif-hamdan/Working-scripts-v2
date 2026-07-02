@@ -1,12 +1,15 @@
 /** KPI tables and embedded charts. */
-function refreshCharts() {
+function refreshCharts(records, dashboardRows) {
+  records = records || getRecords_();
+  dashboardRows = dashboardRows || calculateSectionSummary_(records);
+  refreshChartsFromData_(records, dashboardRows);
+}
+
+function refreshChartsFromData_(records, dashboardRows) {
   var ss = openDashboardSpreadsheet_();
   var sheet = ensureSheet_(ss, SHEETS.CHARTS);
   sheet.clear();
   try { sheet.setRightToLeft(true); } catch (ignore) {}
-
-  var records = getRecords_();
-  var dashboardRows = calculateSectionSummary_();
 
   var statusCounts = countBy_(records, H.RECORD.FINAL_STATUS);
   var unitActiveCounts = {};

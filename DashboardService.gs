@@ -1,20 +1,23 @@
 /** Dashboard calculations and rendering. */
-function refreshDashboard(skipReferenceSync) {
+function refreshDashboard(skipReferenceSync, rows) {
   if (skipReferenceSync !== true) syncReferenceDataFromAdminSheets_();
+  renderDashboardRows_(rows || calculateSectionSummary_());
+}
+
+function renderDashboardRows_(rows) {
   var ss = openDashboardSpreadsheet_();
   var sheet = ensureSheet_(ss, SHEETS.DASHBOARD);
-  var rows = calculateSectionSummary_();
-  clearAndWriteObjects_(sheet, DASHBOARD_HEADERS, rows);
+  clearAndWriteObjects_(sheet, DASHBOARD_HEADERS, rows || []);
   applyCleanTableFormatting_(sheet, DASHBOARD_HEADERS.length);
   applyDashboardConditionalFormatting_(sheet);
 }
 
-function calculateSectionSummary_() {
+function calculateSectionSummary_(records) {
   var units = getUnits_();
   var unitByName = {};
   units.forEach(function(unit) { unitByName[normalizeKey_(unit.name)] = unit; });
   var sections = getSections_();
-  var records = getRecords_();
+  records = records || getRecords_();
 
   return sections.map(function(section) {
     var activeRecords = records.filter(function(record) {
