@@ -14,8 +14,8 @@ function buildTemplateData_(record, extra) {
     { ar: 'إلى تاريخ', en: 'End Date', value: formatDate_(record[H.RECORD.END_DATE]) },
     { ar: 'عدد الساعات', en: 'Training Hours', value: record[H.RECORD.HOURS] },
     { ar: 'نوع الطلب', en: 'Request Type', value: record[H.RECORD.TYPE] },
-    { ar: 'حالة موافقة رئيس الوحدة', en: 'Head Approval Status', value: record[H.RECORD.HEAD_STATUS] },
-    { ar: 'حالة الاعتماد النهائي', en: 'Final Acceptance Status', value: record[H.RECORD.FINAL_STATUS] }
+    { ar: 'حالة موافقة رئيس الوحدة', en: 'Unit Head Approval Status', value: record[H.RECORD.HEAD_STATUS] },
+    { ar: 'حالة الاعتماد النهائي من الإدارة', en: 'Final Admin Approval Status', value: record[H.RECORD.FINAL_STATUS] }
   ];
   var data = {
     record: record,
