@@ -43,10 +43,10 @@ function handleFinalStatusEdit(e) {
     var row = e.range.getRow();
     var headStatus = safeString_(sheet.getRange(row, map[H.RECORD.HEAD_STATUS]).getValue());
     var requestId = safeString_(sheet.getRange(row, map[H.RECORD.REQUEST_ID]).getValue());
-    if (newValue === STATUS.FINAL_DONE && headStatus !== STATUS.HEAD_ACCEPTED) {
+    if (ACTIVE_FINAL_STATUSES.indexOf(newValue) !== -1 && headStatus !== STATUS.HEAD_ACCEPTED) {
       revertEdit_(e);
-      logInfo_('handleFinalStatusEdit:blockedDone', requestId, 'Cannot set done before head approval.');
-      SpreadsheetApp.getActive().toast('لا يمكن تغيير الحالة إلى منجز قبل موافقة رئيس الوحدة.');
+      logInfo_('handleFinalStatusEdit:blockedActiveFinalStatus', requestId, 'Cannot set final admin approval status before unit head approval.');
+      SpreadsheetApp.getActive().toast('لا يمكن تغيير الحالة إلى اعتماد نهائي أو قيد التنفيذ أو منجز قبل موافقة رئيس الوحدة.');
       return;
     }
     sheet.getRange(row, map[H.RECORD.LAST_UPDATED]).setValue(now_());

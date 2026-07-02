@@ -9,12 +9,12 @@
     <div class="card">
       <div class="header" style="background:<?= data.brand.primaryColor ?>;">
         <? if (data.brand.logoUrl) { ?><img class="logo" src="<?= data.brand.logoUrl ?>" alt="SQU Logo"><? } ?>
-        <div class="title-ar">تم اعتماد طلب التدريب</div>
-        <div class="title-en">Training Request Approved</div>
+        <div class="title-ar">تمت موافقة رئيس الوحدة على طلب التدريب</div>
+        <div class="title-en">Unit Head Approved Training Request</div>
       </div>
       <div class="content">
-        <div class="intro-ar">تمت الموافقة على طلب التدريب. يرجى متابعة حالة الاعتماد النهائي في لوحة المتابعة.</div>
-        <div class="intro-en">The training request has been approved. Please follow final acceptance status in the dashboard.</div>
+        <div class="intro-ar">وافق رئيس الوحدة على طلب التدريب. لا يزال الاعتماد النهائي من الإدارة معلقاً، ويرجى متابعة حالة الاعتماد النهائي في لوحة المتابعة.</div>
+        <div class="intro-en">The unit head approved the training request. The final admin decision is still pending; please follow the final acceptance status in the dashboard.</div>
         
 <table class="details">
   <tr><th>البيان / Field</th><th>القيمة / Value</th></tr>
@@ -26,7 +26,7 @@
   <? } ?>
 </table>
 
-        <div class="success">تم تحديث لوحة المتابعة تلقائياً. / The dashboard has been updated automatically.</div>
+        <div class="success">تم تحديث حالة موافقة رئيس الوحدة في لوحة المتابعة تلقائياً، ولا يزال الاعتماد النهائي قيد الانتظار. / The dashboard has been updated with the unit head approval, and final admin approval is still pending.</div>
       </div>
       <div class="footer">
         <div dir="rtl">هذه رسالة آلية من <?= data.orgAr ?>، يرجى عدم الرد على هذه الرسالة.</div>

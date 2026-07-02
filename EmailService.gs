@@ -33,7 +33,7 @@ function sendApprovedNotification(record) {
   return sendEmailSafe_({
     to: uniqueNonEmpty_([record[H.RECORD.DIRECT_MANAGER_EMAIL], record[H.RECORD.EMPLOYEE_EMAIL]]).join(','),
     cc: uniqueNonEmpty_([record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL], record[H.RECORD.APPROVER_EMAIL]]).join(','),
-    subject: 'تم اعتماد طلب التدريب / Training Request Approved - ' + record[H.RECORD.REQUEST_ID],
+    subject: 'تمت موافقة رئيس الوحدة - الاعتماد النهائي معلق / Unit Head Approved - Final Admin Decision Pending - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   }, { kind: 'approved', requestId: record[H.RECORD.REQUEST_ID] });
 }

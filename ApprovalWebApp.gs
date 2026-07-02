@@ -67,7 +67,7 @@ function handleApprove_(token) {
 
     updateRequestByRow_(record._rowNumber, {
       [H.RECORD.HEAD_STATUS]: STATUS.HEAD_ACCEPTED,
-      [H.RECORD.FINAL_STATUS]: STATUS.FINAL_APPROVED,
+      [H.RECORD.FINAL_STATUS]: STATUS.FINAL_PENDING,
       [H.RECORD.DECISION_DATE]: now_()
     });
     var approvedRecord = getRequestById_(requestId);
@@ -75,8 +75,8 @@ function handleApprove_(token) {
     refreshDashboard();
     refreshCharts();
     refreshFormChoices();
-    logInfo_('handleApprove_', requestId, 'Request approved.');
-    return renderMessagePage_('تمت الموافقة', 'Approved', 'تم اعتماد الطلب بنجاح. / The request has been approved successfully.', true);
+    logInfo_('handleApprove_', requestId, 'Request approved by unit head; final admin approval remains pending.');
+    return renderMessagePage_('تمت موافقة رئيس الوحدة', 'Unit Head Approved', 'تمت موافقة رئيس الوحدة وبقي الاعتماد النهائي من الإدارة معلقاً. / The unit head approved the request; final admin approval remains pending.', true);
   } finally {
     lock.releaseLock();
   }
