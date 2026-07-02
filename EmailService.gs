@@ -159,8 +159,6 @@ function sendEmailSafe_(payload, context) {
       body: payload.body || 'يرجى عرض هذه الرسالة بصيغة HTML. / Please view this message in HTML.',
       htmlBody: payload.htmlBody
     };
-    var senderName = safeString_(getConfig().EMAIL_SENDER_NAME);
-    if (senderName) message.name = senderName;
     MailApp.sendEmail(message);
     logInfo_('sendEmailSafe_:' + (context && context.kind || ''), context && context.requestId, 'Email sent to: ' + payload.to);
     return true;
@@ -234,8 +232,6 @@ function processEmailQueue(options) {
         body: 'يرجى عرض هذه الرسالة بصيغة HTML. / Please view this message in HTML.',
         htmlBody: safeString_(row[H.QUEUE.HTML])
       };
-      var senderName = safeString_(getConfig().EMAIL_SENDER_NAME);
-      if (senderName) message.name = senderName;
       MailApp.sendEmail(message);
       updateObjectRow_(sheet, row._rowNumber, {
         [H.QUEUE.STATUS]: STATUS.QUEUE_SENT,
