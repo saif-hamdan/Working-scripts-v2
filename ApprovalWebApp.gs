@@ -67,8 +67,6 @@ function handleApprove_(token) {
       [H.RECORD.FINAL_STATUS]: STATUS.FINAL_PENDING,
       [H.RECORD.DECISION_DATE]: now_()
     });
-    var approvedRecord = getRequestById_(requestId);
-    queueApprovedNotification(approvedRecord);
     logInfo_('handleApprove_', requestId, 'Request approved by unit head; final admin approval remains pending.');
     return renderMessagePage_('تم تسجيل القرار', 'Decision Recorded', 'تم تسجيل قرارك بنجاح. يمكنك الآن إغلاق هذه الصفحة. / Your decision has been recorded successfully. You may now close this page.', true);
   } finally {
