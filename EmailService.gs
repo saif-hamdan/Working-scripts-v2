@@ -4,17 +4,13 @@ function sendApprovalEmail(record) {
   var rejectUrl = makeWebAppUrl_('reject', record[H.RECORD.TOKEN]);
   var data = buildTemplateData_(record, { approveUrl: approveUrl, rejectUrl: rejectUrl });
   var html = renderTemplate_('Emails_Approval', data);
-  var to = safeString_(record[H.RECORD.APPROVER_EMAIL]);
-  var cc = uniqueNonEmpty_([record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL], record[H.RECORD.DIRECT_MANAGER_EMAIL]])
-    .filter(function(email) { return normalizeEmail_(email) !== normalizeEmail_(to); })
-    .join(',');
   return sendEmailSafe_({
-    to: to,
-    cc: cc,
+    to: safeString_(record[H.RECORD.APPROVER_EMAIL]),
     subject: 'طلب موافقة تدريب / Training Approval Request - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   }, { kind: 'approval', requestId: record[H.RECORD.REQUEST_ID] });
 }
+
 
 function sendSubmissionConfirmationEmail(record) {
   var data = buildTemplateData_(record, {});
