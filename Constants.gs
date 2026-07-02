@@ -8,6 +8,12 @@ const SYSTEM = Object.freeze({
   REQUEST_PREFIX: 'TRN'
 });
 
+const SYNC_CONFIG = Object.freeze({
+  TIMEZONE: SYSTEM.TIME_ZONE,
+  ACTIVE_START_HOUR: 5,
+  ACTIVE_END_HOUR: 22
+});
+
 const SHEETS = Object.freeze({
   DASHBOARD: 'لوحة الأقسام',
   RECORDS: 'سجل الطلبات',
