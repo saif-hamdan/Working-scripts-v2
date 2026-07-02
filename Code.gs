@@ -138,8 +138,6 @@ function hasSyncQueueChanges_(responseQueueStats, approvalActionQueueStats, emai
 function runFullSyncRefresh_(startedAt) {
   refreshDashboard(true);
   if (shouldStopSync_(startedAt)) return false;
-  refreshCharts();
-  if (shouldStopSync_(startedAt)) return false;
   refreshFormChoices(true);
   setSyncLastFullRefreshAt_(Date.now());
   return true;
