@@ -29,8 +29,12 @@ function handleWebPost(e) {
 
 function handleApprove_(token) {
   throwIfMissing_(token, 'Missing approval token.');
-  if (!getRequestByToken_(token)) {
+  var record = getRequestByToken_(token);
+  if (!record) {
     return renderMessagePage_('رابط غير صالح', 'Invalid link', 'لم يتم العثور على الطلب. / Request was not found.', false);
+  }
+  if (!isRequestAwaitingUnitHeadDecision_(record)) {
+    return renderAlreadyProcessedPage_(record);
   }
   queueApprovalAction_(token, APPROVAL_ACTIONS.APPROVE, '');
   return renderDecisionQueuedPage_();
@@ -94,6 +98,7 @@ function showRejectPage_(token) {
   throwIfMissing_(token, 'Missing rejection token.');
   var record = getRequestByToken_(token);
   if (!record) return renderMessagePage_('رابط غير صالح', 'Invalid link', 'لم يتم العثور على الطلب. / Request was not found.', false);
+  if (!isRequestAwaitingUnitHeadDecision_(record)) return renderAlreadyProcessedPage_(record);
   var actionUrlStatus = getValidatedWebAppUrlStatus_();
   if (!actionUrlStatus.ok) {
     return renderMessagePage_(
@@ -127,16 +132,50 @@ function rejectRequestFromPage(token, reason) {
   }
 }
 
+function isRequestAwaitingUnitHeadDecision_(record) {
+  return safeString_(record[H.RECORD.HEAD_STATUS]) === STATUS.HEAD_PENDING
+    && safeString_(record[H.RECORD.FINAL_STATUS]) === STATUS.FINAL_PENDING;
+}
+
+function buildAlreadyProcessedResult_(record) {
+  var requestId = safeString_(record && record[H.RECORD.REQUEST_ID]);
+  var headStatus = safeString_(record && record[H.RECORD.HEAD_STATUS]);
+  var finalStatus = safeString_(record && record[H.RECORD.FINAL_STATUS]);
+  var message = 'تم تسجيل قرار لهذا الطلب مسبقاً ولا يمكن إرسال قرار آخر لنفس الطلب.';
+  if (requestId) message += ' رقم الطلب: ' + requestId + '.';
+  if (headStatus) message += ' حالة موافقة رئيس الوحدة: ' + headStatus + '.';
+  if (finalStatus) message += ' حالة الاعتماد النهائي: ' + finalStatus + '.';
+  message += ' / This request was already processed, so another decision cannot be submitted.';
+  if (requestId) message += ' Request ID: ' + requestId + '.';
+  if (headStatus) message += ' Unit head status: ' + headStatus + '.';
+  if (finalStatus) message += ' Final status: ' + finalStatus + '.';
+  return {
+    titleAr: 'تمت معالجة الطلب مسبقاً',
+    titleEn: 'Request Already Processed',
+    message: message,
+    success: true
+  };
+}
+
+function renderAlreadyProcessedPage_(record) {
+  var result = buildAlreadyProcessedResult_(record);
+  return renderMessagePage_(result.titleAr, result.titleEn, result.message, result.success);
+}
+
 function rejectRequest_(token, reason) {
   throwIfMissing_(token, 'Missing rejection token.');
   throwIfMissing_(reason, 'Rejection reason is required.');
-  if (!getRequestByToken_(token)) {
+  var record = getRequestByToken_(token);
+  if (!record) {
     return {
       titleAr: 'رابط غير صالح',
       titleEn: 'Invalid link',
       message: 'لم يتم العثور على الطلب. / Request was not found.',
       success: false
     };
+  }
+  if (!isRequestAwaitingUnitHeadDecision_(record)) {
+    return buildAlreadyProcessedResult_(record);
   }
   queueApprovalAction_(token, APPROVAL_ACTIONS.REJECT, reason);
   return buildDecisionQueuedResult_();
