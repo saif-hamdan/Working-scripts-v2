@@ -1,4 +1,4 @@
-/** KPI tables and embedded charts. */
+/** KPI tables and indicators. */
 function refreshCharts(records, dashboardRows) {
   records = records || getRecords_();
   dashboardRows = dashboardRows || calculateSectionSummary_(records);
@@ -38,7 +38,6 @@ function refreshChartsFromData_(records, dashboardRows) {
 
   sheet.getRange(1, 1, Math.max(sheet.getLastRow(), 1), 11).setHorizontalAlignment('center').setVerticalAlignment('middle');
   for (var c = 1; c <= 11; c++) sheet.autoResizeColumn(c);
-  buildCharts_(sheet, Object.keys(statusCounts).length, Object.keys(unitActiveCounts).length, Object.keys(typeCounts).length);
 }
 
 function countBy_(records, header) {
@@ -58,38 +57,4 @@ function writeKeyValueTable_(sheet, startRow, startCol, map) {
   }
   var rows = keys.map(function(key) { return [key, map[key]]; });
   sheet.getRange(startRow, startCol, rows.length, 2).setValues(rows);
-}
-
-function buildCharts_(sheet, statusRows, unitRows, typeRows) {
-  sheet.getCharts().forEach(function(chart) { sheet.removeChart(chart); });
-  statusRows = Math.max(statusRows, 1);
-  unitRows = Math.max(unitRows, 1);
-  typeRows = Math.max(typeRows, 1);
-
-  var statusChart = sheet.newChart()
-    .setChartType(Charts.ChartType.PIE)
-    .addRange(sheet.getRange(1, 1, statusRows + 1, 2))
-    .setPosition(8, 1, 0, 0)
-    .setOption('title', 'الطلبات حسب الحالة')
-    .setOption('legend', { position: 'right' })
-    .build();
-  sheet.insertChart(statusChart);
-
-  var unitChart = sheet.newChart()
-    .setChartType(Charts.ChartType.COLUMN)
-    .addRange(sheet.getRange(1, 4, unitRows + 1, 2))
-    .setPosition(8, 5, 0, 0)
-    .setOption('title', 'المتدربون النشطون حسب الوحدة')
-    .setOption('legend', { position: 'none' })
-    .build();
-  sheet.insertChart(unitChart);
-
-  var typeChart = sheet.newChart()
-    .setChartType(Charts.ChartType.BAR)
-    .addRange(sheet.getRange(1, 7, typeRows + 1, 2))
-    .setPosition(24, 1, 0, 0)
-    .setOption('title', 'داخلي / خارجي')
-    .setOption('legend', { position: 'none' })
-    .build();
-  sheet.insertChart(typeChart);
 }
