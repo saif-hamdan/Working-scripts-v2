@@ -57,15 +57,18 @@ function processUnprocessedFormResponses(options) {
     var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(safeString_);
     var lastRow = sheet.getLastRow();
     var scanWindow = Math.max(RESPONSE_QUEUE_BATCH_SIZE, QUEUE_SCAN_WINDOW_ROWS);
-    var startRow = Math.max(2, lastRow - scanWindow + 1);
-    var rows = sheet.getRange(startRow, 1, lastRow - startRow + 1, sheet.getLastColumn()).getValues();
+    var scanRange = getQueueScanRange_(RESPONSE_QUEUE_SCAN_CURSOR_KEY, lastRow, scanWindow);
+    var startRow = scanRange.startRow;
+    var rows = scanRange.rowCount > 0 ? sheet.getRange(scanRange.startRow, 1, scanRange.rowCount, sheet.getLastColumn()).getValues() : [];
     var processedCount = 0;
     var skippedCount = 0;
     var failedCount = 0;
     var stoppedEarly = false;
+    var stoppedForBatch = false;
     var scannedCount = 0;
     var actionableCount = 0;
-    var remainingLikely = startRow > 2;
+    var remainingLikely = scanRange.endRow < lastRow;
+    var cursorDeferred = false;
 
     for (var index = rows.length - 1; index >= 0; index--) {
       var row = rows[index];
@@ -86,11 +89,16 @@ function processUnprocessedFormResponses(options) {
       }
       if (actionableCount >= RESPONSE_QUEUE_BATCH_SIZE) {
         remainingLikely = true;
+        stoppedForBatch = true;
+        setQueueScanCursor_(RESPONSE_QUEUE_SCAN_CURSOR_KEY, rowNumber, lastRow);
+        cursorDeferred = true;
         break;
       }
       if (shouldStopSync_(options.startedAt)) {
         stoppedEarly = true;
         remainingLikely = true;
+        setQueueScanCursor_(RESPONSE_QUEUE_SCAN_CURSOR_KEY, rowNumber, lastRow);
+        cursorDeferred = true;
         break;
       }
       actionableCount++;
@@ -130,8 +138,11 @@ function processUnprocessedFormResponses(options) {
       }
     }
 
+    if (!cursorDeferred) advanceQueueScanCursor_(RESPONSE_QUEUE_SCAN_CURSOR_KEY, scanRange, lastRow);
     var stats = buildResponseQueueStats_(processedCount, skippedCount, failedCount, stoppedEarly, scannedCount, remainingLikely);
+    stats.stoppedForBatch = stoppedForBatch;
     logInfo_('processUnprocessedFormResponses', '', formatResponseQueueStats_(stats));
+    logQueueStoppedEarly_('processUnprocessedFormResponses', '', stats, RESPONSE_QUEUE_BATCH_SIZE);
     return stats;
   } finally {
     if (lock) lock.releaseLock();

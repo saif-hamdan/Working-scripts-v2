@@ -166,6 +166,38 @@ function parseJsonSafe_(text, fallback) {
   }
 }
 
+function getQueueScanRange_(cursorKey, lastRow, scanWindowRows) {
+  if (lastRow < 2) return { startRow: 2, endRow: 1, rowCount: 0, wrapped: false };
+  var scanWindow = Math.max(1, toNumber_(scanWindowRows, 1));
+  var props = PropertiesService.getScriptProperties();
+  var cursor = toNumber_(props.getProperty(cursorKey), 2);
+  if (cursor < 2 || cursor > lastRow) cursor = 2;
+  var endRow = Math.min(lastRow, cursor + scanWindow - 1);
+  return {
+    startRow: cursor,
+    endRow: endRow,
+    rowCount: endRow - cursor + 1,
+    wrapped: cursor === 2 && safeString_(props.getProperty(cursorKey)) !== ''
+  };
+}
+
+function setQueueScanCursor_(cursorKey, nextRow, lastRow) {
+  var cursor = toNumber_(nextRow, 2);
+  if (lastRow < 2 || cursor < 2 || cursor > lastRow) cursor = 2;
+  PropertiesService.getScriptProperties().setProperty(cursorKey, String(cursor));
+  return cursor;
+}
+
+function advanceQueueScanCursor_(cursorKey, range, lastRow) {
+  return setQueueScanCursor_(cursorKey, range.endRow + 1, lastRow);
+}
+
+function logQueueStoppedEarly_(source, messageId, stats, batchSize) {
+  if (!stats || !stats.remainingLikely || (!stats.stoppedEarly && !stats.stoppedForBatch)) return;
+  var reason = stats.stoppedEarly ? 'runtime limit' : 'batch limit';
+  logInfo_(source, messageId || '', 'Queue processor stopped before all actionable rows were exhausted (' + reason + '); more pending/error rows may remain. Batch size: ' + batchSize + ', scanned: ' + stats.scanned + '.');
+}
+
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }

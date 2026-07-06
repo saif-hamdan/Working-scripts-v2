@@ -237,11 +237,13 @@ function processEmailQueue(options) {
   var lastRow = sheet.getLastRow();
   var lastCol = sheet.getLastColumn();
   var scanWindow = Math.max(EMAIL_QUEUE_BATCH_SIZE, QUEUE_SCAN_WINDOW_ROWS);
-  var startRow = Math.max(2, lastRow - scanWindow + 1);
+  var scanRange = getQueueScanRange_(EMAIL_QUEUE_SCAN_CURSOR_KEY, lastRow, scanWindow);
+  var startRow = scanRange.startRow;
   var headers = lastRow >= 1 ? sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(safeString_) : [];
-  var rows = lastRow >= 2 ? sheet.getRange(startRow, 1, lastRow - startRow + 1, lastCol).getValues() : [];
-  var stats = { sent: 0, processed: 0, failed: 0, skipped: 0, scanned: 0, remainingLikely: startRow > 2, stoppedEarly: false };
+  var rows = lastRow >= 2 && scanRange.rowCount > 0 ? sheet.getRange(scanRange.startRow, 1, scanRange.rowCount, lastCol).getValues() : [];
+  var stats = { sent: 0, processed: 0, failed: 0, skipped: 0, scanned: 0, remainingLikely: scanRange.endRow < lastRow, stoppedEarly: false, stoppedForBatch: false };
   var actionableCount = 0;
+  var cursorDeferred = false;
   for (var i = rows.length - 1; i >= 0; i--) {
     var row = objectFromQueueRow_(headers, rows[i], startRow + i);
     stats.scanned++;
@@ -256,11 +258,16 @@ function processEmailQueue(options) {
     }
     if (actionableCount >= EMAIL_QUEUE_BATCH_SIZE) {
       stats.remainingLikely = true;
+      stats.stoppedForBatch = true;
+      setQueueScanCursor_(EMAIL_QUEUE_SCAN_CURSOR_KEY, row._rowNumber, lastRow);
+      cursorDeferred = true;
       break;
     }
     if (shouldStopSync_(options.startedAt)) {
       stats.stoppedEarly = true;
       stats.remainingLikely = true;
+      setQueueScanCursor_(EMAIL_QUEUE_SCAN_CURSOR_KEY, row._rowNumber, lastRow);
+      cursorDeferred = true;
       break;
     }
     actionableCount++;
@@ -300,11 +307,13 @@ function processEmailQueue(options) {
       logError_('processEmailQueue', context.requestId || '', err);
     }
   }
+  if (!cursorDeferred) advanceQueueScanCursor_(EMAIL_QUEUE_SCAN_CURSOR_KEY, scanRange, lastRow);
   logInfo_('processEmailQueue', '', 'Email queue sent: ' + stats.sent +
     ', skipped: ' + stats.skipped +
     ', failed: ' + stats.failed +
     ', scanned: ' + stats.scanned +
     ', remainingLikely: ' + stats.remainingLikely +
     ', stoppedEarly: ' + stats.stoppedEarly + '.');
+  logQueueStoppedEarly_('processEmailQueue', '', stats, EMAIL_QUEUE_BATCH_SIZE);
   return stats;
 }
