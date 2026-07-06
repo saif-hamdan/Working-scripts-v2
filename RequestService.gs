@@ -43,6 +43,7 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
   record[H.RECORD.DIRECT_MANAGER_NAME] = data.directManagerName;
   record[H.RECORD.DIRECT_MANAGER_EMAIL] = data.directManagerEmail;
   record[H.RECORD.EMPLOYEE_NAME] = data.employeeName;
+  record[H.RECORD.EMPLOYEE_ID] = data.employeeId;
   record[H.RECORD.EMPLOYEE_EMAIL] = data.employeeEmail;
   record[H.RECORD.CURRENT_UNIT] = data.currentUnit;
   record[H.RECORD.CURRENT_UNIT_HEAD] = currentUnit.headName;
@@ -178,6 +179,7 @@ function parseFormSubmission_(e) {
     directManagerName: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.DIRECT_MANAGER_NAME),
     directManagerEmail: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.DIRECT_MANAGER_EMAIL),
     employeeName: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_NAME),
+    employeeId: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_ID),
     employeeEmail: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_EMAIL),
     currentUnit: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.CURRENT_UNIT),
     trainingUnit: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.TRAINING_UNIT),
@@ -229,6 +231,7 @@ function parseLinkedResponseRow_(headers, row) {
     directManagerName: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.DIRECT_MANAGER_NAME),
     directManagerEmail: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.DIRECT_MANAGER_EMAIL),
     employeeName: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_NAME),
+    employeeId: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_ID),
     employeeEmail: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_EMAIL),
     currentUnit: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.CURRENT_UNIT),
     trainingUnit: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.TRAINING_UNIT),
@@ -261,8 +264,10 @@ function createRequestFromFormData_(e) {
 
 function validateSubmissionData_(data) {
   throwIfMissing_(data.directManagerName, 'Direct manager name is missing.');
+  if (!data.directManagerEmail) data.directManagerEmail = data.submitterEmail || data.employeeEmail;
   throwIfMissing_(data.directManagerEmail, 'Direct manager email is missing.');
   throwIfMissing_(data.employeeName, 'Employee name is missing.');
+  throwIfMissing_(data.employeeId, 'Employee ID is missing.');
   throwIfMissing_(data.employeeEmail, 'Employee email is missing.');
   throwIfMissing_(data.currentUnit, 'Current unit is missing.');
   throwIfMissing_(data.trainingUnit, 'Requested training unit is missing.');

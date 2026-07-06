@@ -7,13 +7,14 @@ function openMainForm_() {
 
 function setupFormStructure() {
   var form = openMainForm_();
-  form.setTitle('طلب تدريب موظف / Employee Training Request');
-  form.setDescription('يرجى إدخال بيانات الطلب بدقة. يتم التحقق من التعارضات مرة أخرى عند الموافقة.\nPlease enter the request details carefully. Conflicts are checked again when the unit head approves.');
+  form.setTitle('New Employee / طلب تدريب موظف جديد Training Request');
+  form.setDescription('يرجى إدخال بيانات الطلب بدقة. يتم التحقق من التعارضات مرة أخرى عند اعتماد رئيس الوحدة.\nPlease enter the request details carefully. Conflicts are checked again when the unit head approves.');
   try { form.setCollectEmail(true); } catch (ignore) {}
 
+  deleteFormItemIfPresent_(form, FORM.TITLES.DIRECT_MANAGER_EMAIL, FormApp.ItemType.TEXT);
   ensureTextItem_(form, FORM.TITLES.DIRECT_MANAGER_NAME, true);
-  ensureTextItem_(form, FORM.TITLES.DIRECT_MANAGER_EMAIL, true);
   ensureTextItem_(form, FORM.TITLES.EMPLOYEE_NAME, true);
+  ensureTextItem_(form, FORM.TITLES.EMPLOYEE_ID, true);
   ensureTextItem_(form, FORM.TITLES.EMPLOYEE_EMAIL, true);
   ensureCurrentUnitItem_(form);
   ensureDateItem_(form, FORM.TITLES.START_DATE, true);
@@ -22,6 +23,16 @@ function setupFormStructure() {
   ensureParagraphItem_(form, FORM.TITLES.NOTES, false);
   ensureTrainingUnitItem_(form);
   refreshFormChoices();
+}
+
+function deleteFormItemIfPresent_(form, title, type) {
+  var item = getFormItemByTitle_(form, title, type);
+  if (!item) return;
+  try {
+    form.deleteItem(item);
+  } catch (err) {
+    logWarn_('deleteFormItemIfPresent_', '', 'Could not delete obsolete form item "' + title + '": ' + err.message);
+  }
 }
 
 function refreshFormChoices(skipReferenceSync) {
