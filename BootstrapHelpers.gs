@@ -101,14 +101,15 @@ function readUnits_(ss, options) {
   if (!sheet) return [];
   var rows = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, BH.UNITS.length).getValues() : [];
   return rows.filter(function(row) {
-    return row[1] && (options.includeInactive || isActiveValue_(row[4]));
+    return row[1] && (options.includeInactive || isActiveValue_(row[5]));
   }).map(function(row) {
     return {
       id: String(row[0] || '').trim(),
       name: String(row[1] || '').trim(),
       headName: String(row[2] || '').trim(),
-      headEmail: String(row[3] || '').trim(),
-      active: isActiveValue_(row[4])
+      headTitle: String(row[3] || '').trim(),
+      headEmail: String(row[4] || '').trim(),
+      active: isActiveValue_(row[5])
     };
   });
 }

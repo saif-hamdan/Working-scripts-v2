@@ -9,6 +9,7 @@ function getUnits_() {
         id: safeString_(row[H.UNIT.UNIT_ID]) || safeString_(row[H.UNIT.UNIT_NAME]),
         name: safeString_(row[H.UNIT.UNIT_NAME]),
         headName: safeString_(row[H.UNIT.HEAD_NAME]),
+        headTitle: safeString_(row[H.UNIT.HEAD_TITLE]),
         headEmail: safeString_(row[H.UNIT.HEAD_EMAIL])
       };
     })
@@ -108,6 +109,7 @@ function normalizeAdminUnitRows_(rows) {
     unit[H.UNIT.UNIT_ID] = safeString_(row[H.UNIT.UNIT_ID]) || safeString_(row[H.UNIT.UNIT_NAME]);
     unit[H.UNIT.UNIT_NAME] = safeString_(row[H.UNIT.UNIT_NAME]);
     unit[H.UNIT.HEAD_NAME] = safeString_(row[H.UNIT.HEAD_NAME]);
+    unit[H.UNIT.HEAD_TITLE] = safeString_(row[H.UNIT.HEAD_TITLE]);
     unit[H.UNIT.HEAD_EMAIL] = safeString_(row[H.UNIT.HEAD_EMAIL]);
     unit[H.UNIT.ACTIVE] = safeString_(row[H.UNIT.ACTIVE]) || STATUS.YES;
     return unit;

@@ -88,14 +88,14 @@ Do not install the five-minute refresh trigger in the setup/resource project. It
 
 ### `إدارة الوحدات`
 
-| معرف الوحدة | اسم الوحدة | رئيس الوحدة | بريد رئيس الوحدة | نشط |
-|---|---|---|---|---|
-| UNIT-001 | Unit Name | Head Name | head@example.com | نعم |
+| معرف الوحدة | اسم الوحدة | رئيس الوحدة | مسمى وظيفي رئيس الوحدة | بريد رئيس الوحدة | نشط |
+|---|---|---|---|---|---|
+| المكتبة الرئيسية | المكتبة الرئيسية | الدكتور حمد بن محمد بن سالم العزري | مدير المكتبة الرئيسية |  | نعم |
 
 ### `إدارة الأقسام`
 
 | معرف القسم | معرف الوحدة | اسم الوحدة | اسم القسم | نشط | السعة |
 |---|---|---|---|---|---|
-| SEC-001 | UNIT-001 | Unit Name | Section Name | نعم | 1 |
+| المكتبة الرئيسية-الاعارة | المكتبة الرئيسية | المكتبة الرئيسية | الاعارة | نعم | 1 |
 
 The system uses capacity 1 by default, matching the requirement that a section cannot have another trainee at the same time.
