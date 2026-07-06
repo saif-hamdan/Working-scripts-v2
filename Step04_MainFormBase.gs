@@ -1,6 +1,7 @@
 function run04_rebuildMainFormBaseQuestions() {
   var ss = openDashboardFromProperties_();
   var form = openMainFormFromProperties_();
+  ensureMainFormResponseDestination_(form, ss);
   syncAdminReferenceData_(ss);
   rebuildMainFormBase_(form, ss);
   setBootstrapProperties_({

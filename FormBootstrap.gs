@@ -1,4 +1,5 @@
 function setupMainForm_(form, dashboard) {
+  ensureMainFormResponseDestination_(form, dashboard);
   rebuildMainFormBase_(form, dashboard);
   removeExistingBranchItems_(form);
   var units = readUnits_(dashboard);

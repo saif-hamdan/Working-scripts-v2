@@ -303,7 +303,9 @@ function writeSettings_(ss, mainForm, evaluationForm) {
   var values = {};
   values[SETTINGS_KEYS.DASHBOARD_SPREADSHEET_ID] = ss.getId();
   values[SETTINGS_KEYS.MAIN_FORM_ID] = mainForm ? mainForm.getId() : getBootstrapProperty_(BSPROP.MAIN_FORM_ID, '');
-  values[SETTINGS_KEYS.FORM_RESPONSES_SPREADSHEET_ID] = getMainFormResponsesSpreadsheetId_(mainForm);
+  values[SETTINGS_KEYS.FORM_RESPONSES_SPREADSHEET_ID] = mainForm
+    ? ensureMainFormResponseDestination_(mainForm, ss)
+    : getMainFormResponsesSpreadsheetId_(mainForm);
   values[SETTINGS_KEYS.RESPONSE_QUEUE_MAX_RETRIES] = '3';
   values[SETTINGS_KEYS.EVALUATION_FORM_URL] = evaluationForm ? evaluationForm.getPublishedUrl() : getBootstrapProperty_(BSPROP.EVALUATION_FORM_PUBLISHED_URL, '');
   values[SETTINGS_KEYS.WEB_APP_URL] = 'PASTE_WEB_APP_URL_AFTER_DEPLOYMENT';
@@ -329,12 +331,73 @@ function writeSettings_(ss, mainForm, evaluationForm) {
 }
 
 function getMainFormResponsesSpreadsheetId_(mainForm) {
+  return getMainFormResponsesSpreadsheetIdFromForm_(mainForm) ||
+    getBootstrapProperty_(SETTINGS_KEYS.FORM_RESPONSES_SPREADSHEET_ID, '');
+}
+
+function ensureMainFormResponseDestination_(mainForm, dashboard) {
+  if (!mainForm) return getBootstrapProperty_(SETTINGS_KEYS.FORM_RESPONSES_SPREADSHEET_ID, '');
+
+  var responseSpreadsheetId = getConfiguredMainFormResponsesSpreadsheetId_(dashboard, mainForm);
+  if (!responseSpreadsheetId && dashboard) responseSpreadsheetId = dashboard.getId();
+  if (!responseSpreadsheetId) return '';
+
+  mainForm.setDestination(FormApp.DestinationType.SPREADSHEET, responseSpreadsheetId);
+  writeMainFormResponsesSpreadsheetId_(dashboard, responseSpreadsheetId);
+  return responseSpreadsheetId;
+}
+
+function getConfiguredMainFormResponsesSpreadsheetId_(dashboard, mainForm) {
+  var propValue = getBootstrapProps_().getProperty(SETTINGS_KEYS.FORM_RESPONSES_SPREADSHEET_ID);
+  if (propValue) return propValue;
+
+  if (dashboard) {
+    try {
+      var settingsSheetName = (typeof SHEETS !== 'undefined' && SHEETS.SETTINGS) ? SHEETS.SETTINGS : BS.SETTINGS;
+      var settings = readSettingsRows_(dashboard.getSheetByName(settingsSheetName));
+      if (settings[SETTINGS_KEYS.FORM_RESPONSES_SPREADSHEET_ID]) {
+        return settings[SETTINGS_KEYS.FORM_RESPONSES_SPREADSHEET_ID];
+      }
+    } catch (ignore) {}
+  }
+
+  return getMainFormResponsesSpreadsheetIdFromForm_(mainForm);
+}
+
+function writeMainFormResponsesSpreadsheetId_(dashboard, responseSpreadsheetId) {
+  setBootstrapProperties_({
+    [SETTINGS_KEYS.FORM_RESPONSES_SPREADSHEET_ID]: responseSpreadsheetId
+  });
+
+  if (!dashboard || !responseSpreadsheetId) return;
+
+  try {
+    var settingsSheetName = (typeof SHEETS !== 'undefined' && SHEETS.SETTINGS) ? SHEETS.SETTINGS : BS.SETTINGS;
+    var sheet = dashboard.getSheetByName(settingsSheetName) || ensureSheet_(dashboard, settingsSheetName);
+    setHeaders_(sheet, BH.SETTINGS);
+    var lastRow = Math.max(sheet.getLastRow(), 1);
+    if (lastRow > 1) {
+      var keys = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (var i = 0; i < keys.length; i++) {
+        if (safeString_(keys[i][0]) === SETTINGS_KEYS.FORM_RESPONSES_SPREADSHEET_ID) {
+          sheet.getRange(i + 2, 2).setValue(responseSpreadsheetId);
+          return;
+        }
+      }
+    }
+    sheet.getRange(lastRow + 1, 1, 1, 2).setValues([[SETTINGS_KEYS.FORM_RESPONSES_SPREADSHEET_ID, responseSpreadsheetId]]);
+  } catch (err) {
+    Logger.log('Could not write FORM_RESPONSES_SPREADSHEET_ID to Settings sheet: ' + err.message);
+  }
+}
+
+function getMainFormResponsesSpreadsheetIdFromForm_(mainForm) {
   if (mainForm) {
     try {
       return mainForm.getDestinationId ? (mainForm.getDestinationId() || '') : '';
     } catch (ignore) {}
   }
-  return getBootstrapProperty_(SETTINGS_KEYS.FORM_RESPONSES_SPREADSHEET_ID, '');
+  return '';
 }
 
 function writeSetupSummary_(ss, mainForm, evaluationForm) {

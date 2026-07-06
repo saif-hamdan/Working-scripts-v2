@@ -1,6 +1,7 @@
 function run01_createOrOpenResources() {
   var dashboard = resolveDashboardResource_();
   var mainForm = resolveMainFormResource_();
+  var responseSpreadsheetId = ensureMainFormResponseDestination_(mainForm, dashboard);
   var evaluationForm = resolveEvaluationFormResource_();
 
   setBootstrapProperties_({
@@ -9,6 +10,7 @@ function run01_createOrOpenResources() {
     [BSPROP.MAIN_FORM_ID]: mainForm.getId(),
     [BSPROP.MAIN_FORM_EDIT_URL]: mainForm.getEditUrl(),
     [BSPROP.MAIN_FORM_PUBLISHED_URL]: mainForm.getPublishedUrl(),
+    [SETTINGS_KEYS.FORM_RESPONSES_SPREADSHEET_ID]: responseSpreadsheetId,
     [BSPROP.EVALUATION_FORM_ID]: evaluationForm.getId(),
     [BSPROP.EVALUATION_FORM_EDIT_URL]: evaluationForm.getEditUrl(),
     [BSPROP.EVALUATION_FORM_PUBLISHED_URL]: evaluationForm.getPublishedUrl(),
