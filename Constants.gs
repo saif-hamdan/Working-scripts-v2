@@ -186,7 +186,8 @@ const STATUS = Object.freeze({
   QUEUE_FAILED: 'فشل الإرسال',
   ACTION_QUEUE_PENDING: 'بانتظار المعالجة',
   ACTION_QUEUE_PROCESSED: 'تمت المعالجة',
-  ACTION_QUEUE_FAILED: 'فشلت المعالجة'
+  ACTION_QUEUE_FAILED: 'فشلت المعالجة - ستعاد المحاولة',
+  ACTION_QUEUE_REQUIRES_REVIEW: 'تتطلب مراجعة يدوية'
 });
 
 const FINAL_STATUS_OPTIONS = Object.freeze([
