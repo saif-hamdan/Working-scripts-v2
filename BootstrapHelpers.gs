@@ -432,6 +432,8 @@ function writeSetupSummary_(ss, mainForm, evaluationForm) {
     ['Validation status', getBootstrapProperty_(BSPROP.VALIDATION_STATUS, BSTATUS.NOT_STARTED)],
     ['Reference data hash', getBootstrapProperty_(BSPROP.REFERENCE_DATA_HASH, '')],
     ['Last reference sync', getBootstrapProperty_(BSPROP.LAST_REFERENCE_SYNC, '')],
+    ['Production compatibility status', getBootstrapProperty_(BSPROP.PRODUCTION_COMPATIBILITY_STATUS, BSTATUS.NOT_STARTED)],
+    ['Next production compatibility step', getBootstrapProperty_(BSPROP.PRODUCTION_COMPATIBILITY_INDEX, '0')],
     ['Ready for production script IDs', getBootstrapProperty_(BSPROP.READY, 'false')]
   ];
 
