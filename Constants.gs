@@ -98,6 +98,7 @@ const H = Object.freeze({
     UNIT_ID: 'معرف الوحدة',
     UNIT_NAME: 'اسم الوحدة',
     HEAD_NAME: 'رئيس الوحدة',
+    HEAD_TITLE: 'مسمى وظيفي رئيس الوحدة',
     HEAD_EMAIL: 'بريد رئيس الوحدة',
     ACTIVE: 'نشط'
   }),
