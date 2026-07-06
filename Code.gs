@@ -1,15 +1,42 @@
 /** Entry points used by menus, triggers, and web app deployment. */
 function onOpen() {
   try {
-    SpreadsheetApp.getUi()
-      .createMenu('SQU Training')
+    var ui = SpreadsheetApp.getUi();
+    var setupMenu = ui.createMenu('Staged bootstrap setup')
+      .addItem('00 - Diagnose setup state', 'run00_diagnoseSetupState')
+      .addItem('00 - Clear saved resource IDs for fresh setup', 'run00_clearSavedResourceIdsForFreshSetup')
+      .addItem('00 - Start fresh setup resources', 'run00_startFreshSetupResources')
+      .addSeparator()
+      .addItem('01 - Create or open resources', 'run01_createOrOpenResources')
+      .addItem('02 - Set up dashboard sheets', 'run02_setupDashboardSheets')
+      .addItem('03 - Validate reference data', 'run03_validateReferenceData')
+      .addItem('04 - Rebuild main form base questions', 'run04_rebuildMainFormBaseQuestions')
+      .addItem('05 - Start main form branching', 'run05_startMainFormBranching')
+      .addItem('06 - Continue main form branching', 'run06_continueMainFormBranching')
+      .addItem('07 - Set up evaluation form', 'run07_setupEvaluationForm')
+      .addItem('08 - Build dashboard summary and charts', 'run08_buildDashboardSummaryAndCharts')
+      .addItem('09 - Apply protections', 'run09_applyProtections')
+      .addItem('10 - Finalize setup summary', 'run10_finalizeSetupSummary')
+      .addSeparator()
+      .addItem('11 - Refresh main form from admin sheets', 'run11_refreshMainFormFromAdminSheets')
+      .addItem('12 - Create five-minute form refresh trigger', 'run12_createFiveMinuteFormRefreshTrigger')
+      .addItem('12 - Delete five-minute form refresh trigger', 'run12_deleteFiveMinuteFormRefreshTrigger')
+      .addSeparator()
+      .addItem('Bootstrap all (small setups only)', 'bootstrapAll');
+
+    ui.createMenu('SQU Training')
       .addItem('إعداد/تحديث النظام', 'setupAllFromMenu')
+      .addItem('Production setupAll', 'setupAll')
       .addItem('تحديث لوحة الأقسام', 'refreshDashboard')
       .addItem('تحديث القوائم في النموذج', 'refreshFormChoices')
       .addItem('معالجة الطلبات غير المعالجة', 'processResponseQueueOnce')
+      .addItem('Sync system', 'syncSystem')
+      .addItem('Maintenance check', 'maintenanceCheck')
       .addItem('إرسال تقييمات مستحقة', 'sendEvaluationEmails')
       .addItem('تغيير حالة الاعتماد النهائي', 'showFinalStatusDialog')
       .addItem('إعادة تثبيت المشغلات', 'installTriggers')
+      .addSeparator()
+      .addSubMenu(setupMenu)
       .addToUi();
   } catch (ignore) {}
 }
