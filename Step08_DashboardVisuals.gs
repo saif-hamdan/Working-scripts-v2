@@ -25,7 +25,7 @@ function refreshDashboardSectionSummary_(ss) {
   });
 
   var rMap = bsGetHeaderMap_(records);
-  var employeeNameCol = columnLetter_(rMap['اسم الموظف الجديد']);
+  var employeeNameCol = columnLetter_(rMap['اسم الموظف']);
   var requestedUnitCol = columnLetter_(rMap['وحدة التدريب المطلوبة']);
   var requestedSectionCol = columnLetter_(rMap['القسم المطلوب']);
   var startDateCol = columnLetter_(rMap['من تاريخ']);

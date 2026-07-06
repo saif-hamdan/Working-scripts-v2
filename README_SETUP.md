@@ -8,7 +8,7 @@ No CSV files are required. Apps Script creates the Google Sheet tabs directly, a
 
 ## What this toolkit creates/prepares
 
-- Main Google Form: `طلب تدريب موظف جديد / New Employee Training Request`
+- Main Google Form: `طلب تدريب موظف / Employee Training Request`
 - Evaluation Google Form: `تقييم تجربة التدريب / Training Evaluation`
 - Dashboard spreadsheet with Arabic RTL tabs:
   - `لوحة الأقسام`

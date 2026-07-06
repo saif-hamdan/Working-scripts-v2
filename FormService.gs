@@ -7,7 +7,7 @@ function openMainForm_() {
 
 function setupFormStructure() {
   var form = openMainForm_();
-  form.setTitle('طلب تدريب موظف جديد / New Employee Training Request');
+  form.setTitle('طلب تدريب موظف / Employee Training Request');
   form.setDescription('يرجى إدخال بيانات الطلب بدقة. يتم التحقق من التعارضات مرة أخرى عند الموافقة.\nPlease enter the request details carefully. Conflicts are checked again when the unit head approves.');
   try { form.setCollectEmail(true); } catch (ignore) {}
 

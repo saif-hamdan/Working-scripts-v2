@@ -54,7 +54,7 @@ BRAND_LOGO_URL = official hosted logo URL
 EVALUATION_ALLOWED_FINAL_STATUSES = معتمد,منجز
 ```
 
-Recommended `APPROVER_UNIT_MODE` is `CURRENT_UNIT`, meaning the head of the unit the new employee belongs to approves. Use `TRAINING_UNIT` only if your policy requires the receiving training unit head to approve.
+Recommended `APPROVER_UNIT_MODE` is `CURRENT_UNIT`, meaning the head of the unit the employee belongs to approves. Use `TRAINING_UNIT` only if your policy requires the receiving training unit head to approve.
 
 4. In the Google Form, use **Responses → Link to Sheets** to create or select the linked response spreadsheet, then set `FORM_RESPONSES_SPREADSHEET_ID` to that spreadsheet ID. This linked response sheet is required: request records are created only when `processUnprocessedFormResponses()` reads the response-sheet queue during sync.
 5. Run `setupAll()` once and authorize permissions.
