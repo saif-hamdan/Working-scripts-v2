@@ -17,14 +17,14 @@ function run02_loadDummyReferenceData() {
 }
 
 function setupDashboardSheetsStaged_(ss, mainForm, evaluationForm) {
-  setHeaders_(ensureSheet_(ss, BS.DASHBOARD), BH.DASHBOARD);
-  setHeaders_(ensureSheet_(ss, BS.RECORDS), BH.RECORDS);
-  setHeaders_(ensureSheet_(ss, BS.CHARTS), ['المؤشر', 'القيمة']);
-  setHeaders_(ensureSheet_(ss, BS.ADMIN_UNITS), BH.UNITS);
-  setHeaders_(ensureSheet_(ss, BS.ADMIN_SECTIONS), BH.SECTIONS);
-  setHeaders_(ensureSheet_(ss, BS.UNITS), BH.UNITS);
-  setHeaders_(ensureSheet_(ss, BS.SECTIONS), BH.SECTIONS);
-  setHeaders_(ensureSheet_(ss, BS.SETTINGS), BH.SETTINGS);
+  bsSetHeaders_(bsEnsureSheet_(ss, BS.DASHBOARD), BH.DASHBOARD);
+  bsSetHeaders_(bsEnsureSheet_(ss, BS.RECORDS), BH.RECORDS);
+  bsSetHeaders_(bsEnsureSheet_(ss, BS.CHARTS), ['المؤشر', 'القيمة']);
+  bsSetHeaders_(bsEnsureSheet_(ss, BS.ADMIN_UNITS), BH.UNITS);
+  bsSetHeaders_(bsEnsureSheet_(ss, BS.ADMIN_SECTIONS), BH.SECTIONS);
+  bsSetHeaders_(bsEnsureSheet_(ss, BS.UNITS), BH.UNITS);
+  bsSetHeaders_(bsEnsureSheet_(ss, BS.SECTIONS), BH.SECTIONS);
+  bsSetHeaders_(bsEnsureSheet_(ss, BS.SETTINGS), BH.SETTINGS);
 
   ensureAdminReferenceSheets_(ss);
   seedReferenceData_(ss);
@@ -68,8 +68,8 @@ function writeDummyReferenceData_(ss) {
   ensureAdminReferenceSheets_(ss);
   var units = ss.getSheetByName(BS.ADMIN_UNITS);
   var sections = ss.getSheetByName(BS.ADMIN_SECTIONS);
-  clearDataBelowHeader_(units);
-  clearDataBelowHeader_(sections);
+  bsClearDataBelowHeader_(units);
+  bsClearDataBelowHeader_(sections);
 
   var unitRows = getDummyUnitRows_();
   var sectionRows = getDummySectionRows_();

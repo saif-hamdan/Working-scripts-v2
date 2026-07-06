@@ -1,8 +1,8 @@
-function ensureSheet_(ss, name) {
+function bsEnsureSheet_(ss, name) {
   return ss.getSheetByName(name) || ss.insertSheet(name);
 }
 
-function setHeaders_(sheet, headers) {
+function bsSetHeaders_(sheet, headers) {
   if (sheet.getMaxColumns() < headers.length) {
     sheet.insertColumnsAfter(sheet.getMaxColumns(), headers.length - sheet.getMaxColumns());
   }
@@ -132,7 +132,7 @@ function readSections_(ss, options) {
   });
 }
 
-function getHeaderMap_(sheet) {
+function bsGetHeaderMap_(sheet) {
   var lastColumn = sheet.getLastColumn();
   if (!lastColumn) return {};
   var headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
@@ -144,7 +144,7 @@ function getHeaderMap_(sheet) {
 }
 
 function getColumnIndexByHeader_(sheet, header) {
-  var map = getHeaderMap_(sheet);
+  var map = bsGetHeaderMap_(sheet);
   if (!map[header]) throw new Error('Missing required header "' + header + '" in sheet "' + sheet.getName() + '".');
   return map[header];
 }
@@ -185,7 +185,7 @@ function moveSheetTo_(ss, sheetName, position) {
   } catch (ignore) {}
 }
 
-function clearDataBelowHeader_(sheet) {
+function bsClearDataBelowHeader_(sheet) {
   var rows = sheet.getMaxRows() - 1;
   var columns = sheet.getMaxColumns();
   if (rows > 0 && columns > 0) sheet.getRange(2, 1, rows, columns).clearContent();
@@ -200,15 +200,15 @@ function getDataRows_(sheet, columnCount) {
 }
 
 function ensureAdminReferenceSheets_(ss) {
-  var adminUnits = ensureSheet_(ss, BS.ADMIN_UNITS);
-  var adminSections = ensureSheet_(ss, BS.ADMIN_SECTIONS);
-  var systemUnits = ensureSheet_(ss, BS.UNITS);
-  var systemSections = ensureSheet_(ss, BS.SECTIONS);
+  var adminUnits = bsEnsureSheet_(ss, BS.ADMIN_UNITS);
+  var adminSections = bsEnsureSheet_(ss, BS.ADMIN_SECTIONS);
+  var systemUnits = bsEnsureSheet_(ss, BS.UNITS);
+  var systemSections = bsEnsureSheet_(ss, BS.SECTIONS);
 
-  setHeaders_(adminUnits, BH.UNITS);
-  setHeaders_(adminSections, BH.SECTIONS);
-  setHeaders_(systemUnits, BH.UNITS);
-  setHeaders_(systemSections, BH.SECTIONS);
+  bsSetHeaders_(adminUnits, BH.UNITS);
+  bsSetHeaders_(adminSections, BH.SECTIONS);
+  bsSetHeaders_(systemUnits, BH.UNITS);
+  bsSetHeaders_(systemSections, BH.SECTIONS);
 
   copySystemReferenceToAdminIfNeeded_(adminUnits, systemUnits, BH.UNITS.length);
   copySystemReferenceToAdminIfNeeded_(adminSections, systemSections, BH.SECTIONS.length);
@@ -266,8 +266,8 @@ function syncAdminReferenceData_(ss) {
   var unitRows = getDataRows_(adminUnits, BH.UNITS.length).filter(function(row) { return row[1]; });
   var sectionRows = getDataRows_(adminSections, BH.SECTIONS.length).filter(function(row) { return row[2] && row[3]; });
 
-  clearDataBelowHeader_(systemUnits);
-  clearDataBelowHeader_(systemSections);
+  bsClearDataBelowHeader_(systemUnits);
+  bsClearDataBelowHeader_(systemSections);
   if (unitRows.length) systemUnits.getRange(2, 1, unitRows.length, BH.UNITS.length).setValues(unitRows);
   if (sectionRows.length) systemSections.getRange(2, 1, sectionRows.length, BH.SECTIONS.length).setValues(sectionRows);
 
@@ -295,8 +295,8 @@ function hashReferenceRows_(unitRows, sectionRows) {
 
 function writeSettings_(ss, mainForm, evaluationForm) {
   var settingsSheetName = (typeof SHEETS !== 'undefined' && SHEETS.SETTINGS) ? SHEETS.SETTINGS : BS.SETTINGS;
-  var sheet = ss.getSheetByName(settingsSheetName) || ensureSheet_(ss, settingsSheetName);
-  setHeaders_(sheet, BH.SETTINGS);
+  var sheet = ss.getSheetByName(settingsSheetName) || bsEnsureSheet_(ss, settingsSheetName);
+  bsSetHeaders_(sheet, BH.SETTINGS);
 
   var owner = getEffectiveOwnerEmail_();
   var admins = BOOTSTRAP_CONFIG.ADMIN_EMAILS || owner;
@@ -326,7 +326,7 @@ function writeSettings_(ss, mainForm, evaluationForm) {
     return [key, values[key] !== undefined ? values[key] : ''];
   });
 
-  clearDataBelowHeader_(sheet);
+  bsClearDataBelowHeader_(sheet);
   sheet.getRange(2, 1, rows.length, 2).setValues(rows);
 }
 
@@ -373,8 +373,8 @@ function writeMainFormResponsesSpreadsheetId_(dashboard, responseSpreadsheetId) 
 
   try {
     var settingsSheetName = (typeof SHEETS !== 'undefined' && SHEETS.SETTINGS) ? SHEETS.SETTINGS : BS.SETTINGS;
-    var sheet = dashboard.getSheetByName(settingsSheetName) || ensureSheet_(dashboard, settingsSheetName);
-    setHeaders_(sheet, BH.SETTINGS);
+    var sheet = dashboard.getSheetByName(settingsSheetName) || bsEnsureSheet_(dashboard, settingsSheetName);
+    bsSetHeaders_(sheet, BH.SETTINGS);
     var lastRow = Math.max(sheet.getLastRow(), 1);
     if (lastRow > 1) {
       var keys = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
@@ -405,7 +405,7 @@ function writeSetupSummary_(ss, mainForm, evaluationForm) {
   mainForm = mainForm || tryOpenMainForm_();
   evaluationForm = evaluationForm || tryOpenEvaluationForm_();
 
-  var sheet = ensureSheet_(ss, BS.SUMMARY);
+  var sheet = bsEnsureSheet_(ss, BS.SUMMARY);
   sheet.clear();
   sheet.setRightToLeft(false);
 

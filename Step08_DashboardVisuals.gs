@@ -12,8 +12,8 @@ function refreshDashboardSectionSummary_(ss) {
   var records = ss.getSheetByName(BS.RECORDS);
   if (!dashboard || !records) throw new Error('Dashboard and records sheets must exist before building summaries.');
 
-  setHeaders_(dashboard, BH.DASHBOARD);
-  clearDataBelowHeader_(dashboard);
+  bsSetHeaders_(dashboard, BH.DASHBOARD);
+  bsClearDataBelowHeader_(dashboard);
 
   var units = readUnits_(ss);
   var sections = readSections_(ss);
@@ -24,7 +24,7 @@ function refreshDashboardSectionSummary_(ss) {
     unitByName[unit.name] = unit;
   });
 
-  var rMap = getHeaderMap_(records);
+  var rMap = bsGetHeaderMap_(records);
   var employeeNameCol = columnLetter_(rMap['اسم الموظف الجديد']);
   var requestedUnitCol = columnLetter_(rMap['وحدة التدريب المطلوبة']);
   var requestedSectionCol = columnLetter_(rMap['القسم المطلوب']);
@@ -81,14 +81,14 @@ function buildChartsAndKpis_(ss) {
   var records = ss.getSheetByName(BS.RECORDS);
   if (!charts || !dashboard || !records) throw new Error('Dashboard, records, and charts sheets are required.');
 
-  setHeaders_(charts, ['المؤشر', 'القيمة']);
-  clearDataBelowHeader_(charts);
+  bsSetHeaders_(charts, ['المؤشر', 'القيمة']);
+  bsClearDataBelowHeader_(charts);
   charts.getCharts().forEach(function(chart) {
     charts.removeChart(chart);
   });
 
-  var dMap = getHeaderMap_(dashboard);
-  var rMap = getHeaderMap_(records);
+  var dMap = bsGetHeaderMap_(dashboard);
+  var rMap = bsGetHeaderMap_(records);
   var dashboardName = qSheet_(BS.DASHBOARD);
   var recordsName = qSheet_(BS.RECORDS);
   var sectionStatusCol = columnLetter_(dMap['حالة القسم']);
