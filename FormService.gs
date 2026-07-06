@@ -63,29 +63,33 @@ function refreshFormChoices(skipReferenceSync) {
 function ensureTextItem_(form, title, required) {
   var item = getFormItemByTitle_(form, title, FormApp.ItemType.TEXT);
   if (!item) item = form.addTextItem().setTitle(title);
-  item.asTextItem().setRequired(Boolean(required));
-  return item.asTextItem();
+  item = asTypedFormItem_(item, 'asTextItem');
+  item.setRequired(Boolean(required));
+  return item;
 }
 
 function ensureParagraphItem_(form, title, required) {
   var item = getFormItemByTitle_(form, title, FormApp.ItemType.PARAGRAPH_TEXT);
   if (!item) item = form.addParagraphTextItem().setTitle(title);
-  item.asParagraphTextItem().setRequired(Boolean(required));
-  return item.asParagraphTextItem();
+  item = asTypedFormItem_(item, 'asParagraphTextItem');
+  item.setRequired(Boolean(required));
+  return item;
 }
 
 function ensureDateItem_(form, title, required) {
   var item = getFormItemByTitle_(form, title, FormApp.ItemType.DATE);
   if (!item) item = form.addDateItem().setTitle(title);
-  item.asDateItem().setRequired(Boolean(required));
-  return item.asDateItem();
+  item = asTypedFormItem_(item, 'asDateItem');
+  item.setRequired(Boolean(required));
+  return item;
 }
 
 function ensureListItem_(form, title, required) {
   var item = getFormItemByTitle_(form, title, FormApp.ItemType.LIST);
   if (!item) item = form.addListItem().setTitle(title);
-  item.asListItem().setRequired(Boolean(required));
-  return item.asListItem();
+  item = asTypedFormItem_(item, 'asListItem');
+  item.setRequired(Boolean(required));
+  return item;
 }
 
 function ensureCurrentUnitItem_(form) {
@@ -99,7 +103,12 @@ function ensureTrainingUnitItem_(form) {
 function ensurePageBreak_(form, title) {
   var item = getFormItemByTitle_(form, title, FormApp.ItemType.PAGE_BREAK);
   if (!item) item = form.addPageBreakItem().setTitle(title);
-  return item.asPageBreakItem();
+  return asTypedFormItem_(item, 'asPageBreakItem');
+}
+
+function asTypedFormItem_(item, castMethodName) {
+  if (item && typeof item[castMethodName] === 'function') return item[castMethodName]();
+  return item;
 }
 
 function getFormItemByTitle_(form, title, type) {
