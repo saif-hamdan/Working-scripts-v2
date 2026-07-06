@@ -294,30 +294,47 @@ function hashReferenceRows_(unitRows, sectionRows) {
 }
 
 function writeSettings_(ss, mainForm, evaluationForm) {
-  var sheet = ss.getSheetByName(BS.SETTINGS) || ensureSheet_(ss, BS.SETTINGS);
+  var settingsSheetName = (typeof SHEETS !== 'undefined' && SHEETS.SETTINGS) ? SHEETS.SETTINGS : BS.SETTINGS;
+  var sheet = ss.getSheetByName(settingsSheetName) || ensureSheet_(ss, settingsSheetName);
   setHeaders_(sheet, BH.SETTINGS);
+
   var owner = getEffectiveOwnerEmail_();
   var admins = BOOTSTRAP_CONFIG.ADMIN_EMAILS || owner;
-  var rows = [
-    ['DASHBOARD_SPREADSHEET_ID', ss.getId()],
-    ['MAIN_FORM_ID', mainForm ? mainForm.getId() : getBootstrapProperty_(BSPROP.MAIN_FORM_ID, '')],
-    ['FORM_RESPONSES_SPREADSHEET_ID', ''],
-    ['EVALUATION_FORM_URL', evaluationForm ? evaluationForm.getPublishedUrl() : getBootstrapProperty_(BSPROP.EVALUATION_FORM_PUBLISHED_URL, '')],
-    ['WEB_APP_URL', 'PASTE_WEB_APP_URL_AFTER_DEPLOYMENT'],
-    ['OWNER_EMAIL', owner],
-    ['ADMIN_EMAILS', admins],
-    ['APPROVER_UNIT_MODE', BOOTSTRAP_CONFIG.APPROVER_UNIT_MODE],
-    ['EMAIL_SENDER_NAME', BOOTSTRAP_CONFIG.EMAIL_SENDER_NAME],
-    ['ORGANIZATION_NAME_AR', BOOTSTRAP_CONFIG.ORGANIZATION_NAME_AR],
-    ['ORGANIZATION_NAME_EN', BOOTSTRAP_CONFIG.ORGANIZATION_NAME_EN],
-    ['BRAND_PRIMARY_COLOR', BOOTSTRAP_CONFIG.BRAND_PRIMARY_COLOR],
-    ['BRAND_SECONDARY_COLOR', BOOTSTRAP_CONFIG.BRAND_SECONDARY_COLOR],
-    ['BRAND_ACCENT_COLOR', BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR],
-    ['BRAND_LOGO_URL', BOOTSTRAP_CONFIG.BRAND_LOGO_URL],
-    ['EVALUATION_ALLOWED_FINAL_STATUSES', 'معتمد,منجز']
-  ];
+  var values = {};
+  values[SETTINGS_KEYS.DASHBOARD_SPREADSHEET_ID] = ss.getId();
+  values[SETTINGS_KEYS.MAIN_FORM_ID] = mainForm ? mainForm.getId() : getBootstrapProperty_(BSPROP.MAIN_FORM_ID, '');
+  values[SETTINGS_KEYS.FORM_RESPONSES_SPREADSHEET_ID] = getMainFormResponsesSpreadsheetId_(mainForm);
+  values[SETTINGS_KEYS.RESPONSE_QUEUE_MAX_RETRIES] = '3';
+  values[SETTINGS_KEYS.EVALUATION_FORM_URL] = evaluationForm ? evaluationForm.getPublishedUrl() : getBootstrapProperty_(BSPROP.EVALUATION_FORM_PUBLISHED_URL, '');
+  values[SETTINGS_KEYS.WEB_APP_URL] = 'PASTE_WEB_APP_URL_AFTER_DEPLOYMENT';
+  values[SETTINGS_KEYS.OWNER_EMAIL] = owner;
+  values[SETTINGS_KEYS.ADMIN_EMAILS] = admins;
+  values[SETTINGS_KEYS.APPROVER_UNIT_MODE] = BOOTSTRAP_CONFIG.APPROVER_UNIT_MODE;
+  values[SETTINGS_KEYS.EMAIL_SENDER_NAME] = BOOTSTRAP_CONFIG.EMAIL_SENDER_NAME;
+  values[SETTINGS_KEYS.ORGANIZATION_NAME_AR] = BOOTSTRAP_CONFIG.ORGANIZATION_NAME_AR;
+  values[SETTINGS_KEYS.ORGANIZATION_NAME_EN] = BOOTSTRAP_CONFIG.ORGANIZATION_NAME_EN;
+  values[SETTINGS_KEYS.BRAND_PRIMARY_COLOR] = BOOTSTRAP_CONFIG.BRAND_PRIMARY_COLOR;
+  values[SETTINGS_KEYS.BRAND_SECONDARY_COLOR] = BOOTSTRAP_CONFIG.BRAND_SECONDARY_COLOR;
+  values[SETTINGS_KEYS.BRAND_ACCENT_COLOR] = BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR;
+  values[SETTINGS_KEYS.BRAND_LOGO_URL] = BOOTSTRAP_CONFIG.BRAND_LOGO_URL;
+  values[SETTINGS_KEYS.EVALUATION_ALLOWED_FINAL_STATUSES] = APPROVED_EVALUATION_FINAL_STATUSES.join(',');
+
+  var rows = Object.keys(SETTINGS_KEYS).map(function(name) {
+    var key = SETTINGS_KEYS[name];
+    return [key, values[key] !== undefined ? values[key] : ''];
+  });
+
   clearDataBelowHeader_(sheet);
   sheet.getRange(2, 1, rows.length, 2).setValues(rows);
+}
+
+function getMainFormResponsesSpreadsheetId_(mainForm) {
+  if (mainForm) {
+    try {
+      return mainForm.getDestinationId ? (mainForm.getDestinationId() || '') : '';
+    } catch (ignore) {}
+  }
+  return getBootstrapProperty_(SETTINGS_KEYS.FORM_RESPONSES_SPREADSHEET_ID, '');
 }
 
 function writeSetupSummary_(ss, mainForm, evaluationForm) {
