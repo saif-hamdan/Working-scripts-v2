@@ -39,6 +39,8 @@ function processApprovalActionQueue(options) {
   if (lock) lock.waitLock(30000);
 
   try {
+    var cfg = getConfig();
+    var maxRetries = cfg.ACTION_QUEUE_MAX_RETRIES;
     var sheet = getOrCreateSheet_(SHEETS.ACTION_QUEUE);
     setSheetHeaders_(sheet, ACTION_QUEUE_HEADERS);
     var lastRow = sheet.getLastRow();
@@ -55,7 +57,8 @@ function processApprovalActionQueue(options) {
     for (var i = rows.length - 1; i >= 0; i--) {
       var row = objectFromQueueRow_(headers, rows[i], startRow + i);
       stats.scanned++;
-      if (safeString_(row[H.ACTION_QUEUE.STATUS]) !== STATUS.ACTION_QUEUE_PENDING) {
+      if (!shouldAttemptApprovalActionRow_(row, maxRetries)) {
+        markApprovalActionRowFinalIfMaxed_(sheet, row, maxRetries);
         stats.skipped++;
         continue;
       }
@@ -87,21 +90,28 @@ function processApprovalActionQueue(options) {
         }
         updateObjectRow_(sheet, row._rowNumber, {
           [H.ACTION_QUEUE.STATUS]: STATUS.ACTION_QUEUE_PROCESSED,
-          [H.ACTION_QUEUE.ATTEMPTS]: attempts + 1,
           [H.ACTION_QUEUE.LAST_ERROR]: '',
           [H.ACTION_QUEUE.PROCESSED_AT]: now_()
         });
         stats.processed++;
         logInfo_('processApprovalActionQueue', actionId, 'Queued approval action processed.');
       } catch (err) {
+        var nextAttempts = attempts + 1;
+        var isFinalFailure = nextAttempts >= maxRetries;
         updateObjectRow_(sheet, row._rowNumber, {
           [H.ACTION_QUEUE.STATUS]: STATUS.ACTION_QUEUE_FAILED,
-          [H.ACTION_QUEUE.ATTEMPTS]: attempts + 1,
+          [H.ACTION_QUEUE.ATTEMPTS]: nextAttempts,
           [H.ACTION_QUEUE.LAST_ERROR]: err.message,
-          [H.ACTION_QUEUE.PROCESSED_AT]: now_()
+          [H.ACTION_QUEUE.PROCESSED_AT]: isFinalFailure ? now_() : ''
         });
         stats.failed++;
         logError_('processApprovalActionQueue', actionId, err);
+        logInfo_(
+          'processApprovalActionQueue',
+          actionId,
+          'Queued approval action failure is ' + (isFinalFailure ? 'final' : 'retryable') +
+            ' after attempt ' + nextAttempts + ' of ' + maxRetries + '.'
+        );
       }
     }
 
@@ -112,6 +122,24 @@ function processApprovalActionQueue(options) {
   } finally {
     if (lock) lock.releaseLock();
   }
+}
+
+
+function shouldAttemptApprovalActionRow_(row, maxRetries) {
+  var status = safeString_(row[H.ACTION_QUEUE.STATUS]);
+  if (status !== STATUS.ACTION_QUEUE_PENDING && status !== STATUS.ACTION_QUEUE_FAILED) return false;
+  return toNumber_(row[H.ACTION_QUEUE.ATTEMPTS], 0) < maxRetries;
+}
+
+function markApprovalActionRowFinalIfMaxed_(sheet, row, maxRetries) {
+  var status = safeString_(row[H.ACTION_QUEUE.STATUS]);
+  if (status !== STATUS.ACTION_QUEUE_PENDING) return;
+  if (toNumber_(row[H.ACTION_QUEUE.ATTEMPTS], 0) < maxRetries) return;
+
+  updateObjectRow_(sheet, row._rowNumber, {
+    [H.ACTION_QUEUE.STATUS]: STATUS.ACTION_QUEUE_FAILED,
+    [H.ACTION_QUEUE.PROCESSED_AT]: now_()
+  });
 }
 
 function formatApprovalActionQueueStats_(stats) {
