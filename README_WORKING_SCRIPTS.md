@@ -73,6 +73,69 @@ The form choices are refreshed by the five-minute trigger and after decisions. F
 
 Do not install the five-minute refresh trigger in the setup/resource project. It belongs only in this production workflow project.
 
+
+## Troubleshooting stuck queue rows
+
+The five-minute `syncSystem()` run processes three queues before refreshing the dashboard, charts, and form choices. If an admin sees missing requests, pending decisions, or unsent emails, first open **Apps Script → Executions** and inspect the latest `syncSystem`, `processResponseQueueOnce`, and `maintenanceCheck` runs. Then unhide/check the relevant system sheets in the dashboard spreadsheet, especially `سجل النظام`, `طابور القرارات`, and `طابور البريد`; the linked Google Form response spreadsheet also has queue columns appended to the right side of the response sheet.
+
+### Linked form response queue columns
+
+The linked Form responses sheet is the source queue for creating dashboard requests. The system appends these columns to the far right of the response sheet:
+
+| Column | Meaning |
+|---|---|
+| `Processing Status` | Current queue state for the response row. |
+| `Processed At` | Timestamp when the row was successfully converted or matched to an existing request. |
+| `Dashboard Request ID` | Request ID created in `سجل الطلبات`, or the existing request found for the same response. |
+| `Processing Error` | Last error message, if processing failed. |
+| `Retry Count` | Number of failed processing attempts. |
+| `Last Attempt At` | Timestamp of the latest processing attempt. |
+
+Response queue statuses:
+
+| Status | Meaning | Admin action |
+|---|---|---|
+| Blank / `NEW` | Not processed yet; blank is normal for newly submitted rows before the queue processor touches them. | Run `processResponseQueueOnce()` for an immediate pass, or wait for `syncSystem()`. |
+| `PROCESSING` | The row is currently being attempted or was interrupted during an attempt. | Check Apps Script Executions for an interrupted run; run `processResponseQueueOnce()` again if no execution is active. |
+| `PROCESSED` | The response row has been converted to a dashboard request or matched to an existing request. | No action. Use `Dashboard Request ID` to trace it in `سجل الطلبات`. |
+| `ERROR` | A retryable failure occurred and the row can be attempted again until the retry limit is reached. | Read `Processing Error`, fix the configuration/data issue, then run `processResponseQueueOnce()` or `syncSystem()`. |
+| `ERROR_REQUIRES_REVIEW` | The row reached the retry limit or contains data that cannot be safely auto-corrected, such as invalid date order. | Review the original response values and `Processing Error`; correct the source data or create/resolve the request manually, then leave an audit note in `سجل النظام` or the admin records. Do not simply clear the status unless you intentionally want the row retried. |
+
+For response rows requiring review, admins should compare the submitted row with the required form fields, verify unit/section names against `إدارة الوحدات` and `إدارة الأقسام`, and check whether a request already exists in `سجل الطلبات` using `Dashboard Request ID`, employee email, dates, and section. After the underlying issue is fixed, run `processResponseQueueOnce()` to process only the response queue, or run `syncSystem()` to process all queues and refresh dependent dashboard/form data.
+
+### Approval action queue (`طابور القرارات`)
+
+Approval and rejection web-app link clicks are stored in the hidden `طابور القرارات` sheet before they update `سجل الطلبات`.
+
+| Status | Meaning | Admin action |
+|---|---|---|
+| `بانتظار المعالجة` | A unit-head approval/rejection action is waiting to be processed. | Wait for `syncSystem()` or run it manually. |
+| `تمت المعالجة` | The action was applied successfully. | No action. Verify the request status in `سجل الطلبات` if needed. |
+| `فشلت المعالجة - ستعاد المحاولة` | The action failed but is still retryable. | Check `آخر خطأ`, the approval token, the target request status, and Apps Script Executions; fix the cause and run `syncSystem()`. |
+| `تتطلب مراجعة يدوية` | The action reached the retry limit and will not be retried automatically. | Review `معرف القرار`, `رمز الموافقة`, `الإجراء`, `سبب الرفض`, and `آخر خطأ`; confirm whether the request was already processed or changed, then apply the correct decision manually in `سجل الطلبات` if policy allows and record what was done. |
+
+Rows requiring review in `طابور القرارات` often mean the approval token no longer matches an actionable request, the request is no longer pending, or a conflict/error occurred during late validation. Use the hidden `سجل النظام` sheet and Apps Script Executions logs to identify the exact failure before making any manual status change.
+
+### Email queue (`طابور البريد`)
+
+The hidden `طابور البريد` sheet stores messages that could not be sent immediately or were queued for later retry.
+
+| Status | Meaning | Admin action |
+|---|---|---|
+| `بانتظار الإرسال` | The message is pending or retryable. | Wait for `syncSystem()` or run it manually; verify recipients and mail quota if it remains pending. |
+| `تم الإرسال` | The message was sent by the queue processor. | No action. |
+| `فشل الإرسال` | The message failed after the retry limit. | Review `آخر خطأ`, recipients, subject, and `بيانات السياق`; fix invalid email/configuration/quota issues and decide whether to requeue or send the message manually. |
+
+For failed email rows, admins should check Apps Script Executions for `processEmailQueue` errors, inspect `بيانات السياق` for the request ID and email type, and confirm whether the intended request status already changed. If a message must be resent, create a new queued email through the normal workflow or send it manually and document the action; avoid editing the stored HTML/status without an audit trail.
+
+### Manual recovery functions and logs
+
+- `processResponseQueueOnce()` — processes only the linked response-sheet queue and logs processed, skipped, failed, scanned, and remaining-row counts.
+- `syncSystem()` — processes the response queue, approval action queue, email queue, pending approval emails, reference-data sync, dashboard/chart refreshes, and form-choice refreshes when needed.
+- `maintenanceCheck()` — refreshes dashboard and chart outputs; use it after queue issues are resolved if admins only need to rebuild visible reporting.
+
+When diagnosing any stuck row, capture the row number, queue status, retry/attempt count, last error, and latest Apps Script Execution ID. The hidden `سجل النظام` sheet provides an in-spreadsheet audit trail, while Apps Script Executions provides stack traces and runtime failures that may not fit in queue columns.
+
 ## Main functions
 
 - `setupAll()` — run after configuration changes.
