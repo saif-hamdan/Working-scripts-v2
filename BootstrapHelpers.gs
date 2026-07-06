@@ -1,0 +1,430 @@
+function ensureSheet_(ss, name) {
+  return ss.getSheetByName(name) || ss.insertSheet(name);
+}
+
+function setHeaders_(sheet, headers) {
+  if (sheet.getMaxColumns() < headers.length) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), headers.length - sheet.getMaxColumns());
+  }
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+}
+
+function getBootstrapProps_() {
+  return PropertiesService.getScriptProperties();
+}
+
+function setBootstrapProperties_(values) {
+  var props = getBootstrapProps_();
+  Object.keys(values).forEach(function(key) {
+    if (values[key] === null || typeof values[key] === 'undefined') {
+      props.deleteProperty(key);
+    } else {
+      props.setProperty(key, String(values[key]));
+    }
+  });
+}
+
+function getBootstrapProperty_(key, fallback) {
+  var value = getBootstrapProps_().getProperty(key);
+  return value === null || typeof value === 'undefined' ? fallback : value;
+}
+
+function finishStep_(step, status, message) {
+  setBootstrapProperties_({
+    [BSPROP.LAST_STEP]: step,
+    [BSPROP.LAST_STATUS]: status,
+    [BSPROP.LAST_MESSAGE]: message || '',
+    [BSPROP.LAST_UPDATED]: new Date().toISOString()
+  });
+  try {
+    var ss = openDashboardFromProperties_();
+    writeSetupSummary_(ss);
+  } catch (err) {
+    Logger.log('Setup Summary refresh skipped: ' + err.message);
+  }
+  Logger.log(step + ': ' + status + (message ? ' - ' + message : ''));
+  return message || status;
+}
+
+function failStep_(step, message) {
+  finishStep_(step, BSTATUS.FAILED, message);
+  throw new Error(message);
+}
+
+function openDashboardFromProperties_() {
+  var id = getBootstrapProperty_(BSPROP.DASHBOARD_ID, '');
+  if (!id) throw new Error('Dashboard spreadsheet ID is missing. Run run01_createOrOpenResources() first.');
+  return SpreadsheetApp.openById(id);
+}
+
+function openMainFormFromProperties_() {
+  var id = getBootstrapProperty_(BSPROP.MAIN_FORM_ID, '');
+  if (!id) throw new Error('Main form ID is missing. Run run01_createOrOpenResources() first.');
+  return FormApp.openById(id);
+}
+
+function openEvaluationFormFromProperties_() {
+  var id = getBootstrapProperty_(BSPROP.EVALUATION_FORM_ID, '');
+  if (!id) throw new Error('Evaluation form ID is missing. Run run01_createOrOpenResources() first.');
+  return FormApp.openById(id);
+}
+
+function getEffectiveOwnerEmail_() {
+  return BOOTSTRAP_CONFIG.OWNER_EMAIL || safeUserEmail_();
+}
+
+function getAdminEmails_() {
+  var owner = getEffectiveOwnerEmail_();
+  var raw = BOOTSTRAP_CONFIG.ADMIN_EMAILS || owner;
+  var emails = raw.split(',').map(function(email) { return email.trim(); }).filter(Boolean);
+  if (owner && emails.indexOf(owner) === -1) emails.push(owner);
+  return emails;
+}
+
+function safeUserEmail_() {
+  try {
+    return Session.getEffectiveUser().getEmail() || '';
+  } catch (err) {
+    return '';
+  }
+}
+
+function isActiveValue_(value) {
+  var text = String(value || '').trim().toLowerCase();
+  if (!text) return true;
+  return ['لا', 'no', 'false', 'inactive', 'غير نشط', '0'].indexOf(text) === -1;
+}
+
+function readUnits_(ss, options) {
+  options = options || {};
+  var sheet = ss.getSheetByName(BS.UNITS);
+  if (!sheet) return [];
+  var rows = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, BH.UNITS.length).getValues() : [];
+  return rows.filter(function(row) {
+    return row[1] && (options.includeInactive || isActiveValue_(row[4]));
+  }).map(function(row) {
+    return {
+      id: String(row[0] || '').trim(),
+      name: String(row[1] || '').trim(),
+      headName: String(row[2] || '').trim(),
+      headEmail: String(row[3] || '').trim(),
+      active: isActiveValue_(row[4])
+    };
+  });
+}
+
+function readSections_(ss, options) {
+  options = options || {};
+  var sheet = ss.getSheetByName(BS.SECTIONS);
+  if (!sheet) return [];
+  var rows = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, BH.SECTIONS.length).getValues() : [];
+  return rows.filter(function(row) {
+    return row[2] && row[3] && (options.includeInactive || isActiveValue_(row[4]));
+  }).map(function(row) {
+    return {
+      id: String(row[0] || '').trim(),
+      unitId: String(row[1] || '').trim(),
+      unitName: String(row[2] || '').trim(),
+      name: String(row[3] || '').trim(),
+      active: isActiveValue_(row[4]),
+      capacity: Number(row[5] || 1) || 1
+    };
+  });
+}
+
+function getHeaderMap_(sheet) {
+  var lastColumn = sheet.getLastColumn();
+  if (!lastColumn) return {};
+  var headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  var map = {};
+  headers.forEach(function(header, index) {
+    if (header) map[String(header).trim()] = index + 1;
+  });
+  return map;
+}
+
+function getColumnIndexByHeader_(sheet, header) {
+  var map = getHeaderMap_(sheet);
+  if (!map[header]) throw new Error('Missing required header "' + header + '" in sheet "' + sheet.getName() + '".');
+  return map[header];
+}
+
+function columnLetter_(column) {
+  var letter = '';
+  while (column > 0) {
+    var modulo = (column - 1) % 26;
+    letter = String.fromCharCode(65 + modulo) + letter;
+    column = Math.floor((column - modulo) / 26);
+  }
+  return letter;
+}
+
+function qSheet_(name) {
+  return "'" + String(name).replace(/'/g, "''") + "'";
+}
+
+function applyBasicSheetFormat_(sheet, headerColor) {
+  var lastColumn = Math.max(sheet.getLastColumn(), 1);
+  try { sheet.setRightToLeft(true); } catch (ignore) {}
+  sheet.setFrozenRows(1);
+  sheet.getRange(1, 1, 1, lastColumn)
+    .setFontWeight('bold')
+    .setHorizontalAlignment('center')
+    .setBackground(headerColor || BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR);
+  for (var column = 1; column <= lastColumn; column++) {
+    try { sheet.autoResizeColumn(column); } catch (ignore2) {}
+  }
+}
+
+function moveSheetTo_(ss, sheetName, position) {
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return;
+  try {
+    ss.setActiveSheet(sheet);
+    ss.moveActiveSheet(position);
+  } catch (ignore) {}
+}
+
+function clearDataBelowHeader_(sheet) {
+  var rows = sheet.getMaxRows() - 1;
+  var columns = sheet.getMaxColumns();
+  if (rows > 0 && columns > 0) sheet.getRange(2, 1, rows, columns).clearContent();
+}
+
+function getDataRows_(sheet, columnCount) {
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  return sheet.getRange(2, 1, sheet.getLastRow() - 1, columnCount).getValues()
+    .filter(function(row) {
+      return row.some(function(value) { return String(value || '').trim() !== ''; });
+    });
+}
+
+function ensureAdminReferenceSheets_(ss) {
+  var adminUnits = ensureSheet_(ss, BS.ADMIN_UNITS);
+  var adminSections = ensureSheet_(ss, BS.ADMIN_SECTIONS);
+  var systemUnits = ensureSheet_(ss, BS.UNITS);
+  var systemSections = ensureSheet_(ss, BS.SECTIONS);
+
+  setHeaders_(adminUnits, BH.UNITS);
+  setHeaders_(adminSections, BH.SECTIONS);
+  setHeaders_(systemUnits, BH.UNITS);
+  setHeaders_(systemSections, BH.SECTIONS);
+
+  copySystemReferenceToAdminIfNeeded_(adminUnits, systemUnits, BH.UNITS.length);
+  copySystemReferenceToAdminIfNeeded_(adminSections, systemSections, BH.SECTIONS.length);
+  applyReferenceAdminFormatting_(ss);
+}
+
+function copySystemReferenceToAdminIfNeeded_(adminSheet, systemSheet, columnCount) {
+  if (adminSheet.getLastRow() > 1 || systemSheet.getLastRow() < 2) return;
+  var rows = getDataRows_(systemSheet, columnCount);
+  if (rows.length) adminSheet.getRange(2, 1, rows.length, columnCount).setValues(rows);
+}
+
+function applyReferenceAdminFormatting_(ss) {
+  var adminUnits = ss.getSheetByName(BS.ADMIN_UNITS);
+  var adminSections = ss.getSheetByName(BS.ADMIN_SECTIONS);
+  if (adminUnits) {
+    applyBasicSheetFormat_(adminUnits, BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR);
+    applyYesNoValidation_(adminUnits, 5);
+  }
+  if (adminSections) {
+    applyBasicSheetFormat_(adminSections, BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR);
+    applyYesNoValidation_(adminSections, 5);
+    applyUnitIdValidation_(ss, adminSections);
+  }
+}
+
+function applyYesNoValidation_(sheet, column) {
+  var range = sheet.getRange(2, column, Math.max(sheet.getMaxRows() - 1, 1), 1);
+  var rule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['نعم', 'لا'], true)
+    .setAllowInvalid(false)
+    .build();
+  range.setDataValidation(rule);
+}
+
+function applyUnitIdValidation_(ss, sectionsSheet) {
+  var unitsSheet = ss.getSheetByName(BS.ADMIN_UNITS);
+  if (!unitsSheet || unitsSheet.getLastRow() < 2) return;
+  var sourceRange = unitsSheet.getRange(2, 1, Math.max(unitsSheet.getMaxRows() - 1, 1), 1);
+  var targetRange = sectionsSheet.getRange(2, 2, Math.max(sectionsSheet.getMaxRows() - 1, 1), 1);
+  var rule = SpreadsheetApp.newDataValidation()
+    .requireValueInRange(sourceRange, true)
+    .setAllowInvalid(false)
+    .build();
+  targetRange.setDataValidation(rule);
+}
+
+function syncAdminReferenceData_(ss) {
+  ensureAdminReferenceSheets_(ss);
+  var adminUnits = ss.getSheetByName(BS.ADMIN_UNITS);
+  var adminSections = ss.getSheetByName(BS.ADMIN_SECTIONS);
+  var systemUnits = ss.getSheetByName(BS.UNITS);
+  var systemSections = ss.getSheetByName(BS.SECTIONS);
+
+  var unitRows = getDataRows_(adminUnits, BH.UNITS.length).filter(function(row) { return row[1]; });
+  var sectionRows = getDataRows_(adminSections, BH.SECTIONS.length).filter(function(row) { return row[2] && row[3]; });
+
+  clearDataBelowHeader_(systemUnits);
+  clearDataBelowHeader_(systemSections);
+  if (unitRows.length) systemUnits.getRange(2, 1, unitRows.length, BH.UNITS.length).setValues(unitRows);
+  if (sectionRows.length) systemSections.getRange(2, 1, sectionRows.length, BH.SECTIONS.length).setValues(sectionRows);
+
+  applyBasicSheetFormat_(systemUnits, BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR);
+  applyBasicSheetFormat_(systemSections, BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR);
+  try { systemUnits.hideSheet(); } catch (ignore) {}
+  try { systemSections.hideSheet(); } catch (ignore2) {}
+
+  var hash = hashReferenceRows_(unitRows, sectionRows);
+  setBootstrapProperties_({
+    [BSPROP.REFERENCE_DATA_HASH]: hash,
+    [BSPROP.LAST_REFERENCE_SYNC]: new Date().toISOString()
+  });
+  return { unitCount: unitRows.length, sectionCount: sectionRows.length, hash: hash };
+}
+
+function hashReferenceRows_(unitRows, sectionRows) {
+  var payload = JSON.stringify({ units: unitRows, sections: sectionRows });
+  var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, payload, Utilities.Charset.UTF_8);
+  return digest.map(function(byte) {
+    var value = byte < 0 ? byte + 256 : byte;
+    return ('0' + value.toString(16)).slice(-2);
+  }).join('');
+}
+
+function writeSettings_(ss, mainForm, evaluationForm) {
+  var sheet = ss.getSheetByName(BS.SETTINGS) || ensureSheet_(ss, BS.SETTINGS);
+  setHeaders_(sheet, BH.SETTINGS);
+  var owner = getEffectiveOwnerEmail_();
+  var admins = BOOTSTRAP_CONFIG.ADMIN_EMAILS || owner;
+  var rows = [
+    ['DASHBOARD_SPREADSHEET_ID', ss.getId()],
+    ['MAIN_FORM_ID', mainForm ? mainForm.getId() : getBootstrapProperty_(BSPROP.MAIN_FORM_ID, '')],
+    ['FORM_RESPONSES_SPREADSHEET_ID', ''],
+    ['EVALUATION_FORM_URL', evaluationForm ? evaluationForm.getPublishedUrl() : getBootstrapProperty_(BSPROP.EVALUATION_FORM_PUBLISHED_URL, '')],
+    ['WEB_APP_URL', 'PASTE_WEB_APP_URL_AFTER_DEPLOYMENT'],
+    ['OWNER_EMAIL', owner],
+    ['ADMIN_EMAILS', admins],
+    ['APPROVER_UNIT_MODE', BOOTSTRAP_CONFIG.APPROVER_UNIT_MODE],
+    ['EMAIL_SENDER_NAME', BOOTSTRAP_CONFIG.EMAIL_SENDER_NAME],
+    ['ORGANIZATION_NAME_AR', BOOTSTRAP_CONFIG.ORGANIZATION_NAME_AR],
+    ['ORGANIZATION_NAME_EN', BOOTSTRAP_CONFIG.ORGANIZATION_NAME_EN],
+    ['BRAND_PRIMARY_COLOR', BOOTSTRAP_CONFIG.BRAND_PRIMARY_COLOR],
+    ['BRAND_SECONDARY_COLOR', BOOTSTRAP_CONFIG.BRAND_SECONDARY_COLOR],
+    ['BRAND_ACCENT_COLOR', BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR],
+    ['BRAND_LOGO_URL', BOOTSTRAP_CONFIG.BRAND_LOGO_URL],
+    ['EVALUATION_ALLOWED_FINAL_STATUSES', 'معتمد,منجز']
+  ];
+  clearDataBelowHeader_(sheet);
+  sheet.getRange(2, 1, rows.length, 2).setValues(rows);
+}
+
+function writeSetupSummary_(ss, mainForm, evaluationForm) {
+  ss = ss || openDashboardFromProperties_();
+  mainForm = mainForm || tryOpenMainForm_();
+  evaluationForm = evaluationForm || tryOpenEvaluationForm_();
+
+  var sheet = ensureSheet_(ss, BS.SUMMARY);
+  sheet.clear();
+  sheet.setRightToLeft(false);
+
+  var branchIndex = getBootstrapProperty_(BSPROP.BRANCH_INDEX, '0');
+  var branchTotal = getBootstrapProperty_(BSPROP.BRANCH_TOTAL, '0');
+  var branchComplete = getBootstrapProperty_(BSPROP.BRANCH_COMPLETE, 'false');
+
+  var rows = [
+    ['Item', 'Value'],
+    ['Last updated', new Date()],
+    ['Last step', getBootstrapProperty_(BSPROP.LAST_STEP, BSTATUS.NOT_STARTED)],
+    ['Last status', getBootstrapProperty_(BSPROP.LAST_STATUS, BSTATUS.NOT_STARTED)],
+    ['Last message', getBootstrapProperty_(BSPROP.LAST_MESSAGE, '')],
+    ['DASHBOARD_SPREADSHEET_ID', ss.getId()],
+    ['Dashboard URL', ss.getUrl()],
+    ['MAIN_FORM_ID', mainForm ? mainForm.getId() : getBootstrapProperty_(BSPROP.MAIN_FORM_ID, '')],
+    ['Main Form Edit URL', mainForm ? mainForm.getEditUrl() : getBootstrapProperty_(BSPROP.MAIN_FORM_EDIT_URL, '')],
+    ['Main Form Published URL', mainForm ? mainForm.getPublishedUrl() : getBootstrapProperty_(BSPROP.MAIN_FORM_PUBLISHED_URL, '')],
+    ['EVALUATION_FORM_ID', evaluationForm ? evaluationForm.getId() : getBootstrapProperty_(BSPROP.EVALUATION_FORM_ID, '')],
+    ['Evaluation Form Edit URL', evaluationForm ? evaluationForm.getEditUrl() : getBootstrapProperty_(BSPROP.EVALUATION_FORM_EDIT_URL, '')],
+    ['Evaluation Form Published URL', evaluationForm ? evaluationForm.getPublishedUrl() : getBootstrapProperty_(BSPROP.EVALUATION_FORM_PUBLISHED_URL, '')],
+    ['Main form branching progress', branchIndex + ' / ' + branchTotal],
+    ['Main form branching complete', branchComplete],
+    ['Validation status', getBootstrapProperty_(BSPROP.VALIDATION_STATUS, BSTATUS.NOT_STARTED)],
+    ['Reference data hash', getBootstrapProperty_(BSPROP.REFERENCE_DATA_HASH, '')],
+    ['Last reference sync', getBootstrapProperty_(BSPROP.LAST_REFERENCE_SYNC, '')],
+    ['Ready for production script IDs', getBootstrapProperty_(BSPROP.READY, 'false')]
+  ];
+
+  sheet.getRange(1, 1, rows.length, 2).setValues(rows);
+  sheet.getRange(1, 1, 1, 2).setFontWeight('bold').setBackground(BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR);
+  sheet.getRange(2, 1, rows.length - 1, 1).setFontWeight('bold');
+
+  var issues = readValidationIssues_();
+  if (issues.length) {
+    var startRow = rows.length + 3;
+    sheet.getRange(startRow, 1, 1, 4)
+      .setValues([['Validation severity', 'Area', 'Message', 'Value']])
+      .setFontWeight('bold')
+      .setBackground('#FFE8D6');
+    var issueRows = issues.map(function(issue) {
+      return [issue.severity, issue.area, issue.message, issue.value || ''];
+    });
+    sheet.getRange(startRow + 1, 1, issueRows.length, 4).setValues(issueRows);
+  }
+
+  sheet.autoResizeColumns(1, 4);
+}
+
+function tryOpenMainForm_() {
+  try { return openMainFormFromProperties_(); } catch (ignore) { return null; }
+}
+
+function tryOpenEvaluationForm_() {
+  try { return openEvaluationFormFromProperties_(); } catch (ignore) { return null; }
+}
+
+function readValidationIssues_() {
+  var raw = getBootstrapProperty_(BSPROP.VALIDATION_ISSUES_JSON, '[]');
+  try {
+    return JSON.parse(raw) || [];
+  } catch (err) {
+    return [];
+  }
+}
+
+function saveValidationIssues_(issues) {
+  var limited = issues.slice(0, 200);
+  setBootstrapProperties_({
+    [BSPROP.VALIDATION_ISSUES_JSON]: JSON.stringify(limited),
+    [BSPROP.VALIDATION_STATUS]: issues.some(function(issue) { return issue.severity === 'ERROR'; }) ? BSTATUS.FAILED : BSTATUS.COMPLETE
+  });
+}
+
+function validEmail_(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+}
+
+function removeSetupProtections_(sheet) {
+  var prefix = 'SQU Setup Toolkit';
+  var protections = sheet.getProtections(SpreadsheetApp.ProtectionType.SHEET)
+    .concat(sheet.getProtections(SpreadsheetApp.ProtectionType.RANGE));
+  protections.forEach(function(protection) {
+    try {
+      if (String(protection.getDescription() || '').indexOf(prefix) === 0) protection.remove();
+    } catch (ignore) {}
+  });
+}
+
+function configureProtectionEditors_(protection, editors) {
+  try { protection.setWarningOnly(false); } catch (ignore) {}
+  try {
+    var existing = protection.getEditors();
+    if (existing.length) protection.removeEditors(existing);
+  } catch (ignore2) {}
+  if (editors && editors.length) {
+    try { protection.addEditors(editors); } catch (ignore3) {}
+  }
+  try {
+    if (protection.canDomainEdit()) protection.setDomainEdit(false);
+  } catch (ignore4) {}
+}
