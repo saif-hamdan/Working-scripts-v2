@@ -22,7 +22,7 @@ function applySetupProtections_(ss) {
   protectWholeSheet_(ss.getSheetByName(BS.UNITS), editors, 'SQU Setup Toolkit - Units reference data');
   protectWholeSheet_(ss.getSheetByName(BS.SECTIONS), editors, 'SQU Setup Toolkit - Sections reference data');
   protectWholeSheet_(ss.getSheetByName(BS.SETTINGS), editors, 'SQU Setup Toolkit - Settings');
-  protectRecordsSheet_(ss.getSheetByName(BS.RECORDS), editors);
+  bsProtectRecordsSheet_(ss.getSheetByName(BS.RECORDS), editors);
 
   try { ss.getSheetByName(BS.UNITS).hideSheet(); } catch (ignore) {}
   try { ss.getSheetByName(BS.SECTIONS).hideSheet(); } catch (ignore2) {}
@@ -36,9 +36,9 @@ function protectWholeSheet_(sheet, editors, description) {
   configureProtectionEditors_(protection, editors);
 }
 
-function protectRecordsSheet_(sheet, editors) {
+function bsProtectRecordsSheet_(sheet, editors) {
   if (!sheet) return;
-  var map = getHeaderMap_(sheet);
+  var map = bsGetHeaderMap_(sheet);
   var finalStatusColumn = map['حالة الاعتماد النهائي'];
   var notesColumn = map['ملاحظات'];
   var systemStartColumn = map['رمز الموافقة'];
