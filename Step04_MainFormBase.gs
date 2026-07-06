@@ -14,7 +14,7 @@ function run04_rebuildMainFormBaseQuestions() {
 }
 
 function rebuildMainFormBase_(form, dashboard) {
-  form.setTitle('طلب تدريب موظف جديد / New Employee Training Request');
+  form.setTitle('طلب تدريب موظف / Employee Training Request');
   form.setDescription('يرجى إدخال بيانات طلب التدريب. سيتم إرسال الطلب للموافقة والتحقق من التعارضات تلقائياً.\nPlease enter the training request details. The request will be routed for approval and conflict checking.');
   try { form.setCollectEmail(true); } catch (ignore) {}
   try { form.setAllowResponseEdits(false); } catch (ignore2) {}
@@ -32,7 +32,7 @@ function rebuildMainFormBase_(form, dashboard) {
   applyEmailValidation_(ensureText_(form, BFORM.TITLES.DIRECT_MANAGER_EMAIL, true));
 
   ensureText_(form, BFORM.TITLES.EMPLOYEE_NAME, true)
-    .setHelpText('يرجى كتابة الاسم الكامل للموظف الجديد. / Please enter the new employee full name.');
+    .setHelpText('يرجى كتابة الاسم الكامل للموظف. / Please enter the employee full name.');
   applyEmailValidation_(ensureText_(form, BFORM.TITLES.EMPLOYEE_EMAIL, true));
 
   var currentUnit = ensureList_(form, BFORM.TITLES.CURRENT_UNIT, true);

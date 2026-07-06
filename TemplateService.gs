@@ -3,8 +3,8 @@ function buildTemplateData_(record, extra) {
   var cfg = getConfig();
   var rows = [
     { ar: 'رقم الطلب', en: 'Request ID', value: record[H.RECORD.REQUEST_ID] },
-    { ar: 'اسم الموظف الجديد', en: 'New Employee', value: record[H.RECORD.EMPLOYEE_NAME] },
-    { ar: 'بريد الموظف الجديد', en: 'Employee Email', value: record[H.RECORD.EMPLOYEE_EMAIL] },
+    { ar: 'اسم الموظف', en: 'Employee', value: record[H.RECORD.EMPLOYEE_NAME] },
+    { ar: 'بريد الموظف', en: 'Employee Email', value: record[H.RECORD.EMPLOYEE_EMAIL] },
     { ar: 'المدير المباشر', en: 'Direct Manager', value: record[H.RECORD.DIRECT_MANAGER_NAME] },
     { ar: 'بريد المدير المباشر', en: 'Direct Manager Email', value: record[H.RECORD.DIRECT_MANAGER_EMAIL] },
     { ar: 'الوحدة الحالية', en: 'Current Unit', value: record[H.RECORD.CURRENT_UNIT] },

@@ -34,8 +34,8 @@ function sendInvalidDatesSubmissionEmail(data, responseId, error) {
     responseId: responseId || '',
     errorMessage: error && error.message ? error.message : safeString_(error),
     rows: [
-      { ar: 'اسم الموظف الجديد', en: 'New Employee', value: data.employeeName || '' },
-      { ar: 'بريد الموظف الجديد', en: 'Employee Email', value: data.employeeEmail || '' },
+      { ar: 'اسم الموظف', en: 'Employee', value: data.employeeName || '' },
+      { ar: 'بريد الموظف', en: 'Employee Email', value: data.employeeEmail || '' },
       { ar: 'المدير المباشر', en: 'Direct Manager', value: data.directManagerName || '' },
       { ar: 'بريد المدير المباشر', en: 'Direct Manager Email', value: data.directManagerEmail || '' },
       { ar: 'الوحدة الحالية', en: 'Current Unit', value: data.currentUnit || '' },

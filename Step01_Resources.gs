@@ -59,7 +59,7 @@ function resolveMainFormResource_() {
   if (!BOOTSTRAP_CONFIG.CREATE_NEW_MAIN_FORM) {
     throw new Error('EXISTING_MAIN_FORM_ID is required when CREATE_NEW_MAIN_FORM is false.');
   }
-  return FormApp.create('طلب تدريب موظف جديد / New Employee Training Request');
+  return FormApp.create('طلب تدريب موظف / Employee Training Request');
 }
 
 function resolveEvaluationFormResource_() {
