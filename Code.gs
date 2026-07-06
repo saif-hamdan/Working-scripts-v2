@@ -17,6 +17,7 @@ function onOpen() {
       .addItem('08 - Build dashboard summary and charts', 'run08_buildDashboardSummaryAndCharts')
       .addItem('09 - Apply protections', 'run09_applyProtections')
       .addItem('10 - Finalize setup summary', 'run10_finalizeSetupSummary')
+      .addItem('13 - Verify production compatibility', 'run13_verifyProductionCompatibility')
       .addSeparator()
       .addItem('11 - Refresh main form from admin sheets', 'run11_refreshMainFormFromAdminSheets')
       .addItem('12 - Create five-minute form refresh trigger', 'run12_createFiveMinuteFormRefreshTrigger')

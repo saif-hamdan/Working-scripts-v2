@@ -50,6 +50,7 @@ Run these functions from Apps Script in order:
 11. `run08_buildDashboardSummaryAndCharts()`
 12. `run09_applyProtections()`
 13. `run10_finalizeSetupSummary()`
+14. Run `run13_verifyProductionCompatibility()` repeatedly until it reports `Complete`. This verifies the current production setup functions in smaller chunks after the bootstrap IDs have been written into the project settings sheet.
 
 `bootstrapAll()` is kept only as a compatibility wrapper. For large unit/section lists, use the staged functions above.
 
