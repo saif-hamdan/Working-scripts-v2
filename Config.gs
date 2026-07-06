@@ -27,9 +27,9 @@ function getConfig() {
     ORGANIZATION_NAME_AR: value(SETTINGS_KEYS.ORGANIZATION_NAME_AR, 'قسم خدمات الموظفين والمتقاعدين'),
     ORGANIZATION_NAME_EN: value(SETTINGS_KEYS.ORGANIZATION_NAME_EN, 'Employees and Retirees Services Section'),
     BRAND: {
-      primaryColor: value(SETTINGS_KEYS.BRAND_PRIMARY_COLOR, '#004B3A'),
-      secondaryColor: value(SETTINGS_KEYS.BRAND_SECONDARY_COLOR, '#B08D57'),
-      accentColor: value(SETTINGS_KEYS.BRAND_ACCENT_COLOR, '#F5F1E8'),
+      primaryColor: value(SETTINGS_KEYS.BRAND_PRIMARY_COLOR, '#0B4EA2'),
+      secondaryColor: value(SETTINGS_KEYS.BRAND_SECONDARY_COLOR, '#D4A017'),
+      accentColor: value(SETTINGS_KEYS.BRAND_ACCENT_COLOR, '#C4CCE6'),
       logoUrl: value(SETTINGS_KEYS.BRAND_LOGO_URL, '')
     },
     EVALUATION_ALLOWED_FINAL_STATUSES: splitCsv_(value(
@@ -87,9 +87,9 @@ function writeSettingsFromConfig_(ss) {
   defaults[SETTINGS_KEYS.EMAIL_SENDER_NAME] = '';
   defaults[SETTINGS_KEYS.ORGANIZATION_NAME_AR] = 'قسم خدمات الموظفين والمتقاعدين';
   defaults[SETTINGS_KEYS.ORGANIZATION_NAME_EN] = 'Employees and Retirees Services Section';
-  defaults[SETTINGS_KEYS.BRAND_PRIMARY_COLOR] = '#004B3A';
-  defaults[SETTINGS_KEYS.BRAND_SECONDARY_COLOR] = '#B08D57';
-  defaults[SETTINGS_KEYS.BRAND_ACCENT_COLOR] = '#F5F1E8';
+  defaults[SETTINGS_KEYS.BRAND_PRIMARY_COLOR] = '#0B4EA2';
+  defaults[SETTINGS_KEYS.BRAND_SECONDARY_COLOR] = '#D4A017';
+  defaults[SETTINGS_KEYS.BRAND_ACCENT_COLOR] = '#C4CCE6';
   defaults[SETTINGS_KEYS.BRAND_LOGO_URL] = '';
   defaults[SETTINGS_KEYS.EVALUATION_ALLOWED_FINAL_STATUSES] = APPROVED_EVALUATION_FINAL_STATUSES.join(',');
 
