@@ -247,3 +247,16 @@ const FORM = Object.freeze({
     NOTES: 'ملاحظات إضافية / Additional Notes'
   })
 });
+
+const FORM_RESPONSE_TITLE_CANDIDATES = Object.freeze({
+  DIRECT_MANAGER_NAME: Object.freeze([FORM.TITLES.DIRECT_MANAGER_NAME, 'اسم المدير المباشر']),
+  DIRECT_MANAGER_EMAIL: Object.freeze([FORM.TITLES.DIRECT_MANAGER_EMAIL, 'بريد المدير المباشر']),
+  EMPLOYEE_NAME: Object.freeze([FORM.TITLES.EMPLOYEE_NAME, 'اسم الموظف الجديد']),
+  EMPLOYEE_EMAIL: Object.freeze([FORM.TITLES.EMPLOYEE_EMAIL, 'بريد الموظف الجديد']),
+  CURRENT_UNIT: Object.freeze([FORM.TITLES.CURRENT_UNIT, 'الوحدة الحالية للموظف']),
+  TRAINING_UNIT: Object.freeze([FORM.TITLES.TRAINING_UNIT, 'وحدة التدريب المطلوبة']),
+  START_DATE: Object.freeze([FORM.TITLES.START_DATE, 'من تاريخ']),
+  END_DATE: Object.freeze([FORM.TITLES.END_DATE, 'إلى تاريخ']),
+  HOURS: Object.freeze([FORM.TITLES.HOURS, 'عدد الساعات']),
+  NOTES: Object.freeze([FORM.TITLES.NOTES, 'ملاحظات إضافية', 'ملاحظات'])
+});

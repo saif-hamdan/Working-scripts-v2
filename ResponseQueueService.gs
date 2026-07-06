@@ -280,10 +280,10 @@ function makeResponseSourceIdFromRow_(headers, row, map) {
   var data = {
     timestamp: valueFor(['Timestamp', 'الطابع الزمني']),
     submitterEmail: valueFor(['Email Address', 'البريد الإلكتروني', FORM.TITLES.DIRECT_MANAGER_EMAIL]),
-    employeeEmail: valueFor([FORM.TITLES.EMPLOYEE_EMAIL, 'بريد الموظف الجديد']),
-    startDate: parseDateFlexible_(valueFor([FORM.TITLES.START_DATE, 'من تاريخ'])),
-    endDate: parseDateFlexible_(valueFor([FORM.TITLES.END_DATE, 'إلى تاريخ'])),
-    trainingUnit: valueFor([FORM.TITLES.TRAINING_UNIT, 'وحدة التدريب المطلوبة']),
+    employeeEmail: valueFor(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_EMAIL),
+    startDate: parseDateFlexible_(valueFor(FORM_RESPONSE_TITLE_CANDIDATES.START_DATE)),
+    endDate: parseDateFlexible_(valueFor(FORM_RESPONSE_TITLE_CANDIDATES.END_DATE)),
+    trainingUnit: valueFor(FORM_RESPONSE_TITLE_CANDIDATES.TRAINING_UNIT),
     section: ''
   };
 
