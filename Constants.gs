@@ -45,7 +45,8 @@ const SHEETS = Object.freeze({
   LOG: 'سجل النظام',
   EMAIL_QUEUE: 'طابور البريد',
   ACTION_QUEUE: 'طابور القرارات',
-  REQUEST_SOURCE_INDEX: 'Request Source Index'
+  REQUEST_SOURCE_INDEX: 'Request Source Index',
+  EMPLOYEE_TRAINING_HOURS: 'ملخص ساعات تدريب الموظفين'
 });
 
 const H = Object.freeze({
@@ -144,6 +145,12 @@ const H = Object.freeze({
     REQUEST_ID: 'REQUEST_ID',
     CREATED_AT: 'CREATED_AT'
   }),
+  EMPLOYEE_TRAINING_HOURS: Object.freeze({
+    EMPLOYEE_NAME: 'اسم الموظف',
+    EMPLOYEE_ID: 'الرقم الوظيفي للموظف',
+    COMPLETED_HOURS: 'إجمالي ساعات التدريب المنجز',
+    ONGOING_HOURS: 'إجمالي ساعات التدريب الجاري'
+  }),
   QUEUE: Object.freeze({
     MESSAGE_ID: 'معرف الرسالة',
     STATUS: 'الحالة',
@@ -169,6 +176,14 @@ const LOG_HEADERS = Object.freeze(Object.values(H.LOG));
 const QUEUE_HEADERS = Object.freeze(Object.values(H.QUEUE));
 const ACTION_QUEUE_HEADERS = Object.freeze(Object.values(H.ACTION_QUEUE));
 const REQUEST_SOURCE_INDEX_HEADERS = Object.freeze(Object.values(H.REQUEST_SOURCE_INDEX));
+const EMPLOYEE_TRAINING_HOURS_HEADERS = Object.freeze(Object.values(H.EMPLOYEE_TRAINING_HOURS));
+
+const EMPLOYEE_TRAINING_HOURS_CONFIG = Object.freeze({
+  TIMEZONE: SYSTEM.TIME_ZONE,
+  TRIGGER_EVERY_MINUTES: 10,
+  ACTIVE_START_MINUTES: 22 * 60,
+  ACTIVE_END_MINUTES: (23 * 60) + 50
+});
 
 const STATUS = Object.freeze({
   YES: 'نعم',

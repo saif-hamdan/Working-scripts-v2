@@ -15,11 +15,12 @@ function installTriggers() {
   installSyncTriggerSafe();
   ScriptApp.newTrigger('sendEvaluationEmails').timeBased().everyDays(1).atHour(6).create();
   ScriptApp.newTrigger('maintenanceCheck').timeBased().everyDays(1).atHour(3).create();
+  installEmployeeTrainingHoursSummaryTriggerSafe();
   logInfo_('installTriggers', '', 'Triggers installed.');
 }
 
 function deleteExistingTriggers() {
-  var handlerNames = ['onFormSubmit', 'onEdit', 'sendEvaluationEmails', 'maintenanceCheck'];
+  var handlerNames = ['onFormSubmit', 'onEdit', 'sendEvaluationEmails', 'maintenanceCheck', 'scheduledRefreshEmployeeTrainingHoursSummary'];
   ScriptApp.getProjectTriggers().forEach(function(trigger) {
     if (handlerNames.indexOf(trigger.getHandlerFunction()) !== -1) {
       ScriptApp.deleteTrigger(trigger);
@@ -65,4 +66,20 @@ function repairSyncTriggerIfMissing() {
   }
   logInfo_('repairSyncTriggerIfMissing', '', 'syncSystem trigger count: ' + syncTriggerCount + '. No repair needed.');
   return syncTriggerCount;
+}
+
+
+function installEmployeeTrainingHoursSummaryTriggerSafe() {
+  var newTrigger = ScriptApp.newTrigger('scheduledRefreshEmployeeTrainingHoursSummary')
+    .timeBased()
+    .everyMinutes(EMPLOYEE_TRAINING_HOURS_CONFIG.TRIGGER_EVERY_MINUTES)
+    .create();
+  var newTriggerId = newTrigger.getUniqueId();
+  ScriptApp.getProjectTriggers().forEach(function(trigger) {
+    if (trigger.getHandlerFunction() === 'scheduledRefreshEmployeeTrainingHoursSummary' && trigger.getUniqueId() !== newTriggerId) {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+  logInfo_('installEmployeeTrainingHoursSummaryTriggerSafe', '', 'Employee training hours summary trigger installed: ' + newTriggerId);
+  return newTriggerId;
 }
