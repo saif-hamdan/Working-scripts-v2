@@ -5,7 +5,8 @@ function openMainForm_() {
   return FormApp.openById(id);
 }
 
-function setupFormStructure() {
+function setupFormStructure(options) {
+  options = options || {};
   var form = openMainForm_();
   form.setTitle('Employee / طلب تدريب موظف Training Request');
   form.setDescription('يرجى إدخال بيانات الطلب بدقة. يتم التحقق من التعارضات مرة أخرى عند اعتماد رئيس الوحدة.\nPlease enter the request details carefully. Conflicts are checked again when the unit head approves.');
@@ -25,7 +26,7 @@ function setupFormStructure() {
   ensureTextItem_(form, FORM.TITLES.HOURS, true);
   ensureParagraphItem_(form, FORM.TITLES.NOTES, false);
   ensureTrainingUnitItem_(form);
-  refreshFormChoices();
+  if (options.skipChoiceRefresh !== true) refreshFormChoices();
 }
 
 function deleteFormItemIfPresent_(form, title, type) {

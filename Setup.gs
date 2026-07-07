@@ -3,20 +3,33 @@ function setupAllSystem() {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    setupSheets();
-    setupFormStructure();
-    setupResponseQueueSheet_();
-    setupValidations();
-    protectDashboardSheets();
-    refreshDashboard();
-    refreshFormChoices();
-    installTriggers();
+    runSetupStep_('setupSheets', function() { setupSheets(); });
+    runSetupStep_('setupFormStructure', function() { setupFormStructure({ skipChoiceRefresh: true }); });
+    runSetupStep_('setupResponseQueueSheet_', function() { setupResponseQueueSheet_(); });
+    runSetupStep_('setupValidations', function() { setupValidations(); });
+    runSetupStep_('protectDashboardSheets', function() { protectDashboardSheets(); });
+    runSetupStep_('refreshDashboard', function() { refreshDashboard(true); });
+    runSetupStep_('refreshFormChoices', function() { refreshFormChoices(true); });
+    runSetupStep_('installTriggers', function() { installTriggers(); });
     logInfo_('setupAllSystem', '', 'Setup completed successfully.');
   } catch (err) {
     logError_('setupAllSystem', '', err);
     throw err;
   } finally {
     lock.releaseLock();
+  }
+}
+
+
+function runSetupStep_(stepName, callback) {
+  var startedAt = Date.now();
+  try {
+    var result = callback();
+    logInfo_('setupAllSystem:' + stepName, '', 'Completed in ' + ((Date.now() - startedAt) / 1000).toFixed(2) + ' s.');
+    return result;
+  } catch (err) {
+    logError_('setupAllSystem:' + stepName, '', err);
+    throw err;
   }
 }
 
