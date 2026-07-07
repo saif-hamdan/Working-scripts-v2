@@ -126,6 +126,8 @@ For response rows requiring review, admins should compare the submitted row with
 
 The hidden `Request Source Index` sheet maps form response identifiers back to rows in `سجل الطلبات` so the response queue can match duplicates safely. After manual data repair, bulk import, or if duplicate matching behaves unexpectedly, an admin should run `rebuildRequestSourceIndex()` from Apps Script or use **SQU Training → إعادة بناء فهرس مصادر الطلبات**. The function reads `سجل الطلبات`, clears the index below its header, writes one index row for every request with `معرف رد النموذج` or `معرف مصدر رد النموذج`, and records the indexed record count in `سجل النظام`.
 
+Before increasing response-queue batch/window sizes, run `benchmarkRequestSourceIndexWithCopiedSampleData({ targetSize: 10000 })` from Apps Script. It temporarily fills the hidden index with copied/synthetic identifiers based on existing request records, performs a batch duplicate lookup against 10,000+ index rows, logs the write and lookup timings, and restores the original index rows in a `finally` block. Only tune `RESPONSE_QUEUE_BATCH_SIZE` or `QUEUE_SCAN_WINDOW_ROWS` after the benchmark timing is acceptable for the production spreadsheet.
+
 
 ### Approval action queue (`طابور القرارات`)
 

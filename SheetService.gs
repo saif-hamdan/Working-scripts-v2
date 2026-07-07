@@ -172,6 +172,60 @@ function getRequestSourceIndex_() {
   return getDataObjects_(sheet);
 }
 
+function normalizeRequestSourceIndexRecord_(record) {
+  record = record || {};
+  var indexRecord = {};
+  indexRecord[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID] = safeString_(record[H.RECORD.FORM_RESPONSE_ID] || record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID]);
+  indexRecord[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID] = safeString_(record[H.RECORD.FORM_RESPONSE_SOURCE_ID] || record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID]);
+  indexRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID] = safeString_(record[H.RECORD.REQUEST_ID] || record[H.REQUEST_SOURCE_INDEX.REQUEST_ID]);
+  indexRecord[H.REQUEST_SOURCE_INDEX.CREATED_AT] = record[H.RECORD.TIMESTAMP] || record[H.REQUEST_SOURCE_INDEX.CREATED_AT] || now_();
+  if (record._rowNumber) indexRecord._rowNumber = record._rowNumber;
+  return indexRecord;
+}
+
+function findRequestsByResponseIds_(responseIds, responseSourceIds) {
+  responseIds = responseIds || [];
+  responseSourceIds = responseSourceIds || [];
+
+  var responseIdLookup = {};
+  var responseSourceIdLookup = {};
+  responseIds.forEach(function(responseId) {
+    responseId = safeString_(responseId);
+    if (responseId) responseIdLookup[responseId] = true;
+  });
+  responseSourceIds.forEach(function(responseSourceId) {
+    responseSourceId = safeString_(responseSourceId);
+    if (responseSourceId) responseSourceIdLookup[responseSourceId] = true;
+  });
+
+  if (!Object.keys(responseIdLookup).length && !Object.keys(responseSourceIdLookup).length) return [];
+
+  var sheet = getOrCreateSheet_(SHEETS.REQUEST_SOURCE_INDEX);
+  var headerMap = requireHeaders_(sheet, REQUEST_SOURCE_INDEX_HEADERS);
+  try { sheet.hideSheet(); } catch (ignore) {}
+  if (sheet.getLastRow() < 2) return [];
+
+  var rowCount = sheet.getLastRow() - 1;
+  var values = sheet.getRange(2, 1, rowCount, sheet.getLastColumn()).getValues();
+  var matches = [];
+
+  for (var i = 0; i < rowCount; i++) {
+    var row = values[i];
+    var responseId = safeString_(row[headerMap[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID] - 1]);
+    var responseSourceId = safeString_(row[headerMap[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID] - 1]);
+    if (!responseIdLookup[responseId] && !responseSourceIdLookup[responseSourceId]) continue;
+
+    var record = { _rowNumber: i + 2 };
+    record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID] = responseId;
+    record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID] = responseSourceId;
+    record[H.REQUEST_SOURCE_INDEX.REQUEST_ID] = row[headerMap[H.REQUEST_SOURCE_INDEX.REQUEST_ID] - 1];
+    record[H.REQUEST_SOURCE_INDEX.CREATED_AT] = row[headerMap[H.REQUEST_SOURCE_INDEX.CREATED_AT] - 1];
+    matches.push(record);
+  }
+
+  return matches;
+}
+
 function findIndexedRequestByResponseId_(responseId) {
   responseId = safeString_(responseId);
   if (!responseId) return null;

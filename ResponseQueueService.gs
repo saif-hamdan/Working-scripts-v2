@@ -141,7 +141,7 @@ function processUnprocessedFormResponses(options) {
         sourceInfo.responseId = responseId;
         sourceInfo.responseSourceId = responseSourceId;
         var record = createRequestFromNormalizedData_(data, sourceInfo, requestCreationOptions);
-        var indexRecord = appendRequestSourceIndex_(record) || record;
+        var indexRecord = normalizeRequestSourceIndexRecord_(record);
         if (responseSourceId && !recordsByResponseSourceId[responseSourceId]) recordsByResponseSourceId[responseSourceId] = indexRecord;
         if (responseId && !recordsByResponseId[responseId]) recordsByResponseId[responseId] = indexRecord;
         markResponseRowProcessed_(sheet, rowNumber, map, record[H.RECORD.REQUEST_ID] || record[H.REQUEST_SOURCE_INDEX.REQUEST_ID] || responseId, '');
@@ -279,51 +279,6 @@ function isResponseQueueColumnIndex_(columnIndex, map) {
 
 function makeResponseQueueId_(ss, sheet, rowNumber) {
   return ss.getId() + ':' + sheet.getSheetId() + ':' + rowNumber;
-}
-
-function findRequestsByResponseIds_(responseIds, responseSourceIds) {
-  responseIds = responseIds || [];
-  responseSourceIds = responseSourceIds || [];
-
-  var responseIdLookup = {};
-  var responseSourceIdLookup = {};
-  responseIds.forEach(function(responseId) {
-    responseId = safeString_(responseId);
-    if (responseId) responseIdLookup[responseId] = true;
-  });
-  responseSourceIds.forEach(function(responseSourceId) {
-    responseSourceId = safeString_(responseSourceId);
-    if (responseSourceId) responseSourceIdLookup[responseSourceId] = true;
-  });
-
-  if (!Object.keys(responseIdLookup).length && !Object.keys(responseSourceIdLookup).length) return [];
-
-  var sheet = getOrCreateSheet_(SHEETS.REQUEST_SOURCE_INDEX);
-  var headerMap = requireHeaders_(sheet, REQUEST_SOURCE_INDEX_HEADERS);
-  try { sheet.hideSheet(); } catch (ignore) {}
-  if (sheet.getLastRow() < 2) return [];
-
-  var rowCount = sheet.getLastRow() - 1;
-  var responseIdValues = sheet.getRange(2, headerMap[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID], rowCount, 1).getValues();
-  var responseSourceIdValues = sheet.getRange(2, headerMap[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID], rowCount, 1).getValues();
-  var requestIdValues = sheet.getRange(2, headerMap[H.REQUEST_SOURCE_INDEX.REQUEST_ID], rowCount, 1).getValues();
-  var createdAtValues = sheet.getRange(2, headerMap[H.REQUEST_SOURCE_INDEX.CREATED_AT], rowCount, 1).getValues();
-  var matches = [];
-
-  for (var i = 0; i < rowCount; i++) {
-    var responseId = safeString_(responseIdValues[i][0]);
-    var responseSourceId = safeString_(responseSourceIdValues[i][0]);
-    if (!responseIdLookup[responseId] && !responseSourceIdLookup[responseSourceId]) continue;
-
-    var record = { _rowNumber: i + 2 };
-    record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID] = responseId;
-    record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID] = responseSourceId;
-    record[H.REQUEST_SOURCE_INDEX.REQUEST_ID] = requestIdValues[i][0];
-    record[H.REQUEST_SOURCE_INDEX.CREATED_AT] = createdAtValues[i][0];
-    matches.push(record);
-  }
-
-  return matches;
 }
 
 function isRequestAlreadyCreatedForResponse_(responseId) {
