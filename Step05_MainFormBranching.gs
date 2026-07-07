@@ -42,7 +42,6 @@ function buildUnitBranchPage_(form, unit, sections) {
   try { page.setGoToPage(FormApp.PageNavigationType.SUBMIT); } catch (ignore) {}
 
   var sectionItem = ensureList_(form, BFORM.SECTION_QUESTION_PREFIX + unit.name, true);
-  sectionItem.setHelpText('اختر القسم المطلوب داخل وحدة التدريب المحددة فقط. / Select the requested section inside the selected training unit only.');
 
   var sectionNames = sections.filter(function(section) {
     if (unit.id && section.unitId) return section.unitId === unit.id;

@@ -7,10 +7,13 @@ function openMainForm_() {
 
 function setupFormStructure() {
   var form = openMainForm_();
-  form.setTitle('New Employee / طلب تدريب موظف جديد Training Request');
+  form.setTitle('Employee / طلب تدريب موظف Training Request');
   form.setDescription('يرجى إدخال بيانات الطلب بدقة. يتم التحقق من التعارضات مرة أخرى عند اعتماد رئيس الوحدة.\nPlease enter the request details carefully. Conflicts are checked again when the unit head approves.');
   try { form.setCollectEmail(true); } catch (ignore) {}
+  try { form.setRequireLogin(true); } catch (ignoreLogin) {}
 
+  deleteFormItemIfPresent_(form, 'اسم المدير المباشر / Direct Manager Name', FormApp.ItemType.TEXT);
+  deleteFormItemIfPresent_(form, 'بريد المدير المباشر / Direct Manager Email', FormApp.ItemType.TEXT);
   deleteFormItemIfPresent_(form, FORM.TITLES.DIRECT_MANAGER_EMAIL, FormApp.ItemType.TEXT);
   ensureTextItem_(form, FORM.TITLES.DIRECT_MANAGER_NAME, true);
   ensureTextItem_(form, FORM.TITLES.EMPLOYEE_NAME, true);
@@ -75,6 +78,7 @@ function ensureTextItem_(form, title, required) {
   var item = getFormItemByTitle_(form, title, FormApp.ItemType.TEXT);
   if (!item) item = form.addTextItem().setTitle(title);
   item = asTypedFormItem_(item, 'asTextItem');
+  try { item.setHelpText(''); } catch (ignore) {}
   item.setRequired(Boolean(required));
   return item;
 }
@@ -83,6 +87,7 @@ function ensureParagraphItem_(form, title, required) {
   var item = getFormItemByTitle_(form, title, FormApp.ItemType.PARAGRAPH_TEXT);
   if (!item) item = form.addParagraphTextItem().setTitle(title);
   item = asTypedFormItem_(item, 'asParagraphTextItem');
+  try { item.setHelpText(''); } catch (ignore) {}
   item.setRequired(Boolean(required));
   return item;
 }
@@ -91,6 +96,7 @@ function ensureDateItem_(form, title, required) {
   var item = getFormItemByTitle_(form, title, FormApp.ItemType.DATE);
   if (!item) item = form.addDateItem().setTitle(title);
   item = asTypedFormItem_(item, 'asDateItem');
+  try { item.setHelpText(''); } catch (ignore) {}
   item.setRequired(Boolean(required));
   return item;
 }
@@ -99,6 +105,7 @@ function ensureListItem_(form, title, required) {
   var item = getFormItemByTitle_(form, title, FormApp.ItemType.LIST);
   if (!item) item = form.addListItem().setTitle(title);
   item = asTypedFormItem_(item, 'asListItem');
+  try { item.setHelpText(''); } catch (ignore) {}
   item.setRequired(Boolean(required));
   return item;
 }

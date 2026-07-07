@@ -36,7 +36,7 @@ function formatConflictDetails_(conflict) {
     'الوحدة: ' + safeString_(conflict[H.RECORD.TRAINING_UNIT]),
     'القسم: ' + safeString_(conflict[H.RECORD.SECTION]),
     'الفترة: ' + formatDate_(conflict[H.RECORD.START_DATE]) + ' إلى ' + formatDate_(conflict[H.RECORD.END_DATE]),
-    'المدير المباشر: ' + safeString_(conflict[H.RECORD.DIRECT_MANAGER_NAME])
+    'المسؤول المباشر: ' + safeString_(conflict[H.RECORD.DIRECT_MANAGER_NAME])
   ].join('\n');
 }
 
