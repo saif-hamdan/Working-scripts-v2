@@ -14,9 +14,10 @@ function run04_rebuildMainFormBaseQuestions() {
 }
 
 function rebuildMainFormBase_(form, dashboard) {
-  form.setTitle('New Employee / طلب تدريب موظف جديد Training Request');
+  form.setTitle('Employee / طلب تدريب موظف Training Request');
   form.setDescription('يرجى إدخال بيانات الطلب بدقة. يتم التحقق من التعارضات مرة أخرى عند اعتماد رئيس الوحدة.\nPlease enter the request details carefully. Conflicts are checked again when the unit head approves.');
   try { form.setCollectEmail(true); } catch (ignore) {}
+  try { form.setRequireLogin(true); } catch (ignoreLogin) {}
   try { form.setAllowResponseEdits(false); } catch (ignore2) {}
   try { form.setProgressBar(true); } catch (ignore3) {}
   try { form.setConfirmationMessage('تم إرسال طلب التدريب بنجاح. / Your training request has been submitted successfully.'); } catch (ignore4) {}
@@ -27,11 +28,9 @@ function rebuildMainFormBase_(form, dashboard) {
   var unitNames = units.map(function(unit) { return unit.name; });
   if (!unitNames.length) unitNames = [BFORM.NO_UNITS];
 
-  ensureText_(form, BFORM.TITLES.DIRECT_MANAGER_NAME, true)
-    .setHelpText('يرجى كتابة الاسم الكامل. / Please enter the full name.');
+  ensureText_(form, BFORM.TITLES.DIRECT_MANAGER_NAME, true);
 
-  ensureText_(form, BFORM.TITLES.EMPLOYEE_NAME, true)
-    .setHelpText('يرجى كتابة الاسم الكامل للموظف. / Please enter the employee full name.');
+  ensureText_(form, BFORM.TITLES.EMPLOYEE_NAME, true);
   ensureText_(form, BFORM.TITLES.EMPLOYEE_ID, true);
   applyEmailValidation_(ensureText_(form, BFORM.TITLES.EMPLOYEE_EMAIL, true));
 
@@ -98,7 +97,6 @@ function applyEmailValidation_(textItem) {
   try {
     var validation = FormApp.createTextValidation()
       .requireTextIsEmail()
-      .setHelpText('يرجى إدخال بريد إلكتروني صحيح. / Please enter a valid email address.')
       .build();
     textItem.setValidation(validation);
   } catch (ignore) {}
@@ -109,7 +107,6 @@ function applyHoursValidation_(textItem) {
   try {
     var validation = FormApp.createTextValidation()
       .requireNumberGreaterThan(0)
-      .setHelpText('يرجى إدخال رقم أكبر من صفر. / Please enter a number greater than zero.')
       .build();
     textItem.setValidation(validation);
   } catch (ignore) {}

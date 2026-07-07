@@ -60,8 +60,8 @@ const H = Object.freeze({
     REQUEST_ID: 'رقم الطلب',
     TIMESTAMP: 'الطابع الزمني',
     SUBMITTER_EMAIL: 'بريد مقدم الطلب',
-    DIRECT_MANAGER_NAME: 'اسم المدير المباشر',
-    DIRECT_MANAGER_EMAIL: 'بريد المدير المباشر',
+    DIRECT_MANAGER_NAME: 'المسؤول المباشر',
+    DIRECT_MANAGER_EMAIL: 'بريد المسؤول المباشر',
     EMPLOYEE_NAME: 'اسم الموظف',
     EMPLOYEE_ID: 'الرقم الوظيفي للموظف',
     EMPLOYEE_EMAIL: 'بريد الموظف',
@@ -239,8 +239,8 @@ const FORM = Object.freeze({
   SECTION_QUESTION_PREFIX: 'القسم المطلوب / Requested Section - ',
   NO_AVAILABLE_SECTIONS: 'لا توجد أقسام متاحة حالياً',
   TITLES: Object.freeze({
-    DIRECT_MANAGER_NAME: 'اسم المدير المباشر / Direct Manager Name',
-    DIRECT_MANAGER_EMAIL: 'بريد المدير المباشر / Direct Manager Email',
+    DIRECT_MANAGER_NAME: 'المسؤول المباشر / Line Manager',
+    DIRECT_MANAGER_EMAIL: 'بريد المسؤول المباشر / Line Manager Email',
     EMPLOYEE_NAME: 'اسم الموظف / Employee Name',
     EMPLOYEE_ID: 'الرقم الوظيفي للموظف / Employee ID',
     EMPLOYEE_EMAIL: 'بريد الموظف / Employee Email',
@@ -254,8 +254,8 @@ const FORM = Object.freeze({
 });
 
 const FORM_RESPONSE_TITLE_CANDIDATES = Object.freeze({
-  DIRECT_MANAGER_NAME: Object.freeze([FORM.TITLES.DIRECT_MANAGER_NAME, 'اسم المدير المباشر']),
-  DIRECT_MANAGER_EMAIL: Object.freeze([FORM.TITLES.DIRECT_MANAGER_EMAIL, 'بريد المدير المباشر']),
+  DIRECT_MANAGER_NAME: Object.freeze([FORM.TITLES.DIRECT_MANAGER_NAME, 'المسؤول المباشر', 'اسم المدير المباشر / Direct Manager Name', 'اسم المدير المباشر']),
+  DIRECT_MANAGER_EMAIL: Object.freeze([FORM.TITLES.DIRECT_MANAGER_EMAIL, 'بريد المسؤول المباشر', 'بريد المدير المباشر / Direct Manager Email', 'بريد المدير المباشر']),
   EMPLOYEE_NAME: Object.freeze([FORM.TITLES.EMPLOYEE_NAME, 'اسم الموظف']),
   EMPLOYEE_ID: Object.freeze([FORM.TITLES.EMPLOYEE_ID, 'الرقم الوظيفي للموظف', 'Employee ID']),
   EMPLOYEE_EMAIL: Object.freeze([FORM.TITLES.EMPLOYEE_EMAIL, 'بريد الموظف']),
