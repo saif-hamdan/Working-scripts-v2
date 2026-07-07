@@ -23,7 +23,7 @@ function run11_refreshMainFormFromAdminSheets() {
 
   run06_continueMainFormBranching();
   writeSetupSummary_(ss, form, tryOpenEvaluationForm_());
-  return finishStep_('11 Refresh Main Form From Admin Sheets', BSTATUS.IN_PROGRESS, 'Main form refresh ran. If branching is not complete, run this function again or use the 5-minute trigger.');
+  return finishStep_('11 Refresh Main Form From Admin Sheets', BSTATUS.IN_PROGRESS, 'Main form refresh ran. If branching is not complete, run this function again or use the 30-minute trigger.');
 }
 
 function resetMainFormBranchingFromReferenceData_(ss, form) {
