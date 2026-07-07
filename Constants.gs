@@ -41,7 +41,8 @@ const SHEETS = Object.freeze({
   SETTINGS: 'الإعدادات',
   LOG: 'سجل النظام',
   EMAIL_QUEUE: 'طابور البريد',
-  ACTION_QUEUE: 'طابور القرارات'
+  ACTION_QUEUE: 'طابور القرارات',
+  REQUEST_SOURCE_INDEX: 'Request Source Index'
 });
 
 const H = Object.freeze({
@@ -134,6 +135,12 @@ const H = Object.freeze({
     LAST_ERROR: 'آخر خطأ',
     PROCESSED_AT: 'تاريخ المعالجة'
   }),
+  REQUEST_SOURCE_INDEX: Object.freeze({
+    FORM_RESPONSE_ID: 'FORM_RESPONSE_ID',
+    FORM_RESPONSE_SOURCE_ID: 'FORM_RESPONSE_SOURCE_ID',
+    REQUEST_ID: 'REQUEST_ID',
+    CREATED_AT: 'CREATED_AT'
+  }),
   QUEUE: Object.freeze({
     MESSAGE_ID: 'معرف الرسالة',
     STATUS: 'الحالة',
@@ -158,6 +165,7 @@ const SETTINGS_HEADERS = Object.freeze(Object.values(H.SETTINGS));
 const LOG_HEADERS = Object.freeze(Object.values(H.LOG));
 const QUEUE_HEADERS = Object.freeze(Object.values(H.QUEUE));
 const ACTION_QUEUE_HEADERS = Object.freeze(Object.values(H.ACTION_QUEUE));
+const REQUEST_SOURCE_INDEX_HEADERS = Object.freeze(Object.values(H.REQUEST_SOURCE_INDEX));
 
 const STATUS = Object.freeze({
   YES: 'نعم',

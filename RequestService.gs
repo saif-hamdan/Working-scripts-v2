@@ -14,17 +14,17 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
   validateSubmissionData_(data);
 
   if (data.responseId) {
-    var existingRecord = findRequestByResponseId_(data.responseId);
+    var existingRecord = findIndexedRequestByResponseId_(data.responseId);
     if (existingRecord) {
-      logInfo_('createRequestFromNormalizedData_:idempotent', existingRecord[H.RECORD.REQUEST_ID] || '', 'Request already exists for form response ' + data.responseId + '; skipping duplicate creation.');
+      logInfo_('createRequestFromNormalizedData_:idempotent', existingRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID] || '', 'Request already exists for form response ' + data.responseId + '; skipping duplicate creation.');
       return existingRecord;
     }
   }
 
   if (data.responseSourceId) {
-    var existingSourceRecord = findRequestByResponseSourceId_(data.responseSourceId);
+    var existingSourceRecord = findIndexedRequestByResponseSourceId_(data.responseSourceId);
     if (existingSourceRecord) {
-      logInfo_('createRequestFromNormalizedData_:sourceIdempotent', existingSourceRecord[H.RECORD.REQUEST_ID] || '', 'Request already exists for response source ' + data.responseSourceId + '; skipping duplicate creation.');
+      logInfo_('createRequestFromNormalizedData_:sourceIdempotent', existingSourceRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID] || '', 'Request already exists for response source ' + data.responseSourceId + '; skipping duplicate creation.');
       return existingSourceRecord;
     }
   }
@@ -106,6 +106,7 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
   requireHeaders_(sheet, RECORD_HEADERS);
   var rowNumber = appendObjectRow_(sheet, RECORD_HEADERS, record);
   record._rowNumber = rowNumber;
+  appendRequestSourceIndex_(record);
 
   if (activeTraining) {
     sendActiveEmployeeRejectedNotification(record, activeTraining);
