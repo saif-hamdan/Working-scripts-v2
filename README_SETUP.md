@@ -51,6 +51,19 @@ Run these functions from Apps Script in order:
 13. `run10_finalizeSetupSummary()`
 14. Run `run13_verifyProductionCompatibility()` repeatedly until it reports `Complete`. This verifies the current production setup functions in smaller chunks after the bootstrap IDs have been written into the project settings sheet.
 
+## Repair existing resources after script changes
+
+If the latest script adds, removes, renames, or changes spreadsheet columns/form questions, you do not need to start from scratch. Run `run14_repairExistingResourcesFromLatestScript()` after uploading the latest script. It opens the existing resource IDs, rebuilds each managed sheet from the latest headers while preserving row values that still match by header name, reapplies formatting/validations/settings, and rebuilds the main and evaluation forms.
+
+After `run14_repairExistingResourcesFromLatestScript()` finishes, run:
+
+1. `run03_validateReferenceData()`
+2. `run05_startMainFormBranching()`
+3. `run06_continueMainFormBranching()` repeatedly until `Setup Summary` says `Main form branching complete = true`
+4. `run09_applyProtections()`
+5. `run10_finalizeSetupSummary()`
+6. `run13_verifyProductionCompatibility()` repeatedly until it reports `Complete`
+
 `bootstrapAll()` is kept only as a compatibility wrapper. For large unit/section lists, use the staged functions above.
 
 Each numbered runner is in the matching `StepNN_*.gs` file. For example, `run06_continueMainFormBranching()` is in `Step06_MainFormBranching.gs`.
