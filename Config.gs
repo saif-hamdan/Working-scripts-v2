@@ -9,8 +9,8 @@ function getConfig() {
     return fallback || '';
   }
 
-  var adminEmails = splitCsv_(value(SETTINGS_KEYS.ADMIN_EMAILS, value(SETTINGS_KEYS.OWNER_EMAIL, '')));
-  var ownerEmail = value(SETTINGS_KEYS.OWNER_EMAIL, '');
+  var adminEmails = splitCsv_(value(SETTINGS_KEYS.ADMIN_EMAILS, value(SETTINGS_KEYS.OWNER_EMAIL, 'employeeservices@squ.edu.om')));
+  var ownerEmail = value(SETTINGS_KEYS.OWNER_EMAIL, 'employeeservices@squ.edu.om');
   if (ownerEmail && adminEmails.indexOf(ownerEmail) === -1) adminEmails.push(ownerEmail);
 
   return {
@@ -83,8 +83,8 @@ function writeSettingsFromConfig_(ss) {
   defaults[SETTINGS_KEYS.ACTION_QUEUE_MAX_RETRIES] = '3';
   defaults[SETTINGS_KEYS.EVALUATION_FORM_URL] = '';
   defaults[SETTINGS_KEYS.WEB_APP_URL] = '';
-  defaults[SETTINGS_KEYS.OWNER_EMAIL] = Session.getEffectiveUser().getEmail() || '';
-  defaults[SETTINGS_KEYS.ADMIN_EMAILS] = Session.getEffectiveUser().getEmail() || '';
+  defaults[SETTINGS_KEYS.OWNER_EMAIL] = 'employeeservices@squ.edu.om';
+  defaults[SETTINGS_KEYS.ADMIN_EMAILS] = 'employeeservices@squ.edu.om';
   defaults[SETTINGS_KEYS.APPROVER_UNIT_MODE] = APPROVER_UNIT_MODE.CURRENT_UNIT;
   defaults[SETTINGS_KEYS.EMAIL_SENDER_NAME] = '';
   defaults[SETTINGS_KEYS.ORGANIZATION_NAME_AR] = 'قسم خدمات الموظفين والمتقاعدين';

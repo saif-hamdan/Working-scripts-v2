@@ -12,10 +12,10 @@ const BOOTSTRAP_CONFIG = {
   CREATE_NEW_EVALUATION_FORM: true,
   EXISTING_EVALUATION_FORM_ID: '',
 
-  OWNER_EMAIL: 'saif.alkaanuni@gmail.com',
-  ADMIN_EMAILS: 'saif.alkaanuni@gmail.com',
-  ORGANIZATION_NAME_AR: 'جامعة السلطان قابوس',
-  ORGANIZATION_NAME_EN: 'Sultan Qaboos University',
+  OWNER_EMAIL: 'employeeservices@squ.edu.om',
+  ADMIN_EMAILS: 'employeeservices@squ.edu.om',
+  ORGANIZATION_NAME_AR: 'قسم خدمات الموظفين والمتقاعدين',
+  ORGANIZATION_NAME_EN: 'Employees and Retirees Services Section',
 
   // Replace with official SQU brand values before go-live.
   BRAND_PRIMARY_COLOR: '#0B4EA2',
@@ -23,8 +23,8 @@ const BOOTSTRAP_CONFIG = {
   BRAND_ACCENT_COLOR: '#C4CCE6',
   BRAND_LOGO_URL: '',
 
-  APPROVER_UNIT_MODE: 'TRAINING_UNIT',
-  EMAIL_SENDER_NAME: 'SQU Training System',
+  APPROVER_UNIT_MODE: 'CURRENT_UNIT',
+  EMAIL_SENDER_NAME: '',
 
   // Staged setup controls.
   FORCE_CREATE_NEW_RESOURCES: false,
