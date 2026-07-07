@@ -39,15 +39,6 @@ function processUnprocessedFormResponses(options) {
     }
 
     setupSheets();
-    var indexedRequests = getRequestSourceIndex_();
-    var recordsByResponseSourceId = {};
-    var recordsByResponseId = {};
-    indexedRequests.forEach(function(record) {
-      var responseSourceId = safeString_(record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID]);
-      var responseId = safeString_(record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID]);
-      if (responseSourceId && !recordsByResponseSourceId[responseSourceId]) recordsByResponseSourceId[responseSourceId] = record;
-      if (responseId && !recordsByResponseId[responseId]) recordsByResponseId[responseId] = record;
-    });
 
     var ss = SpreadsheetApp.openById(cfg.FORM_RESPONSES_SPREADSHEET_ID);
     var sheet = findFormResponsesSheet_(ss);
@@ -69,6 +60,10 @@ function processUnprocessedFormResponses(options) {
     var actionableCount = 0;
     var remainingLikely = scanRange.endRow < lastRow;
     var cursorDeferred = false;
+
+    var responseQueueItems = [];
+    var responseIds = [];
+    var responseSourceIds = [];
 
     for (var index = rows.length - 1; index >= 0; index--) {
       var row = rows[index];
@@ -104,9 +99,30 @@ function processUnprocessedFormResponses(options) {
       actionableCount++;
 
       var responseId = makeResponseQueueId_(ss, sheet, rowNumber);
+      var responseSourceId = makeResponseSourceIdFromRow_(headers, row, map);
+      responseQueueItems.push({ row: row, rowNumber: rowNumber, responseId: responseId, responseSourceId: responseSourceId });
+      if (responseId) responseIds.push(responseId);
+      if (responseSourceId) responseSourceIds.push(responseSourceId);
+    }
+
+    var matchedRecords = findRequestsByResponseIds_(responseIds, responseSourceIds);
+    var recordsByResponseSourceId = {};
+    var recordsByResponseId = {};
+    matchedRecords.forEach(function(record) {
+      var matchedResponseSourceId = safeString_(record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID]);
+      var matchedResponseId = safeString_(record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID]);
+      if (matchedResponseSourceId && !recordsByResponseSourceId[matchedResponseSourceId]) recordsByResponseSourceId[matchedResponseSourceId] = record;
+      if (matchedResponseId && !recordsByResponseId[matchedResponseId]) recordsByResponseId[matchedResponseId] = record;
+    });
+
+    for (var itemIndex = 0; itemIndex < responseQueueItems.length; itemIndex++) {
+      var item = responseQueueItems[itemIndex];
+      var row = item.row;
+      var rowNumber = item.rowNumber;
+      var responseId = item.responseId;
+      var responseSourceId = item.responseSourceId;
       try {
         var data = null;
-        var responseSourceId = makeResponseSourceIdFromRow_(headers, row, map);
         var existingRecord = (responseSourceId ? recordsByResponseSourceId[responseSourceId] : null) || recordsByResponseId[responseId];
         if (existingRecord) {
           markResponseRowProcessed_(sheet, rowNumber, map, existingRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID] || responseId, '');
@@ -259,6 +275,51 @@ function isResponseQueueColumnIndex_(columnIndex, map) {
 
 function makeResponseQueueId_(ss, sheet, rowNumber) {
   return ss.getId() + ':' + sheet.getSheetId() + ':' + rowNumber;
+}
+
+function findRequestsByResponseIds_(responseIds, responseSourceIds) {
+  responseIds = responseIds || [];
+  responseSourceIds = responseSourceIds || [];
+
+  var responseIdLookup = {};
+  var responseSourceIdLookup = {};
+  responseIds.forEach(function(responseId) {
+    responseId = safeString_(responseId);
+    if (responseId) responseIdLookup[responseId] = true;
+  });
+  responseSourceIds.forEach(function(responseSourceId) {
+    responseSourceId = safeString_(responseSourceId);
+    if (responseSourceId) responseSourceIdLookup[responseSourceId] = true;
+  });
+
+  if (!Object.keys(responseIdLookup).length && !Object.keys(responseSourceIdLookup).length) return [];
+
+  var sheet = getOrCreateSheet_(SHEETS.REQUEST_SOURCE_INDEX);
+  var headerMap = requireHeaders_(sheet, REQUEST_SOURCE_INDEX_HEADERS);
+  try { sheet.hideSheet(); } catch (ignore) {}
+  if (sheet.getLastRow() < 2) return [];
+
+  var rowCount = sheet.getLastRow() - 1;
+  var responseIdValues = sheet.getRange(2, headerMap[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID], rowCount, 1).getValues();
+  var responseSourceIdValues = sheet.getRange(2, headerMap[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID], rowCount, 1).getValues();
+  var requestIdValues = sheet.getRange(2, headerMap[H.REQUEST_SOURCE_INDEX.REQUEST_ID], rowCount, 1).getValues();
+  var createdAtValues = sheet.getRange(2, headerMap[H.REQUEST_SOURCE_INDEX.CREATED_AT], rowCount, 1).getValues();
+  var matches = [];
+
+  for (var i = 0; i < rowCount; i++) {
+    var responseId = safeString_(responseIdValues[i][0]);
+    var responseSourceId = safeString_(responseSourceIdValues[i][0]);
+    if (!responseIdLookup[responseId] && !responseSourceIdLookup[responseSourceId]) continue;
+
+    var record = { _rowNumber: i + 2 };
+    record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID] = responseId;
+    record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID] = responseSourceId;
+    record[H.REQUEST_SOURCE_INDEX.REQUEST_ID] = requestIdValues[i][0];
+    record[H.REQUEST_SOURCE_INDEX.CREATED_AT] = createdAtValues[i][0];
+    matches.push(record);
+  }
+
+  return matches;
 }
 
 function isRequestAlreadyCreatedForResponse_(responseId) {
