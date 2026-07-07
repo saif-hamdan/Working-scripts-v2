@@ -18,6 +18,7 @@ function onOpen() {
       .addItem('09 - Apply protections', 'run09_applyProtections')
       .addItem('10 - Finalize setup summary', 'run10_finalizeSetupSummary')
       .addItem('13 - Verify production compatibility', 'run13_verifyProductionCompatibility')
+      .addItem('14 - Repair existing resources from latest script', 'run14_repairExistingResourcesFromLatestScript')
       .addSeparator()
       .addItem('11 - Refresh main form from admin sheets', 'run11_refreshMainFormFromAdminSheets')
       .addItem('12 - Create five-minute form refresh trigger', 'run12_createFiveMinuteFormRefreshTrigger')
