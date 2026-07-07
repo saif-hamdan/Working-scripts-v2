@@ -63,3 +63,74 @@ function getMaintenanceUserEmail_() {
   } catch (ignore2) {}
   return '';
 }
+
+function benchmarkRequestSourceIndexWithCopiedSampleData(options) {
+  options = options || {};
+  var action = 'benchmarkRequestSourceIndexWithCopiedSampleData';
+  var userEmail = getMaintenanceUserEmail_();
+  if (!isAuthorizedEditor_(userEmail)) {
+    var message = 'Unauthorized request source index benchmark blocked for ' + (userEmail || 'unknown user') + '.';
+    logWarn_(action + ':unauthorized', '', message);
+    throw new Error(message);
+  }
+
+  var targetSize = Math.max(10000, toNumber_(options.targetSize, 10000));
+  var lookupSize = Math.min(targetSize, Math.max(1, toNumber_(options.lookupSize, RESPONSE_QUEUE_BATCH_SIZE)));
+  var ss = openDashboardSpreadsheet_();
+  var recordsSheet = ss.getSheetByName(SHEETS.RECORDS);
+  if (!recordsSheet || recordsSheet.getLastRow() < 2) throw new Error('At least one existing request record is required as sample data.');
+  requireHeaders_(recordsSheet, RECORD_HEADERS);
+
+  var indexSheet = ensureSheet_(ss, SHEETS.REQUEST_SOURCE_INDEX);
+  setSheetHeaders_(indexSheet, REQUEST_SOURCE_INDEX_HEADERS);
+  var originalLastRow = indexSheet.getLastRow();
+  var originalLastCol = Math.max(indexSheet.getLastColumn(), REQUEST_SOURCE_INDEX_HEADERS.length);
+  var originalValues = originalLastRow > 1 ? indexSheet.getRange(2, 1, originalLastRow - 1, originalLastCol).getValues() : [];
+
+  try {
+    clearRequestSourceIndexRows_(indexSheet);
+
+    var sampleRecords = getDataObjects_(recordsSheet);
+    var values = [];
+    for (var i = 0; i < targetSize; i++) {
+      var sample = sampleRecords[i % sampleRecords.length];
+      var suffix = '-BENCH-' + (i + 1);
+      values.push([
+        safeString_(sample[H.RECORD.FORM_RESPONSE_ID]) || ('benchmark-response-id' + suffix),
+        safeString_(sample[H.RECORD.FORM_RESPONSE_SOURCE_ID]) || ('benchmark-source-id' + suffix),
+        (safeString_(sample[H.RECORD.REQUEST_ID]) || 'benchmark-request') + suffix,
+        sample[H.RECORD.TIMESTAMP] || now_()
+      ]);
+    }
+
+    var startedAt = new Date().getTime();
+    indexSheet.getRange(2, 1, values.length, REQUEST_SOURCE_INDEX_HEADERS.length).setValues(values);
+    var writeMs = new Date().getTime() - startedAt;
+
+    var responseIds = [];
+    var sourceIds = [];
+    for (var j = 0; j < lookupSize; j++) {
+      var valueIndex = targetSize - 1 - j;
+      responseIds.push(values[valueIndex][0]);
+      sourceIds.push(values[valueIndex][1]);
+    }
+
+    startedAt = new Date().getTime();
+    var matches = findRequestsByResponseIds_(responseIds, sourceIds);
+    var lookupMs = new Date().getTime() - startedAt;
+
+    var result = {
+      indexedRecords: targetSize,
+      lookupKeys: lookupSize,
+      matches: matches.length,
+      writeMs: writeMs,
+      lookupMs: lookupMs
+    };
+    logInfo_(action, '', 'Request source index benchmark: ' + JSON.stringify(result));
+    return result;
+  } finally {
+    clearRequestSourceIndexRows_(indexSheet);
+    if (originalValues.length) indexSheet.getRange(2, 1, originalValues.length, originalLastCol).setValues(originalValues);
+    try { indexSheet.hideSheet(); } catch (ignore) {}
+  }
+}
