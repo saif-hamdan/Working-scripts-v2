@@ -3,14 +3,30 @@ function findConflicts(criteria) {
   var records = getRecords_();
   var trainingKey = normalizeKey_(criteria.trainingUnit);
   var sectionKey = normalizeKey_(criteria.section);
-  var conflicts = records.filter(function(record) {
+  var section = findSectionByUnitAndName_(criteria.trainingUnit, criteria.section);
+  var capacity = section ? section.capacity : 1;
+  var overlappingRecords = records.filter(function(record) {
     if (safeString_(record[H.RECORD.REQUEST_ID]) === safeString_(criteria.excludeRequestId)) return false;
     if (!isRecordActiveOrApproved_(record)) return false;
     if (normalizeKey_(record[H.RECORD.TRAINING_UNIT]) !== trainingKey) return false;
     if (normalizeKey_(record[H.RECORD.SECTION]) !== sectionKey) return false;
     return isDateRangeOverlap_(criteria.startDate, criteria.endDate, record[H.RECORD.START_DATE], record[H.RECORD.END_DATE]);
   });
-  return conflicts.length ? conflicts[0] : null;
+  return findCapacityConflictForDates_(criteria.startDate, criteria.endDate, overlappingRecords, capacity);
+}
+
+function findCapacityConflictForDates_(startDate, endDate, overlappingRecords, capacity) {
+  var start = dateOnly_(startDate);
+  var end = dateOnly_(endDate);
+  if (!start || !end) return null;
+
+  for (var day = new Date(start.getTime()); day.getTime() <= end.getTime(); day.setDate(day.getDate() + 1)) {
+    var recordsOnDay = overlappingRecords.filter(function(record) {
+      return isDateRangeOverlap_(day, day, record[H.RECORD.START_DATE], record[H.RECORD.END_DATE]);
+    });
+    if (recordsOnDay.length >= capacity) return recordsOnDay[0];
+  }
+  return null;
 }
 
 function findActiveTrainingByEmployee_(employeeId, employeeName, excludeRequestId) {
