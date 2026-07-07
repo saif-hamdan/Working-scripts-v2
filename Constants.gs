@@ -55,7 +55,7 @@ const H = Object.freeze({
     HEAD: 'رئيس الوحدة',
     HEAD_EMAIL: 'بريد رئيس الوحدة',
     ACTIVE_COUNT: 'عدد المتدربين النشطين',
-    ACTIVE_TRAINEES: 'المتدربون النشطون',
+    ACTIVE_TRAINEES: 'الأرقام الوظيفية للمتدربين النشطين',
     ALL_TRAINEES: 'جميع من تدربوا في القسم',
     LAST_TRAINING: 'آخر تاريخ تدريب',
     STATUS: 'حالة القسم'

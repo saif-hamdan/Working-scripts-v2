@@ -46,7 +46,7 @@ function calculateSectionSummary_(records) {
     row[H.DASHBOARD.HEAD] = unit.headName || '';
     row[H.DASHBOARD.HEAD_EMAIL] = unit.headEmail || '';
     row[H.DASHBOARD.ACTIVE_COUNT] = activeRecords.length;
-    row[H.DASHBOARD.ACTIVE_TRAINEES] = uniqueNonEmpty_(activeRecords.map(function(r) { return r[H.RECORD.EMPLOYEE_NAME]; })).join('، ');
+    row[H.DASHBOARD.ACTIVE_TRAINEES] = uniqueNonEmpty_(activeRecords.map(function(r) { return r[H.RECORD.EMPLOYEE_ID]; })).join('، ');
     row[H.DASHBOARD.ALL_TRAINEES] = uniqueNonEmpty_(allTrained.map(function(r) { return r[H.RECORD.EMPLOYEE_NAME]; })).join('، ');
     row[H.DASHBOARD.LAST_TRAINING] = lastDate ? formatDate_(lastDate) : '';
     row[H.DASHBOARD.STATUS] = activeRecords.length > 0 ? STATUS.OCCUPIED : STATUS.AVAILABLE;

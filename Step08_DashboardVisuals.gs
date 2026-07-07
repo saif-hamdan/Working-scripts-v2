@@ -25,6 +25,7 @@ function refreshDashboardSectionSummary_(ss) {
 
   var rMap = bsGetHeaderMap_(records);
   var employeeNameCol = columnLetter_(rMap['اسم الموظف']);
+  var employeeIdCol = columnLetter_(rMap['الرقم الوظيفي للموظف']);
   var requestedUnitCol = columnLetter_(rMap['وحدة التدريب المطلوبة']);
   var requestedSectionCol = columnLetter_(rMap['القسم المطلوب']);
   var startDateCol = columnLetter_(rMap['من تاريخ']);
@@ -44,8 +45,8 @@ function refreshDashboardSectionSummary_(ss) {
       recordsName + '!$' + endDateCol + ':$' + endDateCol + ',">="&TODAY(),' +
       recordsName + '!$' + headApprovalCol + ':$' + headApprovalCol + ',"' + approvedStatus + '")';
 
-    var activeNames = '=IFERROR(TEXTJOIN(", ",TRUE,FILTER(' +
-      recordsName + '!$' + employeeNameCol + ':$' + employeeNameCol + ',' +
+    var activeEmployeeIds = '=IFERROR(TEXTJOIN(", ",TRUE,FILTER(' +
+      recordsName + '!$' + employeeIdCol + ':$' + employeeIdCol + ',' +
       recordsName + '!$' + requestedUnitCol + ':$' + requestedUnitCol + '=$A' + row + ',' +
       recordsName + '!$' + requestedSectionCol + ':$' + requestedSectionCol + '=$B' + row + ',' +
       recordsName + '!$' + startDateCol + ':$' + startDateCol + '<=TODAY(),' +
@@ -66,7 +67,7 @@ function refreshDashboardSectionSummary_(ss) {
 
     var status = '=IF(E' + row + '>0,"مشغول / Occupied","متاح / Available")';
 
-    return [unit.name, section.name, unit.headName, unit.headEmail, activeCount, activeNames, allNames, lastTraining, status];
+    return [unit.name, section.name, unit.headName, unit.headEmail, activeCount, activeEmployeeIds, allNames, lastTraining, status];
   });
 
   if (rows.length) dashboard.getRange(2, 1, rows.length, BH.DASHBOARD.length).setValues(rows);
