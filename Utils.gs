@@ -166,18 +166,37 @@ function parseJsonSafe_(text, fallback) {
   }
 }
 
-function getQueueScanRange_(cursorKey, lastRow, scanWindowRows) {
-  if (lastRow < 2) return { startRow: 2, endRow: 1, rowCount: 0, wrapped: false };
+function getQueueScanRange_(cursorKey, lastRow, scanWindowRows, options) {
+  options = options || {};
+  if (lastRow < 2) return { startRow: 2, endRow: 1, rowCount: 0, wrapped: false, direction: options.direction || 'forward' };
+
   var scanWindow = Math.max(1, toNumber_(scanWindowRows, 1));
   var props = PropertiesService.getScriptProperties();
-  var cursor = toNumber_(props.getProperty(cursorKey), 2);
+  var storedCursor = safeString_(props.getProperty(cursorKey));
+  var direction = options.direction === 'backward' ? 'backward' : 'forward';
+
+  if (direction === 'backward') {
+    var backwardCursor = toNumber_(storedCursor, lastRow);
+    if (backwardCursor < 2 || backwardCursor > lastRow) backwardCursor = lastRow;
+    var startRow = Math.max(2, backwardCursor - scanWindow + 1);
+    return {
+      startRow: startRow,
+      endRow: backwardCursor,
+      rowCount: backwardCursor - startRow + 1,
+      wrapped: backwardCursor === lastRow && storedCursor !== '',
+      direction: direction
+    };
+  }
+
+  var cursor = toNumber_(storedCursor, 2);
   if (cursor < 2 || cursor > lastRow) cursor = 2;
   var endRow = Math.min(lastRow, cursor + scanWindow - 1);
   return {
     startRow: cursor,
     endRow: endRow,
     rowCount: endRow - cursor + 1,
-    wrapped: cursor === 2 && safeString_(props.getProperty(cursorKey)) !== ''
+    wrapped: cursor === 2 && storedCursor !== '',
+    direction: direction
   };
 }
 
@@ -189,6 +208,9 @@ function setQueueScanCursor_(cursorKey, nextRow, lastRow) {
 }
 
 function advanceQueueScanCursor_(cursorKey, range, lastRow) {
+  if (range && range.direction === 'backward') {
+    return setQueueScanCursor_(cursorKey, range.startRow > 2 ? range.startRow - 1 : lastRow, lastRow);
+  }
   return setQueueScanCursor_(cursorKey, range.endRow + 1, lastRow);
 }
 
