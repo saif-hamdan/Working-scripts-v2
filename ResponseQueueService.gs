@@ -47,7 +47,8 @@ function processUnprocessedFormResponses(options) {
     var map = ensureResponseQueueColumns_(sheet);
     var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(safeString_);
     var lastRow = sheet.getLastRow();
-    var scanWindow = Math.max(RESPONSE_QUEUE_BATCH_SIZE, QUEUE_SCAN_WINDOW_ROWS);
+    var batchSize = cfg.RESPONSE_QUEUE_BATCH_SIZE || RESPONSE_QUEUE_BATCH_SIZE;
+    var scanWindow = Math.max(batchSize, cfg.QUEUE_SCAN_WINDOW_ROWS || QUEUE_SCAN_WINDOW_ROWS);
     // New Google Form responses are appended at the bottom, so scan response
     // queue windows from newest to oldest while the cursor still wraps to cover
     // older ERROR rows that may need retry.
@@ -85,7 +86,7 @@ function processUnprocessedFormResponses(options) {
         skippedCount++;
         continue;
       }
-      if (actionableCount >= RESPONSE_QUEUE_BATCH_SIZE) {
+      if (actionableCount >= batchSize) {
         remainingLikely = true;
         stoppedForBatch = true;
         setQueueScanCursor_(RESPONSE_QUEUE_SCAN_CURSOR_KEY, rowNumber, lastRow);
@@ -162,7 +163,7 @@ function processUnprocessedFormResponses(options) {
     var stats = buildResponseQueueStats_(processedCount, skippedCount, failedCount, stoppedEarly, scannedCount, remainingLikely);
     stats.stoppedForBatch = stoppedForBatch;
     logInfo_('processUnprocessedFormResponses', '', formatResponseQueueStats_(stats));
-    logQueueStoppedEarly_('processUnprocessedFormResponses', '', stats, RESPONSE_QUEUE_BATCH_SIZE);
+    logQueueStoppedEarly_('processUnprocessedFormResponses', '', stats, batchSize);
     return stats;
   } finally {
     if (lock) lock.releaseLock();

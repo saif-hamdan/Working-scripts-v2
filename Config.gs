@@ -13,11 +13,18 @@ function getConfig() {
   var ownerEmail = value(SETTINGS_KEYS.OWNER_EMAIL, 'employeeservices@squ.edu.om');
   if (ownerEmail && adminEmails.indexOf(ownerEmail) === -1) adminEmails.push(ownerEmail);
 
+  var responseQueueLimits = getEffectiveResponseQueueLimits_(
+    value(SETTINGS_KEYS.RESPONSE_QUEUE_BATCH_SIZE, ''),
+    value(SETTINGS_KEYS.QUEUE_SCAN_WINDOW_ROWS, '')
+  );
+
   return {
     DASHBOARD_SPREADSHEET_ID: value(SETTINGS_KEYS.DASHBOARD_SPREADSHEET_ID, ''),
     MAIN_FORM_ID: value(SETTINGS_KEYS.MAIN_FORM_ID, ''),
     FORM_RESPONSES_SPREADSHEET_ID: value(SETTINGS_KEYS.FORM_RESPONSES_SPREADSHEET_ID, ''),
     RESPONSE_QUEUE_MAX_RETRIES: Math.max(1, toNumber_(value(SETTINGS_KEYS.RESPONSE_QUEUE_MAX_RETRIES, '3'), 3)),
+    RESPONSE_QUEUE_BATCH_SIZE: responseQueueLimits.batchSize,
+    QUEUE_SCAN_WINDOW_ROWS: responseQueueLimits.scanWindowRows,
     ACTION_QUEUE_MAX_RETRIES: Math.max(1, toNumber_(value(SETTINGS_KEYS.ACTION_QUEUE_MAX_RETRIES, '3'), 3)),
     EVALUATION_FORM_URL: value(SETTINGS_KEYS.EVALUATION_FORM_URL, ''),
     WEB_APP_URL: value(SETTINGS_KEYS.WEB_APP_URL, ''),
@@ -80,6 +87,8 @@ function writeSettingsFromConfig_(ss) {
   defaults[SETTINGS_KEYS.MAIN_FORM_ID] = '';
   defaults[SETTINGS_KEYS.FORM_RESPONSES_SPREADSHEET_ID] = '';
   defaults[SETTINGS_KEYS.RESPONSE_QUEUE_MAX_RETRIES] = '3';
+  defaults[SETTINGS_KEYS.RESPONSE_QUEUE_BATCH_SIZE] = String(RESPONSE_QUEUE_BATCH_SIZE);
+  defaults[SETTINGS_KEYS.QUEUE_SCAN_WINDOW_ROWS] = String(QUEUE_SCAN_WINDOW_ROWS);
   defaults[SETTINGS_KEYS.ACTION_QUEUE_MAX_RETRIES] = '3';
   defaults[SETTINGS_KEYS.EVALUATION_FORM_URL] = '';
   defaults[SETTINGS_KEYS.WEB_APP_URL] = '';
@@ -132,4 +141,32 @@ function readSettingsRows_(sheet) {
     if (key) map[key] = safeString_(row[1]);
   });
   return map;
+}
+
+
+function getEffectiveResponseQueueLimits_(batchSizeValue, scanWindowRowsValue) {
+  var batchSize = normalizeIntegerSetting_(
+    batchSizeValue,
+    RESPONSE_QUEUE_BATCH_SIZE,
+    RESPONSE_QUEUE_MIN_BATCH_SIZE,
+    RESPONSE_QUEUE_MAX_BATCH_SIZE
+  );
+  var scanWindowRows = normalizeIntegerSetting_(
+    scanWindowRowsValue,
+    QUEUE_SCAN_WINDOW_ROWS,
+    batchSize,
+    RESPONSE_QUEUE_MAX_SCAN_WINDOW_ROWS
+  );
+  return {
+    batchSize: batchSize,
+    scanWindowRows: scanWindowRows
+  };
+}
+
+function normalizeIntegerSetting_(value, fallback, min, max) {
+  var text = safeString_(value);
+  if (!text) return fallback;
+  var number = Number(text);
+  if (!isFinite(number) || Math.floor(number) !== number || number < min || number > max) return fallback;
+  return number;
 }
