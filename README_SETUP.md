@@ -28,7 +28,7 @@ Open `BootstrapConfig.gs` before running.
 - To create resources once and reuse them on later runs, leave `FORCE_CREATE_NEW_RESOURCES` as `false`.
 - To intentionally create a fresh set after a previous run, set `FORCE_CREATE_NEW_RESOURCES` to `true` for that run only, then set it back to `false`.
 - `MAIN_FORM_BRANCH_UNITS_PER_RUN` controls how many unit-specific form sections are created per execution.
-- The built-in dummy data uses `saif.alkaanuni@gmail.com` for every unit head email, owner email, and admin email by default.
+- The built-in default owner and admin email is `employeeservices@squ.edu.om`; the built-in dummy data still uses `saif.alkaanuni@gmail.com` for unit head sample data.
 
 ## Required run order
 
