@@ -94,7 +94,10 @@ function ensureSystemSheets_(ss) {
   setSheetHeaders_(queue, QUEUE_HEADERS);
   var actionQueue = ensureSheet_(ss, SHEETS.ACTION_QUEUE);
   setSheetHeaders_(actionQueue, ACTION_QUEUE_HEADERS);
-  try { log.hideSheet(); queue.hideSheet(); actionQueue.hideSheet(); } catch (ignore) {}
+  var requestSourceIndex = ensureSheet_(ss, SHEETS.REQUEST_SOURCE_INDEX);
+  setSheetHeaders_(requestSourceIndex, REQUEST_SOURCE_INDEX_HEADERS);
+  backfillRequestSourceIndexIfEmpty_(requestSourceIndex, ss.getSheetByName(SHEETS.RECORDS));
+  try { log.hideSheet(); queue.hideSheet(); actionQueue.hideSheet(); requestSourceIndex.hideSheet(); } catch (ignore) {}
 }
 
 function setupAllFromMenu() {

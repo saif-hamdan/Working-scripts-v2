@@ -164,3 +164,72 @@ function hideInternalColumns_(sheet) {
     if (map[header]) sheet.hideColumns(map[header]);
   });
 }
+
+function getRequestSourceIndex_() {
+  var sheet = getOrCreateSheet_(SHEETS.REQUEST_SOURCE_INDEX);
+  requireHeaders_(sheet, REQUEST_SOURCE_INDEX_HEADERS);
+  try { sheet.hideSheet(); } catch (ignore) {}
+  return getDataObjects_(sheet);
+}
+
+function findIndexedRequestByResponseId_(responseId) {
+  responseId = safeString_(responseId);
+  if (!responseId) return null;
+  var sheet = getOrCreateSheet_(SHEETS.REQUEST_SOURCE_INDEX);
+  requireHeaders_(sheet, REQUEST_SOURCE_INDEX_HEADERS);
+  return findObjectByValue_(sheet, H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID, responseId);
+}
+
+function findIndexedRequestByResponseSourceId_(sourceId) {
+  sourceId = safeString_(sourceId);
+  if (!sourceId) return null;
+  var sheet = getOrCreateSheet_(SHEETS.REQUEST_SOURCE_INDEX);
+  requireHeaders_(sheet, REQUEST_SOURCE_INDEX_HEADERS);
+  return findObjectByValue_(sheet, H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID, sourceId);
+}
+
+function appendRequestSourceIndex_(record) {
+  record = record || {};
+  var responseId = safeString_(record[H.RECORD.FORM_RESPONSE_ID] || record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID]);
+  var sourceId = safeString_(record[H.RECORD.FORM_RESPONSE_SOURCE_ID] || record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID]);
+  var requestId = safeString_(record[H.RECORD.REQUEST_ID] || record[H.REQUEST_SOURCE_INDEX.REQUEST_ID]);
+  if (!requestId || (!responseId && !sourceId)) return null;
+
+  var existing = (sourceId ? findIndexedRequestByResponseSourceId_(sourceId) : null) || (responseId ? findIndexedRequestByResponseId_(responseId) : null);
+  if (existing) return existing;
+
+  var sheet = getOrCreateSheet_(SHEETS.REQUEST_SOURCE_INDEX);
+  requireHeaders_(sheet, REQUEST_SOURCE_INDEX_HEADERS);
+  var indexRecord = {};
+  indexRecord[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID] = responseId;
+  indexRecord[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID] = sourceId;
+  indexRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID] = requestId;
+  indexRecord[H.REQUEST_SOURCE_INDEX.CREATED_AT] = record[H.RECORD.TIMESTAMP] || record[H.REQUEST_SOURCE_INDEX.CREATED_AT] || now_();
+  indexRecord._rowNumber = appendObjectRow_(sheet, REQUEST_SOURCE_INDEX_HEADERS, indexRecord);
+  try { sheet.hideSheet(); } catch (ignore) {}
+  return indexRecord;
+}
+
+function backfillRequestSourceIndexIfEmpty_(indexSheet, recordsSheet) {
+  if (!indexSheet || indexSheet.getLastRow() >= 2 || !recordsSheet || recordsSheet.getLastRow() < 2) return;
+  requireHeaders_(recordsSheet, RECORD_HEADERS);
+  var rows = getDataObjects_(recordsSheet);
+  var indexRows = [];
+  rows.forEach(function(record) {
+    var responseId = safeString_(record[H.RECORD.FORM_RESPONSE_ID]);
+    var sourceId = safeString_(record[H.RECORD.FORM_RESPONSE_SOURCE_ID]);
+    var requestId = safeString_(record[H.RECORD.REQUEST_ID]);
+    if (!requestId || (!responseId && !sourceId)) return;
+    var indexRecord = {};
+    indexRecord[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID] = responseId;
+    indexRecord[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID] = sourceId;
+    indexRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID] = requestId;
+    indexRecord[H.REQUEST_SOURCE_INDEX.CREATED_AT] = record[H.RECORD.TIMESTAMP] || now_();
+    indexRows.push(indexRecord);
+  });
+  if (!indexRows.length) return;
+  var values = indexRows.map(function(row) {
+    return REQUEST_SOURCE_INDEX_HEADERS.map(function(header) { return row[header] === undefined ? '' : row[header]; });
+  });
+  indexSheet.getRange(2, 1, values.length, REQUEST_SOURCE_INDEX_HEADERS.length).setValues(values);
+}

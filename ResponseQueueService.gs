@@ -39,12 +39,12 @@ function processUnprocessedFormResponses(options) {
     }
 
     setupSheets();
-    var existingRecords = getRecords_();
+    var indexedRequests = getRequestSourceIndex_();
     var recordsByResponseSourceId = {};
     var recordsByResponseId = {};
-    existingRecords.forEach(function(record) {
-      var responseSourceId = safeString_(record[H.RECORD.FORM_RESPONSE_SOURCE_ID]);
-      var responseId = safeString_(record[H.RECORD.FORM_RESPONSE_ID]);
+    indexedRequests.forEach(function(record) {
+      var responseSourceId = safeString_(record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID]);
+      var responseId = safeString_(record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID]);
       if (responseSourceId && !recordsByResponseSourceId[responseSourceId]) recordsByResponseSourceId[responseSourceId] = record;
       if (responseId && !recordsByResponseId[responseId]) recordsByResponseId[responseId] = record;
     });
@@ -109,9 +109,9 @@ function processUnprocessedFormResponses(options) {
         var responseSourceId = makeResponseSourceIdFromRow_(headers, row, map);
         var existingRecord = (responseSourceId ? recordsByResponseSourceId[responseSourceId] : null) || recordsByResponseId[responseId];
         if (existingRecord) {
-          markResponseRowProcessed_(sheet, rowNumber, map, existingRecord[H.RECORD.REQUEST_ID] || responseId, '');
+          markResponseRowProcessed_(sheet, rowNumber, map, existingRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID] || responseId, '');
           skippedCount++;
-          logInfo_('processUnprocessedFormResponses', existingRecord[H.RECORD.REQUEST_ID] || responseId, 'Queued form response from row ' + rowNumber + ' already had a request; marked as processed.');
+          logInfo_('processUnprocessedFormResponses', existingRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID] || responseId, 'Queued form response from row ' + rowNumber + ' already had a request; marked as processed.');
           continue;
         }
 
@@ -121,11 +121,12 @@ function processUnprocessedFormResponses(options) {
         sourceInfo.responseId = responseId;
         sourceInfo.responseSourceId = responseSourceId;
         var record = createRequestFromNormalizedData_(data, sourceInfo, requestCreationOptions);
-        if (responseSourceId && !recordsByResponseSourceId[responseSourceId]) recordsByResponseSourceId[responseSourceId] = record;
-        if (responseId && !recordsByResponseId[responseId]) recordsByResponseId[responseId] = record;
-        markResponseRowProcessed_(sheet, rowNumber, map, record[H.RECORD.REQUEST_ID] || responseId, '');
+        var indexRecord = appendRequestSourceIndex_(record) || record;
+        if (responseSourceId && !recordsByResponseSourceId[responseSourceId]) recordsByResponseSourceId[responseSourceId] = indexRecord;
+        if (responseId && !recordsByResponseId[responseId]) recordsByResponseId[responseId] = indexRecord;
+        markResponseRowProcessed_(sheet, rowNumber, map, record[H.RECORD.REQUEST_ID] || record[H.REQUEST_SOURCE_INDEX.REQUEST_ID] || responseId, '');
         processedCount++;
-        logInfo_('processUnprocessedFormResponses', record[H.RECORD.REQUEST_ID], 'Queued form response processed from row ' + rowNumber + '.');
+        logInfo_('processUnprocessedFormResponses', record[H.RECORD.REQUEST_ID] || record[H.REQUEST_SOURCE_INDEX.REQUEST_ID], 'Queued form response processed from row ' + rowNumber + '.');
       } catch (err) {
         if (isInvalidDateOrderError_(err) && data) {
           markResponseRowRequiresReview_(sheet, rowNumber, map, err);
@@ -261,7 +262,7 @@ function makeResponseQueueId_(ss, sheet, rowNumber) {
 }
 
 function isRequestAlreadyCreatedForResponse_(responseId) {
-  return Boolean(findRequestByResponseId_(responseId));
+  return Boolean(findIndexedRequestByResponseId_(responseId));
 }
 
 function findRequestByResponseId_(responseId) {
