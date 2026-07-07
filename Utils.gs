@@ -53,7 +53,7 @@ function makeFormResponseSourceId_(data) {
   return makeStableSourceKey_([
     data && data.timestamp,
     data && data.submitterEmail,
-    data && data.employeeEmail,
+    data && data.employeeId,
     data && data.startDate,
     data && data.endDate,
     data && data.trainingUnit,

@@ -74,7 +74,7 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
   record[H.RECORD.LAST_ERROR] = '';
   record[H.RECORD.FORM_RESPONSE_SOURCE_ID] = data.responseSourceId;
 
-  var activeTraining = findActiveTrainingByEmployee_(data.employeeEmail, data.employeeName, requestId);
+  var activeTraining = findActiveTrainingByEmployee_(data.employeeId, data.employeeName, requestId);
   var conflict = null;
 
   if (activeTraining) {
