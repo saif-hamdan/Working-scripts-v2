@@ -8,7 +8,6 @@ This folder is the production Apps Script project for the Google Forms + Google 
 - Arabic dashboard sheets:
   - `لوحة الأقسام`
   - `سجل الطلبات`
-  - `الرسوم والمؤشرات`
 - Visible admin reference sheets:
   - `إدارة الوحدات`
   - `إدارة الأقسام`
@@ -63,7 +62,7 @@ Recommended `APPROVER_UNIT_MODE` is `CURRENT_UNIT`, meaning the head of the unit
    - Execute as: **Me**
    - Access: **Anyone in your domain**
 8. Copy the Web App URL into `WEB_APP_URL` in Script Properties or the hidden `الإعدادات` sheet.
-9. Run `setupAll()` again so the form choices, triggers, protections, dashboard, and charts are refreshed.
+9. Run `setupAll()` again so the form choices, triggers, protections, and dashboard are refreshed.
 
 ## Important notes
 
@@ -76,7 +75,7 @@ Do not install the five-minute refresh trigger in the setup/resource project. It
 
 ## Troubleshooting stuck queue rows
 
-The five-minute `syncSystem()` run processes three queues before refreshing the dashboard, charts, and form choices. If an admin sees missing requests, pending decisions, or unsent emails, first open **Apps Script → Executions** and inspect the latest `syncSystem`, `processResponseQueueOnce`, and `maintenanceCheck` runs. Then unhide/check the relevant system sheets in the dashboard spreadsheet, especially `سجل النظام`, `طابور القرارات`, and `طابور البريد`; the linked Google Form response spreadsheet also has queue columns appended to the right side of the response sheet.
+The five-minute `syncSystem()` run processes three queues before refreshing the dashboard and form choices. If an admin sees missing requests, pending decisions, or unsent emails, first open **Apps Script → Executions** and inspect the latest `syncSystem`, `processResponseQueueOnce`, and `maintenanceCheck` runs. Then unhide/check the relevant system sheets in the dashboard spreadsheet, especially `سجل النظام`, `طابور القرارات`, and `طابور البريد`; the linked Google Form response spreadsheet also has queue columns appended to the right side of the response sheet.
 
 ### Linked form response queue columns
 
@@ -131,8 +130,8 @@ For failed email rows, admins should check Apps Script Executions for `processEm
 ### Manual recovery functions and logs
 
 - `processResponseQueueOnce()` — processes only the linked response-sheet queue and logs processed, skipped, failed, scanned, and remaining-row counts.
-- `syncSystem()` — processes the response queue, approval action queue, email queue, pending approval emails, reference-data sync, dashboard/chart refreshes, and form-choice refreshes when needed.
-- `maintenanceCheck()` — refreshes dashboard and chart outputs; use it after queue issues are resolved if admins only need to rebuild visible reporting.
+- `syncSystem()` — processes the response queue, approval action queue, email queue, pending approval emails, reference-data sync, dashboard refreshes, and form-choice refreshes when needed.
+- `maintenanceCheck()` — refreshes dashboard outputs; use it after queue issues are resolved if admins only need to rebuild visible reporting.
 
 When diagnosing any stuck row, capture the row number, queue status, retry/attempt count, last error, and latest Apps Script Execution ID. The hidden `سجل النظام` sheet provides an in-spreadsheet audit trail, while Apps Script Executions provides stack traces and runtime failures that may not fit in queue columns.
 
@@ -141,7 +140,6 @@ When diagnosing any stuck row, capture the row number, queue status, retry/attem
 - `setupAll()` — run after configuration changes.
 - `refreshFormChoices()` — refresh unit/section choices in the Google Form.
 - `refreshDashboard()` — rebuild the clean dashboard sheet.
-- `refreshCharts()` — rebuild KPI tables and charts.
 - `installTriggers()` — install edit, five-minute sync, and daily evaluation triggers. It intentionally does not install a direct form-submit request-creation trigger.
 - `processUnprocessedFormResponses()` — create requests from unprocessed rows in the linked Google Form response sheet.
 - `processResponseQueueOnce()` — manually process the linked response-sheet queue once and log processed, skipped, and failed row counts; useful after a form outage or high-volume submission period.

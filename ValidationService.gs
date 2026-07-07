@@ -96,7 +96,6 @@ function handleFinalStatusEdit(e) {
       [H.RECORD.LAST_UPDATED]: now_()
     });
     refreshDashboard();
-    refreshCharts();
     refreshFormChoices();
     logInfo_('handleFinalStatusEdit:directSheetEdit', requestId, 'Final status changed to ' + targetStatus + ' by ' + userEmail + ' from a direct sheet edit.');
     return;
@@ -216,7 +215,6 @@ function applyFinalStatusChange_(rowNumber, targetStatus, userEmail, logAction, 
     [H.RECORD.LAST_UPDATED]: now_()
   });
   refreshDashboard();
-  refreshCharts();
   refreshFormChoices();
   logInfo_(logAction, requestId, 'Final status changed to ' + targetStatus + ' by ' + userEmail + ' after email was sent.');
   return { success: true, message: 'تم إرسال البريد وتحديث الحالة إلى: ' + targetStatus + ' / Email sent and final status updated.' };
@@ -237,7 +235,6 @@ function handleAdminReferenceEdit_(e) {
   try {
     syncReferenceDataFromAdminSheets_({ forceFormat: true });
     refreshDashboard(true);
-    refreshCharts();
     refreshFormChoices(true);
     logInfo_('handleAdminReferenceEdit_', '', 'Reference data synced from ' + sheet.getName() + '.');
   } catch (err) {

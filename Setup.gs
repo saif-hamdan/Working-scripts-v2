@@ -9,7 +9,6 @@ function setupAllSystem() {
     setupValidations();
     protectDashboardSheets();
     refreshDashboard();
-    refreshCharts();
     refreshFormChoices();
     installTriggers();
     logInfo_('setupAllSystem', '', 'Setup completed successfully.');
@@ -33,7 +32,6 @@ function setupSheets() {
 function ensureMainSheets_(ss) {
   setSheetHeaders_(ensureSheet_(ss, SHEETS.DASHBOARD), DASHBOARD_HEADERS);
   setSheetHeaders_(ensureSheet_(ss, SHEETS.RECORDS), RECORD_HEADERS);
-  setSheetHeaders_(ensureSheet_(ss, SHEETS.CHARTS), ['المؤشر', 'القيمة']);
   applyCleanTableFormatting_(ss.getSheetByName(SHEETS.DASHBOARD), DASHBOARD_HEADERS.length);
   applyCleanTableFormatting_(ss.getSheetByName(SHEETS.RECORDS), RECORD_HEADERS.length);
   hideInternalColumns_(ss.getSheetByName(SHEETS.RECORDS));

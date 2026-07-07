@@ -2,7 +2,7 @@
 
 Use this Apps Script project to create or repair the Google Forms and dashboard spreadsheet used by the production working scripts.
 
-This toolkit is intentionally separate from the production workflow code. It prepares resources, headers, reference sheets, dashboard visuals, protections, and IDs.
+This toolkit is intentionally separate from the production workflow code. It prepares resources, headers, reference sheets, dashboard summaries, protections, and IDs.
 
 No CSV files are required. Apps Script creates the Google Sheet tabs directly, and the dummy unit/section rows live in `DummyData.gs`.
 
@@ -13,7 +13,6 @@ No CSV files are required. Apps Script creates the Google Sheet tabs directly, a
 - Dashboard spreadsheet with Arabic RTL tabs:
   - `لوحة الأقسام`
   - `سجل الطلبات`
-  - `الرسوم والمؤشرات`
   - visible `إدارة الوحدات`
   - visible `إدارة الأقسام`
   - hidden `الوحدات`
