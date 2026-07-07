@@ -61,7 +61,7 @@ function syncReferenceDataFromAdminSheets_(options) {
   }
 
   var units = normalizeAdminUnitRows_(getDataObjects_(adminUnits));
-  var sections = normalizeAdminSectionRows_(getDataObjects_(adminSections));
+  var sections = normalizeAdminSectionRows_(getDataObjects_(adminSections), units);
   var props = PropertiesService.getScriptProperties();
   var unitsChecksum = makeReferenceChecksum_(units);
   var sectionsChecksum = makeReferenceChecksum_(sections);
@@ -118,15 +118,33 @@ function normalizeAdminUnitRows_(rows) {
   });
 }
 
-function normalizeAdminSectionRows_(rows) {
+function normalizeAdminSectionRows_(rows, units) {
+  var unitById = {};
+  var unitByName = {};
+  var activeUnitById = {};
+  var activeUnitByName = {};
+  (units || []).forEach(function(unit) {
+    var id = safeString_(unit[H.UNIT.UNIT_ID]);
+    var name = safeString_(unit[H.UNIT.UNIT_NAME]);
+    if (id) unitById[id] = true;
+    if (name) unitByName[name] = true;
+    if (!isActiveFlag_(unit[H.UNIT.ACTIVE])) return;
+    if (id) activeUnitById[id] = true;
+    if (name) activeUnitByName[name] = true;
+  });
+
   return (rows || []).map(function(row) {
+    var unitId = safeString_(row[H.SECTION.UNIT_ID]);
+    var unitName = safeString_(row[H.SECTION.UNIT_NAME]);
+    var hasUnit = (unitId && unitById[unitId]) || (unitName && unitByName[unitName]);
+    var hasActiveUnit = (unitId && activeUnitById[unitId]) || (unitName && activeUnitByName[unitName]);
     var section = {};
     section[H.SECTION.SECTION_ID] = safeString_(row[H.SECTION.SECTION_ID]) ||
-      (safeString_(row[H.SECTION.UNIT_NAME]) + '|' + safeString_(row[H.SECTION.SECTION_NAME]));
-    section[H.SECTION.UNIT_ID] = safeString_(row[H.SECTION.UNIT_ID]);
-    section[H.SECTION.UNIT_NAME] = safeString_(row[H.SECTION.UNIT_NAME]);
+      (unitName + '|' + safeString_(row[H.SECTION.SECTION_NAME]));
+    section[H.SECTION.UNIT_ID] = unitId;
+    section[H.SECTION.UNIT_NAME] = unitName;
     section[H.SECTION.SECTION_NAME] = safeString_(row[H.SECTION.SECTION_NAME]);
-    section[H.SECTION.ACTIVE] = safeString_(row[H.SECTION.ACTIVE]) || STATUS.YES;
+    section[H.SECTION.ACTIVE] = hasUnit && !hasActiveUnit ? STATUS.NO : (safeString_(row[H.SECTION.ACTIVE]) || STATUS.YES);
     section[H.SECTION.CAPACITY] = Math.max(1, toNumber_(row[H.SECTION.CAPACITY], 1));
     return section;
   }).filter(function(section) {

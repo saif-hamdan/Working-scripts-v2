@@ -278,7 +278,10 @@ function syncAdminReferenceData_(ss) {
   var systemSections = ss.getSheetByName(BS.SECTIONS);
 
   var unitRows = getDataRows_(adminUnits, BH.UNITS.length).filter(function(row) { return row[1]; });
-  var sectionRows = getDataRows_(adminSections, BH.SECTIONS.length).filter(function(row) { return row[2] && row[3]; });
+  var sectionRows = cascadeInactiveUnitSections_(
+    getDataRows_(adminSections, BH.SECTIONS.length).filter(function(row) { return row[2] && row[3]; }),
+    unitRows
+  );
 
   bsClearDataBelowHeader_(systemUnits);
   bsClearDataBelowHeader_(systemSections);
@@ -296,6 +299,32 @@ function syncAdminReferenceData_(ss) {
     [BSPROP.LAST_REFERENCE_SYNC]: new Date().toISOString()
   });
   return { unitCount: unitRows.length, sectionCount: sectionRows.length, hash: hash };
+}
+
+function cascadeInactiveUnitSections_(sectionRows, unitRows) {
+  var unitById = {};
+  var unitByName = {};
+  var activeUnitById = {};
+  var activeUnitByName = {};
+  (unitRows || []).forEach(function(row) {
+    var id = String(row[0] || '').trim();
+    var name = String(row[1] || '').trim();
+    if (id) unitById[id] = true;
+    if (name) unitByName[name] = true;
+    if (!isActiveValue_(row[5])) return;
+    if (id) activeUnitById[id] = true;
+    if (name) activeUnitByName[name] = true;
+  });
+
+  return (sectionRows || []).map(function(row) {
+    var copy = row.slice();
+    var unitId = String(copy[1] || '').trim();
+    var unitName = String(copy[2] || '').trim();
+    var hasUnit = (unitId && unitById[unitId]) || (unitName && unitByName[unitName]);
+    var hasActiveUnit = (unitId && activeUnitById[unitId]) || (unitName && activeUnitByName[unitName]);
+    if (hasUnit && !hasActiveUnit) copy[4] = 'لا';
+    return copy;
+  });
 }
 
 function hashReferenceRows_(unitRows, sectionRows) {
