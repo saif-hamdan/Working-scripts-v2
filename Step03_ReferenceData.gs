@@ -19,6 +19,27 @@ function validateReferenceData_(ss) {
   var sections = readSections_(ss, { includeInactive: true });
   var activeSections = readSections_(ss);
 
+  var unitById = {};
+  var unitByName = {};
+  units.forEach(function(unit) {
+    if (unit.id) unitById[unit.id] = unit;
+    unitByName[unit.name] = unit;
+  });
+
+  var activeUnitById = {};
+  var activeUnitByName = {};
+  activeUnits.forEach(function(unit) {
+    if (unit.id) activeUnitById[unit.id] = unit;
+    activeUnitByName[unit.name] = unit;
+  });
+
+  activeSections = activeSections.filter(function(section) {
+    var existingUnit = section.unitId ? unitById[section.unitId] : unitByName[section.unitName];
+    if (!existingUnit && section.unitName) existingUnit = unitByName[section.unitName];
+    if (existingUnit && !existingUnit.active) return false;
+    return true;
+  });
+
   if (!activeUnits.length) {
     issues.push(issue_('ERROR', BS.UNITS, 'No active units were found.', ''));
   }
@@ -27,13 +48,9 @@ function validateReferenceData_(ss) {
   }
 
   var unitNameCounts = {};
-  var activeUnitById = {};
-  var activeUnitByName = {};
 
   activeUnits.forEach(function(unit) {
     unitNameCounts[unit.name] = (unitNameCounts[unit.name] || 0) + 1;
-    if (unit.id) activeUnitById[unit.id] = unit;
-    activeUnitByName[unit.name] = unit;
     if (!unit.headEmail) issues.push(issue_('ERROR', BS.UNITS, 'Missing unit head email.', unit.name));
     if (unit.headEmail && !validEmail_(unit.headEmail)) issues.push(issue_('ERROR', BS.UNITS, 'Invalid unit head email.', unit.name + ': ' + unit.headEmail));
     if (!unit.headName) issues.push(issue_('WARN', BS.UNITS, 'Missing unit head name.', unit.name));
