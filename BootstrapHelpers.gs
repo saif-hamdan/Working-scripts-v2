@@ -227,13 +227,26 @@ function applyReferenceAdminFormatting_(ss) {
   var adminSections = ss.getSheetByName(BS.ADMIN_SECTIONS);
   if (adminUnits) {
     applyBasicSheetFormat_(adminUnits, BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR);
-    applyYesNoValidation_(adminUnits, 5);
+    clearColumnValidationByHeader_(adminUnits, BH.UNITS, 'بريد رئيس الوحدة');
+    applyYesNoValidationByHeader_(adminUnits, BH.UNITS, 'نشط');
   }
   if (adminSections) {
     applyBasicSheetFormat_(adminSections, BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR);
-    applyYesNoValidation_(adminSections, 5);
+    applyYesNoValidationByHeader_(adminSections, BH.SECTIONS, 'نشط');
     applyUnitIdValidation_(ss, adminSections);
   }
+}
+
+function applyYesNoValidationByHeader_(sheet, headers, header) {
+  var column = headers.indexOf(header) + 1;
+  if (!column) throw new Error('Missing validation header "' + header + '".');
+  applyYesNoValidation_(sheet, column);
+}
+
+function clearColumnValidationByHeader_(sheet, headers, header) {
+  var column = headers.indexOf(header) + 1;
+  if (!column) return;
+  sheet.getRange(2, column, Math.max(sheet.getMaxRows() - 1, 1), 1).clearDataValidations();
 }
 
 function applyYesNoValidation_(sheet, column) {
