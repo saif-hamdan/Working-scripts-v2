@@ -30,7 +30,7 @@ function rebuildEvaluationForm_(form) {
   ensureText_(form, 'مدة المشاركة في البرنامج / Program participation duration', false);
 
   addEvaluationSection_(form, 'ثانياً: تقييم البرنامج / Second: Program Evaluation');
-  addEvaluationSection_(form, 'مقياس التقييم: (١ = ضعيف جداً | ٢ = ضعيف | ٣ = متوسط | ٤ = جيد | ٥ = ممتاز) / Rating scale: (1 = Very Poor | 2 = Poor | 3 = Average | 4 = Good | 5 = Excellent)');
+  addEvaluationSection_(form, 'مقياس التقييم / Rating scale: (1 = ضعيف جداً / Very Poor | 2 = ضعيف / Poor | 3 = متوسط / Average | 4 = جيد / Good | 5 = ممتاز / Excellent)');
   addEvaluationGrid_(form, 'التهيئة والتدريب / Orientation and Training', [
     'وضوح برنامج التهيئة في بداية التوظيف / Clarity of the orientation program at the start of employment',
     'جودة التدريب على الأنظمة والإجراءات / Quality of training on systems and procedures',
@@ -60,10 +60,10 @@ function rebuildEvaluationForm_(form) {
     'مدى تعزيز فهمك لإجراءات العمل / Program enhancement of your understanding of work procedures'
   ], true);
   addEvaluationSection_(form, 'ثالثاً: أسئلة مفتوحة / Third: Open Questions');
-  ensureParagraph_(form, '١. ما أكثر مرحلة استفدت منها في البرنامج؟ ولماذا؟ / 1. Which phase of the program benefited you the most? Why?', false);
-  ensureParagraph_(form, '٢. ما أبرز التحديات التي واجهتك خلال البرنامج؟ / 2. What were the main challenges you faced during the program?', false);
-  ensureParagraph_(form, '٣. ما المقترحات التي تراها لتحسين البرنامج؟ / 3. What suggestions do you have to improve the program?', false);
-  addEvaluationMultipleChoice_(form, '٤. هل ترى أن مدة البرنامج مناسبة؟ / 4. Do you think the program duration is suitable?', ['نعم / Yes', 'لا / No'], false);
+  ensureParagraph_(form, '1. ما أكثر مرحلة استفدت منها في البرنامج؟ ولماذا؟ / Which phase of the program benefited you the most? Why?', false);
+  ensureParagraph_(form, '2. ما أبرز التحديات التي واجهتك خلال البرنامج؟ / What were the main challenges you faced during the program?', false);
+  ensureParagraph_(form, '3. ما المقترحات التي تراها لتحسين البرنامج؟ / What suggestions do you have to improve the program?', false);
+  addEvaluationMultipleChoice_(form, '4. هل ترى أن مدة البرنامج مناسبة؟ / Do you think the program duration is suitable?', ['نعم / Yes', 'لا / No'], false);
   ensureParagraph_(form, 'إذا كانت لا، ما المقترح؟ / If no, what do you suggest?', false);
 
   ensurePage_(form, 'تقييم الجاهزية والتوصيات الإضافية / Readiness Evaluation and Additional Recommendations');
@@ -81,7 +81,7 @@ function addEvaluationGrid_(form, title, rows, required) {
   return form.addGridItem()
     .setTitle(title)
     .setRows(rows)
-    .setColumns(['٥ / 5', '٤ / 4', '٣ / 3', '٢ / 2', '١ / 1'])
+    .setColumns(['5', '4', '3', '2', '1'])
     .setRequired(Boolean(required));
 }
 
