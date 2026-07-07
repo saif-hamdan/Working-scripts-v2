@@ -39,6 +39,8 @@ This folder is the production Apps Script project for the Google Forms + Google 
 DASHBOARD_SPREADSHEET_ID = your dashboard spreadsheet ID
 MAIN_FORM_ID = your main training request Google Form ID
 FORM_RESPONSES_SPREADSHEET_ID = required linked Google Form responses spreadsheet ID
+RESPONSE_QUEUE_BATCH_SIZE = 25
+QUEUE_SCAN_WINDOW_ROWS = 500
 EVALUATION_FORM_URL = evaluation Google Form published URL
 OWNER_EMAIL = employeeservices@squ.edu.om
 ADMIN_EMAILS = employeeservices@squ.edu.om
@@ -52,6 +54,24 @@ BRAND_ACCENT_COLOR = official SQU accent/background color
 BRAND_LOGO_URL = official hosted logo URL
 EVALUATION_ALLOWED_FINAL_STATUSES = معتمد,منجز
 ```
+
+
+### Optional response queue throughput settings
+
+`RESPONSE_QUEUE_BATCH_SIZE` and `QUEUE_SCAN_WINDOW_ROWS` are optional. Leave them blank or omit them to use the built-in defaults: batch size `25` and scan window `500` rows. The script ignores unsafe or invalid values and falls back to the built-in defaults instead.
+
+Validation limits:
+
+- `RESPONSE_QUEUE_BATCH_SIZE` must be a whole number from `1` to `100`.
+- `QUEUE_SCAN_WINDOW_ROWS` must be a whole number from the effective batch size through `2000`.
+
+Recommended values:
+
+| Volume | `RESPONSE_QUEUE_BATCH_SIZE` | `QUEUE_SCAN_WINDOW_ROWS` | When to use |
+|---|---:|---:|---|
+| Small | `10` | `250` | Occasional submissions and low retry backlog. |
+| Medium | `25` | `500` | Default for normal daily operation. |
+| High-volume | `75` | `1500` | Short bursts or larger intake periods; keep Apps Script execution time and quotas under review. |
 
 Recommended `APPROVER_UNIT_MODE` is `CURRENT_UNIT`, meaning the head of the unit the employee belongs to approves. Use `TRAINING_UNIT` only if your policy requires the receiving training unit head to approve.
 
