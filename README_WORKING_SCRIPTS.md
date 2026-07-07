@@ -102,6 +102,11 @@ Response queue statuses:
 
 For response rows requiring review, admins should compare the submitted row with the required form fields, verify unit/section names against `إدارة الوحدات` and `إدارة الأقسام`, and check whether a request already exists in `سجل الطلبات` using `Dashboard Request ID`, employee email, dates, and section. After the underlying issue is fixed, run `processResponseQueueOnce()` to process only the response queue, or run `syncSystem()` to process all queues and refresh dependent dashboard/form data.
 
+### Request source index maintenance
+
+The hidden `Request Source Index` sheet maps form response identifiers back to rows in `سجل الطلبات` so the response queue can match duplicates safely. After manual data repair, bulk import, or if duplicate matching behaves unexpectedly, an admin should run `rebuildRequestSourceIndex()` from Apps Script or use **SQU Training → إعادة بناء فهرس مصادر الطلبات**. The function reads `سجل الطلبات`, clears the index below its header, writes one index row for every request with `معرف رد النموذج` or `معرف مصدر رد النموذج`, and records the indexed record count in `سجل النظام`.
+
+
 ### Approval action queue (`طابور القرارات`)
 
 Approval and rejection web-app link clicks are stored in the hidden `طابور القرارات` sheet before they update `سجل الطلبات`.

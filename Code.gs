@@ -32,6 +32,7 @@ function onOpen() {
       .addItem('تحديث لوحة الأقسام', 'refreshDashboard')
       .addItem('تحديث القوائم في النموذج', 'refreshFormChoices')
       .addItem('معالجة الطلبات غير المعالجة', 'processResponseQueueOnce')
+      .addItem('إعادة بناء فهرس مصادر الطلبات', 'rebuildRequestSourceIndex')
       .addItem('Sync system', 'syncSystem')
       .addItem('Maintenance check', 'maintenanceCheck')
       .addItem('إرسال تقييمات مستحقة', 'sendEvaluationEmails')
