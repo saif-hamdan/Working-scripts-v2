@@ -21,8 +21,8 @@ function onOpen() {
       .addItem('14 - Repair existing resources from latest script', 'run14_repairExistingResourcesFromLatestScript')
       .addSeparator()
       .addItem('11 - Refresh main form from admin sheets', 'run11_refreshMainFormFromAdminSheets')
-      .addItem('12 - Create five-minute form refresh trigger', 'run12_createFiveMinuteFormRefreshTrigger')
-      .addItem('12 - Delete five-minute form refresh trigger', 'run12_deleteFiveMinuteFormRefreshTrigger')
+      .addItem('12 - Create thirty-minute form refresh trigger', 'run12_createFiveMinuteFormRefreshTrigger')
+      .addItem('12 - Delete thirty-minute form refresh trigger', 'run12_deleteFiveMinuteFormRefreshTrigger')
       .addSeparator()
       .addItem('Bootstrap all (small setups only)', 'bootstrapAll');
 

@@ -83,7 +83,7 @@ The created spreadsheet and forms are Drive files, not tabs inside the Apps Scri
 Optional dynamic refresh:
 
 - Run `run11_refreshMainFormFromAdminSheets()` after editing `إدارة الوحدات` or `إدارة الأقسام`.
-- Run `run12_createFiveMinuteFormRefreshTrigger()` if you want this setup project to check those admin sheets every 5 minutes and refresh the form automatically.
+- Run `run12_createFiveMinuteFormRefreshTrigger()` if you want this setup project to check those admin sheets every 30 minutes and refresh the form automatically.
 - Run `run12_deleteFiveMinuteFormRefreshTrigger()` to remove that optional trigger.
 
 ## Fixing a form that has only one question
