@@ -29,7 +29,7 @@ function getBootstrapAdminEmailsForConfig_() {
 }
 
 function removeLegacySetupProtections_(ss) {
-  [BS.DASHBOARD, BS.RECORDS, BS.CHARTS, BS.ADMIN_UNITS, BS.ADMIN_SECTIONS, BS.UNITS, BS.SECTIONS, BS.SETTINGS].forEach(function(name) {
+  [BS.DASHBOARD, BS.RECORDS, BS.ADMIN_UNITS, BS.ADMIN_SECTIONS, BS.UNITS, BS.SECTIONS, BS.SETTINGS].forEach(function(name) {
     var sheet = ss.getSheetByName(name);
     if (sheet) removeSetupProtections_(sheet);
   });

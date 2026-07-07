@@ -122,7 +122,6 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
 
   if (options.deferRefresh !== true) {
     refreshDashboard();
-    refreshCharts();
     refreshFormChoices();
   }
   return record;

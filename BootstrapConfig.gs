@@ -39,7 +39,6 @@ const BOOTSTRAP_CONFIG = {
 const BS = {
   DASHBOARD: 'لوحة الأقسام',
   RECORDS: 'سجل الطلبات',
-  CHARTS: 'الرسوم والمؤشرات',
   ADMIN_UNITS: 'إدارة الوحدات',
   ADMIN_SECTIONS: 'إدارة الأقسام',
   UNITS: 'الوحدات',

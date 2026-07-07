@@ -14,7 +14,7 @@ function onOpen() {
       .addItem('05 - Start main form branching', 'run05_startMainFormBranching')
       .addItem('06 - Continue main form branching', 'run06_continueMainFormBranching')
       .addItem('07 - Set up evaluation form', 'run07_setupEvaluationForm')
-      .addItem('08 - Build dashboard summary and charts', 'run08_buildDashboardSummaryAndCharts')
+      .addItem('08 - Build dashboard summary', 'run08_buildDashboardSummaryAndCharts')
       .addItem('09 - Apply protections', 'run09_applyProtections')
       .addItem('10 - Finalize setup summary', 'run10_finalizeSetupSummary')
       .addItem('13 - Verify production compatibility', 'run13_verifyProductionCompatibility')
@@ -159,13 +159,6 @@ function shouldRunScheduledDashboardRefresh_(nowMs) {
   );
 }
 
-function shouldRunScheduledChartRefresh_(nowMs) {
-  return shouldRunScheduledRefresh_(
-    SYNC_CONFIG.LAST_CHART_REFRESH_KEY,
-    SYNC_CONFIG.CHART_REFRESH_INTERVAL_MS,
-    nowMs
-  );
-}
 
 function hasSyncQueueChanges_(responseQueueStats, approvalActionQueueStats, emailQueueStats) {
   return toNumber_(responseQueueStats && responseQueueStats.processed, 0) > 0 ||
@@ -183,10 +176,6 @@ function refreshDashboardFromSync_(records) {
   return dashboardRows;
 }
 
-function refreshChartsFromSync_(records, dashboardRows) {
-  refreshChartsFromData_(records, dashboardRows);
-  setSyncLastRefreshAt_(SYNC_CONFIG.LAST_CHART_REFRESH_KEY);
-}
 
 function refreshFormChoicesFromSync_() {
   refreshFormChoices(true);
@@ -202,8 +191,6 @@ function runFullSyncRefresh_(startedAt) {
   var records = getRecords_();
   if (shouldStopSync_(startedAt)) return false;
   var dashboardRows = refreshDashboardFromSync_(records);
-  if (shouldStopSync_(startedAt)) return false;
-  refreshChartsFromSync_(records, dashboardRows);
   if (shouldStopSync_(startedAt)) return false;
   refreshFormChoicesFromSync_();
   return true;
@@ -248,24 +235,16 @@ function syncSystem() {
     var referenceChanged = Boolean(referenceSyncStats && referenceSyncStats.changed);
     var capacityChanged = referenceChanged || hasCapacityAffectingQueueChanges_(responseQueueStats, approvalActionQueueStats);
     var dashboardRefreshDue = shouldRunScheduledDashboardRefresh_(nowMs);
-    var chartRefreshDue = shouldRunScheduledChartRefresh_(nowMs);
     var needsDashboardRefresh = queueChanged || referenceChanged || dashboardRefreshDue;
-    var needsChartRefresh = referenceChanged || chartRefreshDue;
     var needsFormRefresh = referenceChanged || capacityChanged;
 
-    if (needsDashboardRefresh || needsChartRefresh || needsFormRefresh) {
+    if (needsDashboardRefresh || needsFormRefresh) {
       var records = getRecords_();
       var dashboardRows = null;
       if (shouldStopSync_(startedAt)) return;
       if (needsDashboardRefresh) {
         dashboardRows = refreshDashboardFromSync_(records);
         logInfo_('syncSystem', '', 'Dashboard refresh completed; reason: ' + (queueChanged ? 'queue changes' : (referenceChanged ? 'reference data changes' : 'scheduled interval')) + '.');
-      }
-      if (shouldStopSync_(startedAt)) return;
-      if (needsChartRefresh) {
-        dashboardRows = dashboardRows || calculateSectionSummary_(records);
-        refreshChartsFromSync_(records, dashboardRows);
-        logInfo_('syncSystem', '', 'Chart refresh completed; reason: ' + (referenceChanged ? 'reference data changes' : 'scheduled interval') + '.');
       }
       if (shouldStopSync_(startedAt)) return;
       if (needsFormRefresh) {
@@ -296,7 +275,6 @@ function syncSystem() {
 function maintenanceCheck() {
   try {
     refreshDashboard();
-    refreshCharts();
     logInfo_('maintenanceCheck', '', 'Maintenance completed.');
   } catch (err) {
     logError_('maintenanceCheck', '', err);

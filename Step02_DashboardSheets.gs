@@ -19,7 +19,6 @@ function run02_loadDummyReferenceData() {
 function setupDashboardSheetsStaged_(ss, mainForm, evaluationForm) {
   bsSetHeaders_(bsEnsureSheet_(ss, BS.DASHBOARD), BH.DASHBOARD);
   bsSetHeaders_(bsEnsureSheet_(ss, BS.RECORDS), BH.RECORDS);
-  bsSetHeaders_(bsEnsureSheet_(ss, BS.CHARTS), ['المؤشر', 'القيمة']);
   bsSetHeaders_(bsEnsureSheet_(ss, BS.ADMIN_UNITS), BH.UNITS);
   bsSetHeaders_(bsEnsureSheet_(ss, BS.ADMIN_SECTIONS), BH.SECTIONS);
   bsSetHeaders_(bsEnsureSheet_(ss, BS.UNITS), BH.UNITS);
@@ -31,16 +30,15 @@ function setupDashboardSheetsStaged_(ss, mainForm, evaluationForm) {
   syncAdminReferenceData_(ss);
   writeSettings_(ss, mainForm, evaluationForm);
 
-  [BS.DASHBOARD, BS.RECORDS, BS.CHARTS, BS.ADMIN_UNITS, BS.ADMIN_SECTIONS, BS.UNITS, BS.SECTIONS, BS.SETTINGS].forEach(function(name) {
+  [BS.DASHBOARD, BS.RECORDS, BS.ADMIN_UNITS, BS.ADMIN_SECTIONS, BS.UNITS, BS.SECTIONS, BS.SETTINGS].forEach(function(name) {
     applyBasicSheetFormat_(ss.getSheetByName(name), BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR);
   });
   applyReferenceAdminFormatting_(ss);
 
   moveSheetTo_(ss, BS.DASHBOARD, 1);
   moveSheetTo_(ss, BS.RECORDS, 2);
-  moveSheetTo_(ss, BS.CHARTS, 3);
-  moveSheetTo_(ss, BS.ADMIN_UNITS, 4);
-  moveSheetTo_(ss, BS.ADMIN_SECTIONS, 5);
+  moveSheetTo_(ss, BS.ADMIN_UNITS, 3);
+  moveSheetTo_(ss, BS.ADMIN_SECTIONS, 4);
 
   try { ss.getSheetByName(BS.UNITS).hideSheet(); } catch (ignore) {}
   try { ss.getSheetByName(BS.SECTIONS).hideSheet(); } catch (ignore2) {}

@@ -65,7 +65,6 @@ function getProductionCompatibilitySteps_() {
     { name: 'setupValidations()', fn: setupValidations },
     { name: 'protectDashboardSheets()', fn: protectDashboardSheets },
     { name: 'refreshDashboard()', fn: refreshDashboard },
-    { name: 'refreshCharts()', fn: refreshCharts },
     { name: 'refreshFormChoices()', fn: refreshFormChoices },
     { name: 'installTriggers()', fn: installTriggers }
   ];
