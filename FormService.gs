@@ -20,6 +20,7 @@ function setupFormStructure(options) {
   deleteFormItemIfPresent_(form, 'الرقم الوظيفي للموظف / Employee ID', FormApp.ItemType.TEXT);
   deleteFormItemIfPresent_(form, 'بريد الموظف / Employee Email', FormApp.ItemType.TEXT);
   deleteFormItemIfPresent_(form, 'الوحدة الحالية للموظف / Current Unit', FormApp.ItemType.LIST);
+  deleteFormItemIfPresent_(form, 'القسم الحالي للموظف / Current Employee Section', FormApp.ItemType.TEXT);
   deleteFormItemIfPresent_(form, 'من تاريخ / Start Date', FormApp.ItemType.DATE);
   deleteFormItemIfPresent_(form, 'إلى تاريخ / End Date', FormApp.ItemType.DATE);
 
@@ -72,6 +73,8 @@ function refreshFormChoices(skipReferenceSync) {
   var rotationUnitItem = ensureRotationUnitItem_(form);
   var pageBreakByUnit = {};
 
+  removeLegacyRotationSectionBranchItems_(form);
+
   units.forEach(function(unit) {
     var page = ensurePageBreak_(form, FORM.SECTION_PAGE_PREFIX + unit.name);
     try { page.setGoToPage(FormApp.PageNavigationType.SUBMIT); } catch (ignore) {}
@@ -93,6 +96,29 @@ function refreshFormChoices(skipReferenceSync) {
   });
   if (choices.length) rotationUnitItem.setChoices(choices);
   logInfo_('refreshFormChoices', '', 'Form choices refreshed.');
+}
+
+function removeLegacyRotationSectionBranchItems_(form) {
+  var oldPagePrefix = 'اختيار القسم - ';
+  var oldQuestionPrefixes = [
+    'القسم المطلوب - ',
+    'Requested Section - ',
+    'القسم المطلوب / Requested Section - '
+  ];
+  var items = form.getItems();
+  for (var i = items.length - 1; i >= 0; i--) {
+    var title = items[i].getTitle ? safeString_(items[i].getTitle()) : '';
+    if (!title) continue;
+    var isLegacy = title.indexOf(oldPagePrefix) === 0 || oldQuestionPrefixes.some(function(prefix) {
+      return title.indexOf(prefix) === 0;
+    });
+    if (!isLegacy) continue;
+    try {
+      form.deleteItem(items[i]);
+    } catch (err) {
+      logWarn_('removeLegacyRotationSectionBranchItems_', '', 'Could not delete legacy branch item "' + title + '": ' + err.message);
+    }
+  }
 }
 
 function ensureSectionHeaderItem_(form, title) {
