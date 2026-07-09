@@ -36,12 +36,12 @@ This folder is the production Apps Script project for the Google Forms + Google 
 3. In **Project Settings → Script Properties**, add:
 
 ```text
-DASHBOARD_SPREADSHEET_ID = your dashboard spreadsheet ID
-MAIN_FORM_ID = your main job rotation request Google Form ID
+DASHBOARD_SPREADSHEET_ID = your `SQU Job Rotation Dashboard` spreadsheet ID
+MAIN_FORM_ID = your `استمارة تحديد مسار التدوير الوظيفي للموظفين الجدد / New Employee Job Rotation Path Form` Google Form ID
 FORM_RESPONSES_SPREADSHEET_ID = required linked Google Form responses spreadsheet ID
 RESPONSE_QUEUE_BATCH_SIZE = 25
 QUEUE_SCAN_WINDOW_ROWS = 500
-EVALUATION_FORM_URL = evaluation Google Form published URL
+EVALUATION_FORM_URL = `تقييم تجربة التدوير الوظيفي / Job Rotation Experience Evaluation` Google Form published URL
 OWNER_EMAIL = employeeservices@squ.edu.om
 ADMIN_EMAILS = employeeservices@squ.edu.om
 APPROVER_UNIT_MODE = CURRENT_UNIT
@@ -75,7 +75,7 @@ Recommended values:
 
 Recommended `APPROVER_UNIT_MODE` is `CURRENT_UNIT`, meaning the head of the unit the employee belongs to approves. Use `ROTATION_UNIT` only if your policy requires the receiving rotation unit head to approve.
 
-4. In the Google Form, use **Responses → Link to Sheets** to create or select the linked response spreadsheet, then set `FORM_RESPONSES_SPREADSHEET_ID` to that spreadsheet ID. This linked response sheet is required: request records are created only when `processUnprocessedFormResponses()` reads the response-sheet queue during sync.
+4. In the `استمارة تحديد مسار التدوير الوظيفي للموظفين الجدد / New Employee Job Rotation Path Form` Google Form, use **Responses → Link to Sheets** to create or select the linked response spreadsheet, then set `FORM_RESPONSES_SPREADSHEET_ID` to that spreadsheet ID. This linked response sheet is required: request records are created only when `processUnprocessedFormResponses()` reads the response-sheet queue during sync.
 5. Run `setupAll()` once and authorize permissions.
 6. Fill the visible `إدارة الوحدات` and `إدارة الأقسام` sheets with your real unit/section data. The production script syncs these into the hidden runtime `الوحدات` and `الأقسام` sheets.
 7. Deploy the script as a **Web App**:
