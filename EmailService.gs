@@ -46,7 +46,7 @@ function sendInvalidDatesSubmissionEmail(data, responseId, error) {
       { ar: 'الوحدة الحالية', en: 'Current Unit', value: data.currentUnit || '' },
       { ar: 'القسم الحالي للموظف', en: 'Current Employee Department', value: data.currentDepartment || '' },
       { ar: 'وحدة التدوير', en: 'Rotation Unit', value: data.rotationUnit || '' },
-      { ar: 'قسم التدوير', en: 'Rotation Section', value: data.section || '' },
+      { ar: 'قسم التدوير', en: 'Rotation Department', value: data.section || '' },
       { ar: 'تاريخ البداية المرسل', en: 'Submitted Start Date', value: formatDate_(data.startDate) },
       { ar: 'تاريخ النهاية المرسل', en: 'Submitted End Date', value: formatDate_(data.endDate) },
       { ar: 'سبب عدم المعالجة', en: 'Processing Error', value: error && error.message ? error.message : safeString_(error) }

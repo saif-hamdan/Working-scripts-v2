@@ -115,7 +115,7 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
 
   if (activeRotation) {
     sendActiveEmployeeRejectedNotification(record, activeRotation);
-    logInfo_('createRequestFromNormalizedData_:activeEmployeeRejected', requestId, 'Request rejected because employee already has active approved rotation.');
+    logInfo_('createRequestFromNormalizedData_:activeEmployeeRejected', requestId, 'Request rejected because employee already has an active approved job rotation.');
   } else if (conflict) {
     sendConflictNotification(record, conflict, 'submission');
     logInfo_('createRequestFromNormalizedData_:conflict', requestId, 'Request rejected at submission because of conflict.');
@@ -304,7 +304,7 @@ function validateSubmissionData_(data) {
   throwIfMissing_(data.currentUnit, 'Current unit is missing.');
   throwIfMissing_(data.currentDepartment, 'Current department is missing.');
   throwIfMissing_(data.rotationUnit, 'Rotation unit is missing.');
-  throwIfMissing_(data.section, 'Rotation section is missing.');
+  throwIfMissing_(data.section, 'Rotation department is missing.');
   if (data.section === FORM.NO_AVAILABLE_SECTIONS) throw new Error('No available section was selected.');
   if (!data.startDate || !data.endDate) throw new Error('Start date or end date is invalid.');
   if (dateOnly_(data.startDate).getTime() > dateOnly_(data.endDate).getTime()) throw new Error('Start date cannot be after end date.');
@@ -313,7 +313,7 @@ function validateSubmissionData_(data) {
 function buildActiveEmployeeRejectionReason_(activeRotation) {
   return [
     'تم رفض الطلب تلقائياً لأن الموظف لديه تدوير وظيفي معتمد ونشط حالياً.',
-    'The request was automatically rejected because the employee currently has active approved rotation.',
+    'The request was automatically rejected because the employee currently has an active approved job rotation.',
     'رقم الطلب النشط / Active request ID: ' + safeString_(activeRotation[H.RECORD.REQUEST_ID])
   ].join('\n');
 }
