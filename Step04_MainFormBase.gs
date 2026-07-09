@@ -14,13 +14,13 @@ function run04_rebuildMainFormBaseQuestions() {
 }
 
 function rebuildMainFormBase_(form, dashboard) {
-  form.setTitle('Employee / طلب تدريب موظف Training Request');
+  form.setTitle('Employee / طلب تدوير وظيفي للموظف Job Rotation Request');
   form.setDescription('يرجى إدخال بيانات الطلب بدقة. يتم التحقق من التعارضات مرة أخرى عند اعتماد رئيس الوحدة.\nPlease enter the request details carefully. Conflicts are checked again when the unit head approves.');
   try { form.setCollectEmail(true); } catch (ignore) {}
   try { form.setRequireLogin(true); } catch (ignoreLogin) {}
   try { form.setAllowResponseEdits(false); } catch (ignore2) {}
   try { form.setProgressBar(true); } catch (ignore3) {}
-  try { form.setConfirmationMessage('تم إرسال طلب التدريب بنجاح. / Your training request has been submitted successfully.'); } catch (ignore4) {}
+  try { form.setConfirmationMessage('تم إرسال طلب التدوير الوظيفي بنجاح. / Your job rotation request has been submitted successfully.'); } catch (ignore4) {}
 
   if (BOOTSTRAP_CONFIG.REBUILD_MAIN_FORM_ITEMS) deleteAllFormItems_(form);
 
@@ -42,8 +42,8 @@ function rebuildMainFormBase_(form, dashboard) {
   applyHoursValidation_(ensureText_(form, BFORM.TITLES.HOURS, true));
   ensureParagraph_(form, BFORM.TITLES.NOTES, false);
 
-  var trainingUnit = ensureList_(form, BFORM.TITLES.TRAINING_UNIT, true);
-  trainingUnit.setChoiceValues(unitNames);
+  var rotationUnit = ensureList_(form, BFORM.TITLES.ROTATION_UNIT, true);
+  rotationUnit.setChoiceValues(unitNames);
 }
 
 function deleteAllFormItems_(form) {
@@ -70,9 +70,9 @@ function deleteAllFormItems_(form) {
 
 function clearFormNavigationReferences_(form) {
   var temporaryChoice = 'إعادة ضبط مؤقتة / Temporary reset';
-  var trainingUnit = getItem_(form, BFORM.TITLES.TRAINING_UNIT, FormApp.ItemType.LIST);
-  if (trainingUnit) {
-    try { trainingUnit.asListItem().setChoiceValues([temporaryChoice]); } catch (ignore) {}
+  var rotationUnit = getItem_(form, BFORM.TITLES.ROTATION_UNIT, FormApp.ItemType.LIST);
+  if (rotationUnit) {
+    try { rotationUnit.asListItem().setChoiceValues([temporaryChoice]); } catch (ignore) {}
   }
   form.getItems(FormApp.ItemType.PAGE_BREAK).forEach(function(item) {
     try { item.asPageBreakItem().setGoToPage(FormApp.PageNavigationType.CONTINUE); } catch (ignore2) {}

@@ -22,14 +22,14 @@ function calculateSectionSummary_(records) {
   return sections.map(function(section) {
     var activeRecords = records.filter(function(record) {
       return isRecordActiveOrApproved_(record) &&
-        normalizeKey_(record[H.RECORD.TRAINING_UNIT]) === normalizeKey_(section.unitName) &&
+        normalizeKey_(record[H.RECORD.ROTATION_UNIT]) === normalizeKey_(section.unitName) &&
         normalizeKey_(record[H.RECORD.SECTION]) === normalizeKey_(section.name) &&
         isTodayWithinRange_(record[H.RECORD.START_DATE], record[H.RECORD.END_DATE]);
     });
 
     var allTrained = records.filter(function(record) {
       return isRecordActiveOrApproved_(record) &&
-        normalizeKey_(record[H.RECORD.TRAINING_UNIT]) === normalizeKey_(section.unitName) &&
+        normalizeKey_(record[H.RECORD.ROTATION_UNIT]) === normalizeKey_(section.unitName) &&
         normalizeKey_(record[H.RECORD.SECTION]) === normalizeKey_(section.name);
     });
 
@@ -48,7 +48,7 @@ function calculateSectionSummary_(records) {
     row[H.DASHBOARD.ACTIVE_COUNT] = activeRecords.length;
     row[H.DASHBOARD.ACTIVE_TRAINEES] = uniqueNonEmpty_(activeRecords.map(function(r) { return r[H.RECORD.EMPLOYEE_ID]; })).join('، ');
     row[H.DASHBOARD.ALL_TRAINEES] = uniqueNonEmpty_(allTrained.map(function(r) { return r[H.RECORD.EMPLOYEE_NAME]; })).join('، ');
-    row[H.DASHBOARD.LAST_TRAINING] = lastDate ? formatDate_(lastDate) : '';
+    row[H.DASHBOARD.LAST_ROTATION] = lastDate ? formatDate_(lastDate) : '';
     row[H.DASHBOARD.STATUS] = activeRecords.length > 0 ? STATUS.OCCUPIED : STATUS.AVAILABLE;
     return row;
   });

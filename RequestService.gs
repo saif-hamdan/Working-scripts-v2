@@ -30,11 +30,11 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
   }
 
   var currentUnit = findUnitByName_(data.currentUnit) || { name: data.currentUnit, headName: '', headEmail: '' };
-  var trainingUnit = findUnitByName_(data.trainingUnit) || { name: data.trainingUnit, headName: '', headEmail: '' };
-  var approver = getApproverForRequest_(data.currentUnit, data.trainingUnit);
+  var rotationUnit = findUnitByName_(data.rotationUnit) || { name: data.rotationUnit, headName: '', headEmail: '' };
+  var approver = getApproverForRequest_(data.currentUnit, data.rotationUnit);
   var requestId = makeRequestId_();
   var token = generateToken_();
-  var type = normalizeKey_(data.currentUnit) === normalizeKey_(data.trainingUnit) ? STATUS.TYPE_INTERNAL : STATUS.TYPE_EXTERNAL;
+  var type = normalizeKey_(data.currentUnit) === normalizeKey_(data.rotationUnit) ? STATUS.TYPE_INTERNAL : STATUS.TYPE_EXTERNAL;
 
   var record = {};
   record[H.RECORD.REQUEST_ID] = requestId;
@@ -48,7 +48,7 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
   record[H.RECORD.CURRENT_UNIT] = data.currentUnit;
   record[H.RECORD.CURRENT_UNIT_HEAD] = currentUnit.headName;
   record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL] = currentUnit.headEmail;
-  record[H.RECORD.TRAINING_UNIT] = data.trainingUnit;
+  record[H.RECORD.ROTATION_UNIT] = data.rotationUnit;
   record[H.RECORD.SECTION] = data.section;
   record[H.RECORD.START_DATE] = dateOnly_(data.startDate);
   record[H.RECORD.END_DATE] = dateOnly_(data.endDate);
@@ -74,19 +74,19 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
   record[H.RECORD.LAST_ERROR] = '';
   record[H.RECORD.FORM_RESPONSE_SOURCE_ID] = data.responseSourceId;
 
-  var activeTraining = findActiveTrainingByEmployee_(data.employeeId, data.employeeName, requestId);
+  var activeRotation = findActiveRotationByEmployee_(data.employeeId, data.employeeName, requestId);
   var conflict = null;
 
-  if (activeTraining) {
+  if (activeRotation) {
     record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_EMPLOYEE_ACTIVE;
     record[H.RECORD.FINAL_STATUS] = STATUS.FINAL_EMPLOYEE_ACTIVE;
-    record[H.RECORD.REJECTION_REASON] = buildActiveEmployeeRejectionReason_(activeTraining);
-    record[H.RECORD.CONFLICT_ID] = activeTraining[H.RECORD.REQUEST_ID];
-    record[H.RECORD.CONFLICT_DETAILS] = formatActiveTrainingDetails_(activeTraining);
+    record[H.RECORD.REJECTION_REASON] = buildActiveEmployeeRejectionReason_(activeRotation);
+    record[H.RECORD.CONFLICT_ID] = activeRotation[H.RECORD.REQUEST_ID];
+    record[H.RECORD.CONFLICT_DETAILS] = formatActiveRotationDetails_(activeRotation);
     record[H.RECORD.DECISION_DATE] = now_();
   } else {
     conflict = findConflicts({
-      trainingUnit: data.trainingUnit,
+      rotationUnit: data.rotationUnit,
       section: data.section,
       startDate: data.startDate,
       endDate: data.endDate,
@@ -108,9 +108,9 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
   record._rowNumber = rowNumber;
   appendRequestSourceIndex_(record);
 
-  if (activeTraining) {
-    sendActiveEmployeeRejectedNotification(record, activeTraining);
-    logInfo_('createRequestFromNormalizedData_:activeEmployeeRejected', requestId, 'Request rejected because employee already has active approved training.');
+  if (activeRotation) {
+    sendActiveEmployeeRejectedNotification(record, activeRotation);
+    logInfo_('createRequestFromNormalizedData_:activeEmployeeRejected', requestId, 'Request rejected because employee already has active approved rotation.');
   } else if (conflict) {
     sendConflictNotification(record, conflict, 'submission');
     logInfo_('createRequestFromNormalizedData_:conflict', requestId, 'Request rejected at submission because of conflict.');
@@ -182,7 +182,7 @@ function parseFormSubmission_(e) {
     employeeId: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_ID),
     employeeEmail: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_EMAIL),
     currentUnit: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.CURRENT_UNIT),
-    trainingUnit: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.TRAINING_UNIT),
+    rotationUnit: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_UNIT),
     section: section,
     startDate: parseDateFlexible_(firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.START_DATE)),
     endDate: parseDateFlexible_(firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.END_DATE)),
@@ -234,7 +234,7 @@ function parseLinkedResponseRow_(headers, row) {
     employeeId: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_ID),
     employeeEmail: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_EMAIL),
     currentUnit: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.CURRENT_UNIT),
-    trainingUnit: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.TRAINING_UNIT),
+    rotationUnit: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_UNIT),
     section: section,
     startDate: parseDateFlexible_(firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.START_DATE)),
     endDate: parseDateFlexible_(firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.END_DATE)),
@@ -270,18 +270,18 @@ function validateSubmissionData_(data) {
   throwIfMissing_(data.employeeId, 'Employee ID is missing.');
   throwIfMissing_(data.employeeEmail, 'Employee email is missing.');
   throwIfMissing_(data.currentUnit, 'Current unit is missing.');
-  throwIfMissing_(data.trainingUnit, 'Requested training unit is missing.');
+  throwIfMissing_(data.rotationUnit, 'Rotation unit is missing.');
   throwIfMissing_(data.section, 'Requested section is missing.');
   if (data.section === FORM.NO_AVAILABLE_SECTIONS) throw new Error('No available section was selected.');
   if (!data.startDate || !data.endDate) throw new Error('Start date or end date is invalid.');
   if (dateOnly_(data.startDate).getTime() > dateOnly_(data.endDate).getTime()) throw new Error('Start date cannot be after end date.');
 }
 
-function buildActiveEmployeeRejectionReason_(activeTraining) {
+function buildActiveEmployeeRejectionReason_(activeRotation) {
   return [
-    'تم رفض الطلب تلقائياً لأن الموظف لديه تدريب معتمد ونشط حالياً.',
-    'The request was automatically rejected because the employee currently has active approved training.',
-    'رقم الطلب النشط / Active request ID: ' + safeString_(activeTraining[H.RECORD.REQUEST_ID])
+    'تم رفض الطلب تلقائياً لأن الموظف لديه تدوير وظيفي معتمد ونشط حالياً.',
+    'The request was automatically rejected because the employee currently has active approved rotation.',
+    'رقم الطلب النشط / Active request ID: ' + safeString_(activeRotation[H.RECORD.REQUEST_ID])
   ].join('\n');
 }
 

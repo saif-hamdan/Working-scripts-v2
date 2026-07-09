@@ -31,12 +31,12 @@ function resetMainFormBranchingFromReferenceData_(ss, form) {
   removeExistingBranchItems_(form);
 
   var units = readUnits_(ss);
-  var trainingUnit = getItem_(form, BFORM.TITLES.TRAINING_UNIT, FormApp.ItemType.LIST);
-  if (!trainingUnit) {
-    failStep_('11 Refresh Main Form From Admin Sheets', 'Requested Training Unit question is missing after form rebuild.');
+  var rotationUnit = getItem_(form, BFORM.TITLES.ROTATION_UNIT, FormApp.ItemType.LIST);
+  if (!rotationUnit) {
+    failStep_('11 Refresh Main Form From Admin Sheets', 'Rotation Unit question is missing after form rebuild.');
   }
   if (units.length) {
-    trainingUnit.asListItem().setChoiceValues(units.map(function(unit) { return unit.name; }));
+    rotationUnit.asListItem().setChoiceValues(units.map(function(unit) { return unit.name; }));
   }
 
   setBootstrapProperties_({

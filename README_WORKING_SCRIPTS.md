@@ -1,6 +1,6 @@
-# SQU Training Placement System — Working Apps Script Package
+# SQU Job Rotation System — Working Apps Script Package
 
-This folder is the production Apps Script project for the Google Forms + Google Sheets training-placement approval workflow.
+This folder is the production Apps Script project for the Google Forms + Google Sheets job-rotation approval workflow.
 
 ## What it implements
 
@@ -21,12 +21,12 @@ This folder is the production Apps Script project for the Google Forms + Google 
 - Approval/rejection web app links with secure tokens; approval emails are sent only to the unit head.
 - Required rejection reason page.
 - Conflict checking on submission and again on approval.
-- Immediate auto-rejection if the employee already has active approved training.
+- Immediate auto-rejection if the employee already has active approved rotation.
 - Late approval conflict blocking.
 - Bilingual Arabic/English centered emails.
 - SQU-themed email placeholders for official colors and logo.
 - Locked system columns and controlled final-acceptance status editing.
-- Daily evaluation email after the end date, only for approved training and only once.
+- Daily evaluation email after the end date, only for approved rotation and only once.
 - Five-minute sync trigger for dashboard/form refresh and email retry.
 
 ## Deployment steps
@@ -37,7 +37,7 @@ This folder is the production Apps Script project for the Google Forms + Google 
 
 ```text
 DASHBOARD_SPREADSHEET_ID = your dashboard spreadsheet ID
-MAIN_FORM_ID = your main training request Google Form ID
+MAIN_FORM_ID = your main job rotation request Google Form ID
 FORM_RESPONSES_SPREADSHEET_ID = required linked Google Form responses spreadsheet ID
 RESPONSE_QUEUE_BATCH_SIZE = 25
 QUEUE_SCAN_WINDOW_ROWS = 500
@@ -73,7 +73,7 @@ Recommended values:
 | Medium | `25` | `500` | Default for normal daily operation. |
 | High-volume | `75` | `1500` | Short bursts or larger intake periods; keep Apps Script execution time and quotas under review. |
 
-Recommended `APPROVER_UNIT_MODE` is `CURRENT_UNIT`, meaning the head of the unit the employee belongs to approves. Use `TRAINING_UNIT` only if your policy requires the receiving training unit head to approve.
+Recommended `APPROVER_UNIT_MODE` is `CURRENT_UNIT`, meaning the head of the unit the employee belongs to approves. Use `ROTATION_UNIT` only if your policy requires the receiving rotation unit head to approve.
 
 4. In the Google Form, use **Responses → Link to Sheets** to create or select the linked response spreadsheet, then set `FORM_RESPONSES_SPREADSHEET_ID` to that spreadsheet ID. This linked response sheet is required: request records are created only when `processUnprocessedFormResponses()` reads the response-sheet queue during sync.
 5. Run `setupAll()` once and authorize permissions.
@@ -86,7 +86,7 @@ Recommended `APPROVER_UNIT_MODE` is `CURRENT_UNIT`, meaning the head of the unit
 
 ## Important notes
 
-Native Google Forms cannot refresh a second dropdown live on the same page after the first dropdown is selected. This implementation uses the recommended Google Forms workaround: the requested training unit dropdown routes to a unit-specific page, where the section dropdown shows only sections under that unit.
+Native Google Forms cannot refresh a second dropdown live on the same page after the first dropdown is selected. This implementation uses the recommended Google Forms workaround: the rotation unit dropdown routes to a unit-specific page, where the section dropdown shows only sections under that unit.
 
 The form choices are refreshed by the five-minute trigger and after decisions. Form submissions are not converted into requests by a direct form-submit trigger; the five-minute sync calls `processUnprocessedFormResponses()` to create requests from the linked response-sheet queue. Admins may also run `processResponseQueueOnce()` manually, or use the `معالجة الطلبات غير المعالجة` custom menu item, after a form outage or high-volume submission period; it logs the number of processed, skipped, and failed rows. If `FORM_RESPONSES_SPREADSHEET_ID` is missing, setup and sync log a warning and no submitted form responses can become requests. The approval handler still re-checks conflicts atomically with `LockService`, so even if the form choice was stale, the system blocks late conflicts.
 
@@ -124,7 +124,7 @@ For response rows requiring review, admins should compare the submitted row with
 
 ### Request source index maintenance
 
-The hidden `Request Source Index` sheet maps form response identifiers back to rows in `سجل الطلبات` so the response queue can match duplicates safely. After manual data repair, bulk import, or if duplicate matching behaves unexpectedly, an admin should run `rebuildRequestSourceIndex()` from Apps Script or use **SQU Training → إعادة بناء فهرس مصادر الطلبات**. The function reads `سجل الطلبات`, clears the index below its header, writes one index row for every request with `معرف رد النموذج` or `معرف مصدر رد النموذج`, and records the indexed record count in `سجل النظام`.
+The hidden `Request Source Index` sheet maps form response identifiers back to rows in `سجل الطلبات` so the response queue can match duplicates safely. After manual data repair, bulk import, or if duplicate matching behaves unexpectedly, an admin should run `rebuildRequestSourceIndex()` from Apps Script or use **SQU Job Rotation → إعادة بناء فهرس مصادر الطلبات**. The function reads `سجل الطلبات`, clears the index below its header, writes one index row for every request with `معرف رد النموذج` or `معرف مصدر رد النموذج`, and records the indexed record count in `سجل النظام`.
 
 Before increasing response-queue batch/window sizes, run `benchmarkRequestSourceIndexWithCopiedSampleData({ targetSize: 10000 })` from Apps Script. It temporarily fills the hidden index with copied/synthetic identifiers based on existing request records, performs a batch duplicate lookup against 10,000+ index rows, logs the write and lookup timings, and restores the original index rows in a `finally` block. Only tune `RESPONSE_QUEUE_BATCH_SIZE` or `QUEUE_SCAN_WINDOW_ROWS` after the benchmark timing is acceptable for the production spreadsheet.
 

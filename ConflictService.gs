@@ -1,14 +1,14 @@
-/** Conflict checking: same training unit + same section + overlapping date range + already accepted/active. */
+/** Conflict checking: same rotation unit + same section + overlapping date range + already accepted/active. */
 function findConflicts(criteria) {
   var records = getRecords_();
-  var trainingKey = normalizeKey_(criteria.trainingUnit);
+  var rotationKey = normalizeKey_(criteria.rotationUnit);
   var sectionKey = normalizeKey_(criteria.section);
-  var section = findSectionByUnitAndName_(criteria.trainingUnit, criteria.section);
+  var section = findSectionByUnitAndName_(criteria.rotationUnit, criteria.section);
   var capacity = section ? section.capacity : 1;
   var overlappingRecords = records.filter(function(record) {
     if (safeString_(record[H.RECORD.REQUEST_ID]) === safeString_(criteria.excludeRequestId)) return false;
     if (!isRecordActiveOrApproved_(record)) return false;
-    if (normalizeKey_(record[H.RECORD.TRAINING_UNIT]) !== trainingKey) return false;
+    if (normalizeKey_(record[H.RECORD.ROTATION_UNIT]) !== rotationKey) return false;
     if (normalizeKey_(record[H.RECORD.SECTION]) !== sectionKey) return false;
     return isDateRangeOverlap_(criteria.startDate, criteria.endDate, record[H.RECORD.START_DATE], record[H.RECORD.END_DATE]);
   });
@@ -29,7 +29,7 @@ function findCapacityConflictForDates_(startDate, endDate, overlappingRecords, c
   return null;
 }
 
-function findActiveTrainingByEmployee_(employeeId, employeeName, excludeRequestId) {
+function findActiveRotationByEmployee_(employeeId, employeeName, excludeRequestId) {
   var employeeIdKey = normalizeKey_(employeeId);
   var nameKey = normalizeKey_(employeeName);
   if (!employeeIdKey && !nameKey) return null;
@@ -49,20 +49,20 @@ function formatConflictDetails_(conflict) {
   return [
     'رقم الطلب: ' + safeString_(conflict[H.RECORD.REQUEST_ID]),
     'الموظف: ' + safeString_(conflict[H.RECORD.EMPLOYEE_NAME]),
-    'الوحدة: ' + safeString_(conflict[H.RECORD.TRAINING_UNIT]),
+    'الوحدة: ' + safeString_(conflict[H.RECORD.ROTATION_UNIT]),
     'القسم: ' + safeString_(conflict[H.RECORD.SECTION]),
     'الفترة: ' + formatDate_(conflict[H.RECORD.START_DATE]) + ' إلى ' + formatDate_(conflict[H.RECORD.END_DATE]),
     'المسؤول المباشر: ' + safeString_(conflict[H.RECORD.DIRECT_MANAGER_NAME])
   ].join('\n');
 }
 
-function formatActiveTrainingDetails_(activeRecord) {
+function formatActiveRotationDetails_(activeRecord) {
   if (!activeRecord) return '';
   return [
     'رقم الطلب النشط: ' + safeString_(activeRecord[H.RECORD.REQUEST_ID]),
     'الموظف: ' + safeString_(activeRecord[H.RECORD.EMPLOYEE_NAME]),
     'الرقم الوظيفي: ' + safeString_(activeRecord[H.RECORD.EMPLOYEE_ID]),
-    'وحدة التدريب: ' + safeString_(activeRecord[H.RECORD.TRAINING_UNIT]),
+    'وحدة التدوير: ' + safeString_(activeRecord[H.RECORD.ROTATION_UNIT]),
     'القسم: ' + safeString_(activeRecord[H.RECORD.SECTION]),
     'الفترة: ' + formatDate_(activeRecord[H.RECORD.START_DATE]) + ' إلى ' + formatDate_(activeRecord[H.RECORD.END_DATE]),
     'الحالة النهائية: ' + safeString_(activeRecord[H.RECORD.FINAL_STATUS])

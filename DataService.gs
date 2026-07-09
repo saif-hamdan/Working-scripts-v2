@@ -165,9 +165,9 @@ function findSectionByUnitAndName_(unitName, sectionName) {
   })[0] || null;
 }
 
-function getApproverForRequest_(currentUnitName, trainingUnitName) {
+function getApproverForRequest_(currentUnitName, rotationUnitName) {
   var cfg = getConfig();
-  var unitName = cfg.APPROVER_UNIT_MODE === APPROVER_UNIT_MODE.CURRENT_UNIT ? currentUnitName : trainingUnitName;
+  var unitName = cfg.APPROVER_UNIT_MODE === APPROVER_UNIT_MODE.CURRENT_UNIT ? currentUnitName : rotationUnitName;
   var unit = findUnitByName_(unitName);
   return unit || { name: unitName, headName: '', headEmail: '' };
 }

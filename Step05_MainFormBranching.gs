@@ -5,13 +5,13 @@ function run05_startMainFormBranching() {
   var units = readUnits_(ss);
   if (!units.length) failStep_('05 Start Main Form Branching', 'No active units were found. Run run03_validateReferenceData() and fix the source data.');
 
-  var trainingUnit = getItem_(form, BFORM.TITLES.TRAINING_UNIT, FormApp.ItemType.LIST);
-  if (!trainingUnit) {
-    failStep_('05 Start Main Form Branching', 'Requested Training Unit question is missing. Run run04_rebuildMainFormBaseQuestions() first.');
+  var rotationUnit = getItem_(form, BFORM.TITLES.ROTATION_UNIT, FormApp.ItemType.LIST);
+  if (!rotationUnit) {
+    failStep_('05 Start Main Form Branching', 'Rotation Unit question is missing. Run run04_rebuildMainFormBaseQuestions() first.');
   }
 
   removeExistingBranchItems_(form);
-  trainingUnit.asListItem().setChoiceValues(units.map(function(unit) { return unit.name; }));
+  rotationUnit.asListItem().setChoiceValues(units.map(function(unit) { return unit.name; }));
 
   setBootstrapProperties_({
     [BSPROP.BRANCH_INDEX]: '0',
@@ -53,9 +53,9 @@ function buildUnitBranchPage_(form, unit, sections) {
   sectionItem.setChoiceValues(sectionNames);
 }
 
-function rebuildTrainingUnitRoutingChoices_(form, units, processedCount) {
-  var item = getItem_(form, BFORM.TITLES.TRAINING_UNIT, FormApp.ItemType.LIST);
-  if (!item) throw new Error('Requested Training Unit question is missing.');
+function rebuildRotationUnitRoutingChoices_(form, units, processedCount) {
+  var item = getItem_(form, BFORM.TITLES.ROTATION_UNIT, FormApp.ItemType.LIST);
+  if (!item) throw new Error('Rotation Unit question is missing.');
   var listItem = item.asListItem();
   var choices = [];
   for (var i = 0; i < processedCount; i++) {

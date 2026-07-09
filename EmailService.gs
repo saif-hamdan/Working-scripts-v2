@@ -6,7 +6,7 @@ function sendApprovalEmail(record) {
   var html = renderTemplate_('Emails_Approval', data);
   return sendEmailSafe_({
     to: safeString_(record[H.RECORD.APPROVER_EMAIL]),
-    subject: 'طلب موافقة تدريب / Training Approval Request - ' + record[H.RECORD.REQUEST_ID],
+    subject: 'طلب موافقة تدوير وظيفي / Job Rotation Approval Request - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   }, { kind: 'approval', requestId: record[H.RECORD.REQUEST_ID] });
 }
@@ -18,7 +18,7 @@ function sendSubmissionConfirmationEmail(record) {
   return sendEmailSafe_({
     to: safeString_(record[H.RECORD.DIRECT_MANAGER_EMAIL]),
     cc: uniqueNonEmpty_([record[H.RECORD.EMPLOYEE_EMAIL], record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]]).join(','),
-    subject: 'تم استلام طلب التدريب / Training Request Submitted - ' + record[H.RECORD.REQUEST_ID],
+    subject: 'تم استلام طلب التدوير الوظيفي / Job Rotation Request Submitted - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   }, { kind: 'submitted', requestId: record[H.RECORD.REQUEST_ID] });
 }
@@ -40,8 +40,8 @@ function sendInvalidDatesSubmissionEmail(data, responseId, error) {
       { ar: 'المسؤول المباشر', en: 'Line Manager', value: data.directManagerName || '' },
       { ar: 'بريد المسؤول المباشر', en: 'Line Manager Email', value: data.directManagerEmail || '' },
       { ar: 'الوحدة الحالية', en: 'Current Unit', value: data.currentUnit || '' },
-      { ar: 'وحدة التدريب المطلوبة', en: 'Requested Training Unit', value: data.trainingUnit || '' },
-      { ar: 'القسم المطلوب', en: 'Requested Section', value: data.section || '' },
+      { ar: 'وحدة التدوير', en: 'Rotation Unit', value: data.rotationUnit || '' },
+      { ar: 'قسم التدوير', en: 'Rotation Section', value: data.section || '' },
       { ar: 'تاريخ البداية المرسل', en: 'Submitted Start Date', value: formatDate_(data.startDate) },
       { ar: 'تاريخ النهاية المرسل', en: 'Submitted End Date', value: formatDate_(data.endDate) },
       { ar: 'سبب عدم المعالجة', en: 'Processing Error', value: error && error.message ? error.message : safeString_(error) }
@@ -51,7 +51,7 @@ function sendInvalidDatesSubmissionEmail(data, responseId, error) {
   return sendEmailSafe_({
     to: uniqueNonEmpty_([data.directManagerEmail, data.submitterEmail]).join(','),
     cc: uniqueNonEmpty_([data.employeeEmail]).join(','),
-    subject: 'تعذر استلام طلب التدريب - التواريخ غير صحيحة / Training Request Not Submitted - Incorrect Dates',
+    subject: 'تعذر استلام طلب التدوير الوظيفي - التواريخ غير صحيحة / Job Rotation Request Not Submitted - Incorrect Dates',
     htmlBody: html
   }, { kind: 'invalid_dates_submission', requestId: responseId || '' });
 }
@@ -81,7 +81,7 @@ function buildRejectedNotificationPayload_(record) {
   return {
     to: uniqueNonEmpty_([record[H.RECORD.DIRECT_MANAGER_EMAIL], record[H.RECORD.EMPLOYEE_EMAIL]]).join(','),
     cc: uniqueNonEmpty_([record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL], record[H.RECORD.APPROVER_EMAIL]]).join(','),
-    subject: 'تم رفض طلب التدريب / Training Request Rejected - ' + record[H.RECORD.REQUEST_ID],
+    subject: 'تم رفض طلب التدوير الوظيفي / Job Rotation Request Rejected - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   };
 }
@@ -103,7 +103,7 @@ function buildFinalApprovedNotificationPayload_(record) {
       record[H.RECORD.DIRECT_MANAGER_EMAIL],
       record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]
     ]).join(','),
-    subject: 'تم الاعتماد النهائي لطلب التدريب / Training Request Finally Approved - ' + record[H.RECORD.REQUEST_ID],
+    subject: 'تم الاعتماد النهائي لطلب التدوير الوظيفي / Job Rotation Request Finally Approved - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   };
 }
@@ -121,7 +121,7 @@ function buildFinalRejectedNotificationPayload_(record) {
       record[H.RECORD.DIRECT_MANAGER_EMAIL],
       record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]
     ]).join(','),
-    subject: 'تم الرفض النهائي لطلب التدريب / Training Request Finally Rejected - ' + record[H.RECORD.REQUEST_ID],
+    subject: 'تم الرفض النهائي لطلب التدوير الوظيفي / Job Rotation Request Finally Rejected - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   };
 }
@@ -130,16 +130,16 @@ function sendFinalRejectedNotification(record) {
   return sendEmailSafe_(buildFinalRejectedNotificationPayload_(record), { kind: 'final_rejected', requestId: record[H.RECORD.REQUEST_ID] }) === true;
 }
 
-function sendActiveEmployeeRejectedNotification(record, activeTraining) {
+function sendActiveEmployeeRejectedNotification(record, activeRotation) {
   var data = buildTemplateData_(record, {
-    activeTraining: activeTraining,
-    activeTrainingDetails: formatActiveTrainingDetails_(activeTraining)
+    activeRotation: activeRotation,
+    activeRotationDetails: formatActiveRotationDetails_(activeRotation)
   });
   var html = renderTemplate_('Emails_ActiveEmployeeRejected', data);
   return sendEmailSafe_({
     to: uniqueNonEmpty_([record[H.RECORD.EMPLOYEE_EMAIL], record[H.RECORD.DIRECT_MANAGER_EMAIL]]).join(','),
     cc: uniqueNonEmpty_([record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]]).join(','),
-    subject: 'رفض تلقائي لطلب التدريب / Automatic Training Request Rejection - ' + record[H.RECORD.REQUEST_ID],
+    subject: 'رفض تلقائي لطلب التدوير الوظيفي / Automatic Job Rotation Request Rejection - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   }, { kind: 'active_employee_rejected', requestId: record[H.RECORD.REQUEST_ID] });
 }
@@ -153,7 +153,7 @@ function buildConflictNotificationPayload_(record, conflict, source) {
   var html = renderTemplate_('Emails_Conflict', data);
   return {
     to: uniqueNonEmpty_([record[H.RECORD.APPROVER_EMAIL], record[H.RECORD.EMPLOYEE_EMAIL], record[H.RECORD.DIRECT_MANAGER_EMAIL], record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]]).join(','),
-    subject: 'تعارض في طلب التدريب / Training Request Conflict - ' + record[H.RECORD.REQUEST_ID],
+    subject: 'تعارض في طلب التدوير الوظيفي / Job Rotation Request Conflict - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   };
 }
@@ -172,7 +172,7 @@ function sendEvaluationEmail(record) {
   var html = renderTemplate_('Emails_Evaluation', data);
   return sendEmailSafe_({
     to: safeString_(record[H.RECORD.EMPLOYEE_EMAIL]),
-    subject: 'تقييم تجربة التدريب / Training Evaluation - ' + record[H.RECORD.REQUEST_ID],
+    subject: 'تقييم تجربة التدوير الوظيفي / Job Rotation Evaluation - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   }, { kind: 'evaluation', requestId: record[H.RECORD.REQUEST_ID] });
 }

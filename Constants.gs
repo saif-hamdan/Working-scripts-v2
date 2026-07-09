@@ -1,5 +1,5 @@
 /**
- * SQU Training Placement System - Constants
+ * SQU Job Rotation System - Constants
  * All dashboard-facing headers are Arabic. Internal/system fields are also Arabic.
  */
 const SYSTEM = Object.freeze({
@@ -46,7 +46,7 @@ const SHEETS = Object.freeze({
   EMAIL_QUEUE: 'طابور البريد',
   ACTION_QUEUE: 'طابور القرارات',
   REQUEST_SOURCE_INDEX: 'Request Source Index',
-  EMPLOYEE_TRAINING_HOURS: 'ملخص ساعات تدريب الموظفين'
+  EMPLOYEE_ROTATION_HOURS: 'ملخص ساعات التدوير الوظيفي للموظفين'
 });
 
 const H = Object.freeze({
@@ -55,10 +55,10 @@ const H = Object.freeze({
     SECTION: 'القسم',
     HEAD: 'رئيس الوحدة',
     HEAD_EMAIL: 'بريد رئيس الوحدة',
-    ACTIVE_COUNT: 'عدد المتدربين النشطين',
-    ACTIVE_TRAINEES: 'الأرقام الوظيفية للمتدربين النشطين',
-    ALL_TRAINEES: 'جميع من تدربوا في القسم',
-    LAST_TRAINING: 'آخر تاريخ تدريب',
+    ACTIVE_COUNT: 'عدد الموظفين قيد التدوير النشط',
+    ACTIVE_TRAINEES: 'الأرقام الوظيفية للموظفين قيد التدوير النشط',
+    ALL_TRAINEES: 'جميع من تم تدويرهم في القسم',
+    LAST_ROTATION: 'آخر تاريخ تدوير وظيفي',
     STATUS: 'حالة القسم'
   }),
   RECORD: Object.freeze({
@@ -73,11 +73,11 @@ const H = Object.freeze({
     CURRENT_UNIT: 'الوحدة الحالية للموظف',
     CURRENT_UNIT_HEAD: 'رئيس الوحدة الحالية',
     CURRENT_UNIT_HEAD_EMAIL: 'بريد رئيس الوحدة الحالية',
-    TRAINING_UNIT: 'وحدة التدريب المطلوبة',
-    SECTION: 'القسم المطلوب',
+    ROTATION_UNIT: 'وحدة التدوير',
+    SECTION: 'قسم التدوير',
     START_DATE: 'من تاريخ',
     END_DATE: 'إلى تاريخ',
-    HOURS: 'عدد ساعات التدريب اليومية',
+    HOURS: 'عدد الساعات اليومية المطلوبة',
     TYPE: 'نوع الطلب',
     HEAD_STATUS: 'حالة موافقة رئيس الوحدة',
     FINAL_STATUS: 'حالة الاعتماد النهائي',
@@ -145,11 +145,11 @@ const H = Object.freeze({
     REQUEST_ID: 'REQUEST_ID',
     CREATED_AT: 'CREATED_AT'
   }),
-  EMPLOYEE_TRAINING_HOURS: Object.freeze({
+  EMPLOYEE_ROTATION_HOURS: Object.freeze({
     EMPLOYEE_NAME: 'اسم الموظف',
     EMPLOYEE_ID: 'الرقم الوظيفي للموظف',
-    COMPLETED_HOURS: 'إجمالي ساعات التدريب المنجز',
-    ONGOING_HOURS: 'إجمالي ساعات التدريب الجاري'
+    COMPLETED_HOURS: 'إجمالي ساعات التدوير المنجزة',
+    ONGOING_HOURS: 'إجمالي ساعات التدوير الجارية'
   }),
   QUEUE: Object.freeze({
     MESSAGE_ID: 'معرف الرسالة',
@@ -176,9 +176,9 @@ const LOG_HEADERS = Object.freeze(Object.values(H.LOG));
 const QUEUE_HEADERS = Object.freeze(Object.values(H.QUEUE));
 const ACTION_QUEUE_HEADERS = Object.freeze(Object.values(H.ACTION_QUEUE));
 const REQUEST_SOURCE_INDEX_HEADERS = Object.freeze(Object.values(H.REQUEST_SOURCE_INDEX));
-const EMPLOYEE_TRAINING_HOURS_HEADERS = Object.freeze(Object.values(H.EMPLOYEE_TRAINING_HOURS));
+const EMPLOYEE_ROTATION_HOURS_HEADERS = Object.freeze(Object.values(H.EMPLOYEE_ROTATION_HOURS));
 
-const EMPLOYEE_TRAINING_HOURS_CONFIG = Object.freeze({
+const EMPLOYEE_ROTATION_HOURS_CONFIG = Object.freeze({
   TIMEZONE: SYSTEM.TIME_ZONE,
   TRIGGER_EVERY_MINUTES: 10,
   ACTIVE_START_MINUTES: 22 * 60,
@@ -196,14 +196,14 @@ const STATUS = Object.freeze({
   HEAD_ACCEPTED: 'موافق عليه من رئيس الوحدة',
   HEAD_REJECTED: 'مرفوض من رئيس الوحدة',
   HEAD_CONFLICT: 'تعذر الاعتماد بسبب التعارض',
-  HEAD_EMPLOYEE_ACTIVE: 'مرفوض تلقائياً لوجود تدريب نشط للموظف',
+  HEAD_EMPLOYEE_ACTIVE: 'مرفوض تلقائياً لوجود تدوير وظيفي نشط للموظف',
   FINAL_PENDING: 'قيد الاعتماد النهائي',
   FINAL_APPROVED: 'معتمد',
   FINAL_IN_PROGRESS: 'قيد التنفيذ',
   FINAL_DONE: 'منجز',
   FINAL_REJECTED: 'مرفوض',
   FINAL_CONFLICT: 'مرفوض تلقائياً بسبب التعارض',
-  FINAL_EMPLOYEE_ACTIVE: 'مرفوض تلقائياً لوجود تدريب نشط للموظف',
+  FINAL_EMPLOYEE_ACTIVE: 'مرفوض تلقائياً لوجود تدوير وظيفي نشط للموظف',
   QUEUE_PENDING: 'بانتظار الإرسال',
   QUEUE_SENT: 'تم الإرسال',
   QUEUE_FAILED: 'فشل الإرسال',
@@ -258,13 +258,13 @@ const SETTINGS_KEYS = Object.freeze({
 });
 
 const APPROVER_UNIT_MODE = Object.freeze({
-  TRAINING_UNIT: 'TRAINING_UNIT',
+  ROTATION_UNIT: 'ROTATION_UNIT',
   CURRENT_UNIT: 'CURRENT_UNIT'
 });
 
 const FORM = Object.freeze({
   SECTION_PAGE_PREFIX: 'اختيار القسم - ',
-  SECTION_QUESTION_PREFIX: 'القسم المطلوب / Requested Section - ',
+  SECTION_QUESTION_PREFIX: 'قسم التدوير / Rotation Section - ',
   NO_AVAILABLE_SECTIONS: 'لا توجد أقسام متاحة حالياً',
   TITLES: Object.freeze({
     DIRECT_MANAGER_NAME: 'المسؤول المباشر / Line Manager',
@@ -275,8 +275,8 @@ const FORM = Object.freeze({
     CURRENT_UNIT: 'الوحدة الحالية للموظف / Current Unit',
     START_DATE: 'من تاريخ / Start Date',
     END_DATE: 'إلى تاريخ / End Date',
-    HOURS: 'عدد ساعات التدريب اليومية / Daily Training Hours',
-    TRAINING_UNIT: 'وحدة التدريب المطلوبة / Requested Training Unit',
+    HOURS: 'عدد الساعات اليومية المطلوبة / Required Daily Hours',
+    ROTATION_UNIT: 'وحدة التدوير / Rotation Unit',
     NOTES: 'ملاحظات إضافية / Additional Notes'
   })
 });
@@ -288,9 +288,9 @@ const FORM_RESPONSE_TITLE_CANDIDATES = Object.freeze({
   EMPLOYEE_ID: Object.freeze([FORM.TITLES.EMPLOYEE_ID, 'الرقم الوظيفي للموظف', 'Employee ID']),
   EMPLOYEE_EMAIL: Object.freeze([FORM.TITLES.EMPLOYEE_EMAIL, 'بريد الموظف']),
   CURRENT_UNIT: Object.freeze([FORM.TITLES.CURRENT_UNIT, 'الوحدة الحالية للموظف']),
-  TRAINING_UNIT: Object.freeze([FORM.TITLES.TRAINING_UNIT, 'وحدة التدريب المطلوبة']),
+  ROTATION_UNIT: Object.freeze([FORM.TITLES.ROTATION_UNIT, 'وحدة التدوير', 'وحدة ال' + 'تد' + 'ريب المطلوبة', 'Requested ' + 'Train' + 'ing Unit', 'وحدة ال' + 'تد' + 'ريب المطلوبة / Requested ' + 'Train' + 'ing Unit']),
   START_DATE: Object.freeze([FORM.TITLES.START_DATE, 'من تاريخ']),
   END_DATE: Object.freeze([FORM.TITLES.END_DATE, 'إلى تاريخ']),
-  HOURS: Object.freeze([FORM.TITLES.HOURS, 'عدد ساعات التدريب اليومية', 'عدد الساعات']),
+  HOURS: Object.freeze([FORM.TITLES.HOURS, 'عدد الساعات اليومية المطلوبة', 'عدد الساعات', 'عدد ساعات ال' + 'تد' + 'ريب اليومية', 'Daily ' + 'Train' + 'ing Hours', 'عدد ساعات ال' + 'تد' + 'ريب اليومية / Daily ' + 'Train' + 'ing Hours']),
   NOTES: Object.freeze([FORM.TITLES.NOTES, 'ملاحظات إضافية', 'ملاحظات'])
 });

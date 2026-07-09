@@ -315,7 +315,7 @@ function makeResponseSourceIdFromRow_(headers, row, map) {
     employeeEmail: valueFor(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_EMAIL),
     startDate: parseDateFlexible_(valueFor(FORM_RESPONSE_TITLE_CANDIDATES.START_DATE)),
     endDate: parseDateFlexible_(valueFor(FORM_RESPONSE_TITLE_CANDIDATES.END_DATE)),
-    trainingUnit: valueFor(FORM_RESPONSE_TITLE_CANDIDATES.TRAINING_UNIT),
+    rotationUnit: valueFor(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_UNIT),
     section: ''
   };
 

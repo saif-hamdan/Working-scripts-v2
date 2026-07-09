@@ -7,7 +7,7 @@ function setupMainForm_(form, dashboard) {
   units.forEach(function(unit) {
     buildUnitBranchPage_(form, unit, sections);
   });
-  rebuildTrainingUnitRoutingChoices_(form, units, units.length);
+  rebuildRotationUnitRoutingChoices_(form, units, units.length);
 }
 
 function setupEvaluationForm_(form) {

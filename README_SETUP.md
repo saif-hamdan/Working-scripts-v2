@@ -1,4 +1,4 @@
-# SQU Training Placement System — Staged Setup Toolkit
+# SQU Rotation Placement System — Staged Setup Toolkit
 
 Use this Apps Script project to create or repair the Google Forms and dashboard spreadsheet used by the production working scripts.
 
@@ -8,8 +8,8 @@ No CSV files are required. Apps Script creates the Google Sheet tabs directly, a
 
 ## What this toolkit creates/prepares
 
-- Main Google Form: `طلب تدريب موظف / Employee Training Request`
-- Evaluation Google Form: `تقييم تجربة التدريب / Training Evaluation`
+- Main Google Form: `طلب تدوير وظيفي للموظف / Employee Rotation Request`
+- Evaluation Google Form: `تقييم تجربة التدوير الوظيفي / Rotation Evaluation`
 - Dashboard spreadsheet with Arabic RTL tabs:
   - `لوحة الأقسام`
   - `سجل الطلبات`
@@ -105,7 +105,7 @@ The form does not read CSV files. Admins edit the visible Google Sheet tabs:
 
 The setup script syncs those admin tabs into hidden system tabs:
 
-- `الوحدات` provides the current unit and requested training unit dropdown choices.
+- `الوحدات` provides the current unit and rotation unit dropdown choices.
 - `الأقسام` provides the unit-to-section mapping.
 - `run06_continueMainFormBranching()` creates one Google Form page per unit, so the section dropdown on that page only shows sections under the selected unit.
 

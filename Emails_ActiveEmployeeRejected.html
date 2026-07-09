@@ -9,12 +9,12 @@
     <div class="card">
       <div class="header" style="background:<?= data.brand.primaryColor ?>;">
         <? if (data.brand.logoUrl) { ?><img class="logo" src="<?= data.brand.logoUrl ?>" alt="Employees and Retirees Services Section / قسم خدمات الموظفين والمتقاعدين Logo"><? } ?>
-        <div class="title-ar">رفض تلقائي لطلب التدريب</div>
-        <div class="title-en">Automatic Training Request Rejection</div>
+        <div class="title-ar">رفض تلقائي لطلب التدوير الوظيفي</div>
+        <div class="title-en">Automatic Job Rotation Request Rejection</div>
       </div>
       <div class="content">
-        <div class="intro-ar">تم رفض الطلب تلقائياً. لدى الموظف تدريب نشط حالياً.</div>
-        <div class="intro-en">The request was automatically rejected. The employee has active training.</div>
+        <div class="intro-ar">تم رفض الطلب تلقائياً. لدى الموظف تدوير وظيفي نشط حالياً.</div>
+        <div class="intro-en">The request was automatically rejected. The employee has active rotation.</div>
 
         <table class="details">
           <tr><th>البيان / Field</th><th>القيمة / Value</th></tr>
@@ -32,12 +32,12 @@
         </div>
 
         <div class="note" dir="rtl">
-          <strong>تفاصيل التدريب النشط الحالي:</strong><br>
-          <pre style="white-space:pre-wrap; text-align:center; font-family:Arial,Tahoma,sans-serif;"><?= data.activeTrainingDetails ?></pre>
+          <strong>تفاصيل التدوير الوظيفي النشط الحالي:</strong><br>
+          <pre style="white-space:pre-wrap; text-align:center; font-family:Arial,Tahoma,sans-serif;"><?= data.activeRotationDetails ?></pre>
         </div>
         <div class="note">
-          <strong>Current active training details:</strong><br>
-          A new request can be submitted after the active training ends.
+          <strong>Current active rotation details:</strong><br>
+          A new request can be submitted after the active rotation ends.
         </div>
       </div>
       <div class="footer">
