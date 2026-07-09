@@ -1,4 +1,4 @@
-/** Conflict checking: same rotation unit + same section + overlapping date range + already accepted/active. */
+/** Conflict checking: same rotation unit + rotation department + overlapping date range + already accepted/active. */
 function findConflicts(criteria) {
   var records = getRecords_();
   var rotationKey = normalizeKey_(criteria.rotationUnit);
@@ -50,7 +50,7 @@ function formatConflictDetails_(conflict) {
     'رقم الطلب: ' + safeString_(conflict[H.RECORD.REQUEST_ID]),
     'الموظف: ' + safeString_(conflict[H.RECORD.EMPLOYEE_NAME]),
     'الوحدة: ' + safeString_(conflict[H.RECORD.ROTATION_UNIT]),
-    'القسم: ' + safeString_(conflict[H.RECORD.SECTION]),
+    'قسم التدوير: ' + safeString_(conflict[H.RECORD.SECTION]),
     'الفترة: ' + formatDate_(conflict[H.RECORD.START_DATE]) + ' إلى ' + formatDate_(conflict[H.RECORD.END_DATE]),
     'المسؤول المباشر: ' + safeString_(conflict[H.RECORD.DIRECT_MANAGER_NAME])
   ].join('\n');
@@ -63,7 +63,7 @@ function formatActiveRotationDetails_(activeRecord) {
     'الموظف: ' + safeString_(activeRecord[H.RECORD.EMPLOYEE_NAME]),
     'الرقم الوظيفي: ' + safeString_(activeRecord[H.RECORD.EMPLOYEE_ID]),
     'وحدة التدوير: ' + safeString_(activeRecord[H.RECORD.ROTATION_UNIT]),
-    'القسم: ' + safeString_(activeRecord[H.RECORD.SECTION]),
+    'قسم التدوير: ' + safeString_(activeRecord[H.RECORD.SECTION]),
     'الفترة: ' + formatDate_(activeRecord[H.RECORD.START_DATE]) + ' إلى ' + formatDate_(activeRecord[H.RECORD.END_DATE]),
     'الحالة النهائية: ' + safeString_(activeRecord[H.RECORD.FINAL_STATUS])
   ].join('\n');
