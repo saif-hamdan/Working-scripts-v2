@@ -8,24 +8,44 @@ function openMainForm_() {
 function setupFormStructure(options) {
   options = options || {};
   var form = openMainForm_();
-  form.setTitle('Employee / طلب تدوير وظيفي للموظف Job Rotation Request');
-  form.setDescription('يرجى إدخال بيانات الطلب بدقة. يتم التحقق من التعارضات مرة أخرى عند اعتماد رئيس الوحدة.\nPlease enter the request details carefully. Conflicts are checked again when the unit head approves.');
+  form.setTitle(FORM.TITLES.FORM_TITLE);
+  form.setDescription(FORM.TITLES.FORM_DESCRIPTION);
   try { form.setCollectEmail(true); } catch (ignore) {}
   try { form.setRequireLogin(true); } catch (ignoreLogin) {}
 
   deleteFormItemIfPresent_(form, 'اسم المدير المباشر / Direct Manager Name', FormApp.ItemType.TEXT);
   deleteFormItemIfPresent_(form, 'بريد المدير المباشر / Direct Manager Email', FormApp.ItemType.TEXT);
-  deleteFormItemIfPresent_(form, FORM.TITLES.DIRECT_MANAGER_EMAIL, FormApp.ItemType.TEXT);
+  deleteFormItemIfPresent_(form, 'المسؤول المباشر / Line Manager', FormApp.ItemType.TEXT);
+  deleteFormItemIfPresent_(form, 'بريد المسؤول المباشر / Line Manager Email', FormApp.ItemType.TEXT);
+  deleteFormItemIfPresent_(form, 'الرقم الوظيفي للموظف / Employee ID', FormApp.ItemType.TEXT);
+  deleteFormItemIfPresent_(form, 'بريد الموظف / Employee Email', FormApp.ItemType.TEXT);
+  deleteFormItemIfPresent_(form, 'الوحدة الحالية للموظف / Current Unit', FormApp.ItemType.LIST);
+  deleteFormItemIfPresent_(form, 'من تاريخ / Start Date', FormApp.ItemType.DATE);
+  deleteFormItemIfPresent_(form, 'إلى تاريخ / End Date', FormApp.ItemType.DATE);
+
+  ensureSectionHeaderItem_(form, FORM.TITLES.LINE_MANAGER_SECTION);
   ensureTextItem_(form, FORM.TITLES.DIRECT_MANAGER_NAME, true);
+  applyNumericValidation_(ensureTextItem_(form, FORM.TITLES.DIRECT_MANAGER_ID, true));
+  applyEmailValidationToFormItem_(ensureTextItem_(form, FORM.TITLES.DIRECT_MANAGER_EMAIL, true));
+  applyNumericValidation_(ensureTextItem_(form, FORM.TITLES.DIRECT_MANAGER_EXTENSION, true));
+
+  ensureSectionHeaderItem_(form, FORM.TITLES.EMPLOYEE_SECTION);
   ensureTextItem_(form, FORM.TITLES.EMPLOYEE_NAME, true);
-  ensureTextItem_(form, FORM.TITLES.EMPLOYEE_ID, true);
-  ensureTextItem_(form, FORM.TITLES.EMPLOYEE_EMAIL, true);
+  applyNumericValidation_(ensureTextItem_(form, FORM.TITLES.EMPLOYEE_ID, true));
+  ensureDateItem_(form, FORM.TITLES.EMPLOYEE_HIRE_DATE, true);
+  ensureTextItem_(form, FORM.TITLES.EMPLOYEE_JOB_TITLE, true);
+  applyEmailValidationToFormItem_(ensureTextItem_(form, FORM.TITLES.EMPLOYEE_EMAIL, true));
+
+  ensureSectionHeaderItem_(form, FORM.TITLES.CURRENT_EMPLOYEE_SECTION);
   ensureCurrentUnitItem_(form);
+  ensureTextItem_(form, FORM.TITLES.CURRENT_DEPARTMENT, true);
+
+  ensureSectionHeaderItem_(form, FORM.TITLES.ROTATION_SECTION);
   ensureDateItem_(form, FORM.TITLES.START_DATE, true);
   ensureDateItem_(form, FORM.TITLES.END_DATE, true);
-  ensureTextItem_(form, FORM.TITLES.HOURS, true);
-  ensureParagraphItem_(form, FORM.TITLES.NOTES, false);
+  applyNumericValidation_(ensureTextItem_(form, FORM.TITLES.HOURS, true));
   ensureRotationUnitItem_(form);
+  ensureParagraphItem_(form, FORM.TITLES.NOTES, false);
   if (options.skipChoiceRefresh !== true) refreshFormChoices();
 }
 
@@ -73,6 +93,32 @@ function refreshFormChoices(skipReferenceSync) {
   });
   if (choices.length) rotationUnitItem.setChoices(choices);
   logInfo_('refreshFormChoices', '', 'Form choices refreshed.');
+}
+
+function ensureSectionHeaderItem_(form, title) {
+  var item = getFormItemByTitle_(form, title, FormApp.ItemType.SECTION_HEADER);
+  if (!item) item = form.addSectionHeaderItem().setTitle(title);
+  return asTypedFormItem_(item, 'asSectionHeaderItem');
+}
+
+function applyEmailValidationToFormItem_(textItem) {
+  try {
+    var validation = FormApp.createTextValidation()
+      .requireTextIsEmail()
+      .build();
+    textItem.setValidation(validation);
+  } catch (ignore) {}
+  return textItem;
+}
+
+function applyNumericValidation_(textItem) {
+  try {
+    var validation = FormApp.createTextValidation()
+      .requireNumber()
+      .build();
+    textItem.setValidation(validation);
+  } catch (ignore) {}
+  return textItem;
 }
 
 function ensureTextItem_(form, title, required) {

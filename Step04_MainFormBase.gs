@@ -14,8 +14,8 @@ function run04_rebuildMainFormBaseQuestions() {
 }
 
 function rebuildMainFormBase_(form, dashboard) {
-  form.setTitle('Employee / طلب تدوير وظيفي للموظف Job Rotation Request');
-  form.setDescription('يرجى إدخال بيانات الطلب بدقة. يتم التحقق من التعارضات مرة أخرى عند اعتماد رئيس الوحدة.\nPlease enter the request details carefully. Conflicts are checked again when the unit head approves.');
+  form.setTitle(BFORM.TITLES.FORM_TITLE);
+  form.setDescription(BFORM.TITLES.FORM_DESCRIPTION);
   try { form.setCollectEmail(true); } catch (ignore) {}
   try { form.setRequireLogin(true); } catch (ignoreLogin) {}
   try { form.setAllowResponseEdits(false); } catch (ignore2) {}
@@ -28,22 +28,38 @@ function rebuildMainFormBase_(form, dashboard) {
   var unitNames = units.map(function(unit) { return unit.name; });
   if (!unitNames.length) unitNames = [BFORM.NO_UNITS];
 
+  ensureSectionHeader_(form, BFORM.TITLES.LINE_MANAGER_SECTION);
   ensureText_(form, BFORM.TITLES.DIRECT_MANAGER_NAME, true);
+  applyNumericValidation_(ensureText_(form, BFORM.TITLES.DIRECT_MANAGER_ID, true));
+  applyEmailValidation_(ensureText_(form, BFORM.TITLES.DIRECT_MANAGER_EMAIL, true));
+  applyNumericValidation_(ensureText_(form, BFORM.TITLES.DIRECT_MANAGER_EXTENSION, true));
 
+  ensureSectionHeader_(form, BFORM.TITLES.EMPLOYEE_SECTION);
   ensureText_(form, BFORM.TITLES.EMPLOYEE_NAME, true);
-  ensureText_(form, BFORM.TITLES.EMPLOYEE_ID, true);
+  applyNumericValidation_(ensureText_(form, BFORM.TITLES.EMPLOYEE_ID, true));
+  ensureDate_(form, BFORM.TITLES.EMPLOYEE_HIRE_DATE, true);
+  ensureText_(form, BFORM.TITLES.EMPLOYEE_JOB_TITLE, true);
   applyEmailValidation_(ensureText_(form, BFORM.TITLES.EMPLOYEE_EMAIL, true));
 
+  ensureSectionHeader_(form, BFORM.TITLES.CURRENT_EMPLOYEE_SECTION);
   var currentUnit = ensureList_(form, BFORM.TITLES.CURRENT_UNIT, true);
   currentUnit.setChoiceValues(unitNames);
+  ensureText_(form, BFORM.TITLES.CURRENT_DEPARTMENT, true);
 
+  ensureSectionHeader_(form, BFORM.TITLES.ROTATION_SECTION);
   ensureDate_(form, BFORM.TITLES.START_DATE, true);
   ensureDate_(form, BFORM.TITLES.END_DATE, true);
-  applyHoursValidation_(ensureText_(form, BFORM.TITLES.HOURS, true));
-  ensureParagraph_(form, BFORM.TITLES.NOTES, false);
+  applyNumericValidation_(ensureText_(form, BFORM.TITLES.HOURS, true));
 
   var rotationUnit = ensureList_(form, BFORM.TITLES.ROTATION_UNIT, true);
   rotationUnit.setChoiceValues(unitNames);
+  ensureParagraph_(form, BFORM.TITLES.NOTES, false);
+}
+
+function ensureSectionHeader_(form, title) {
+  var item = getItem_(form, title, FormApp.ItemType.SECTION_HEADER);
+  if (!item) item = form.addSectionHeaderItem().setTitle(title);
+  return item.asSectionHeaderItem ? item.asSectionHeaderItem() : item;
 }
 
 function deleteAllFormItems_(form) {
@@ -103,10 +119,10 @@ function applyEmailValidation_(textItem) {
   return textItem;
 }
 
-function applyHoursValidation_(textItem) {
+function applyNumericValidation_(textItem) {
   try {
     var validation = FormApp.createTextValidation()
-      .requireNumberGreaterThan(0)
+      .requireNumber()
       .build();
     textItem.setValidation(validation);
   } catch (ignore) {}
