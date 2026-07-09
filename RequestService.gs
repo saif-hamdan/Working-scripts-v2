@@ -41,11 +41,16 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
   record[H.RECORD.TIMESTAMP] = now_();
   record[H.RECORD.SUBMITTER_EMAIL] = data.submitterEmail || data.directManagerEmail;
   record[H.RECORD.DIRECT_MANAGER_NAME] = data.directManagerName;
+  record[H.RECORD.DIRECT_MANAGER_ID] = data.directManagerId;
   record[H.RECORD.DIRECT_MANAGER_EMAIL] = data.directManagerEmail;
+  record[H.RECORD.DIRECT_MANAGER_EXTENSION] = data.directManagerExtension;
   record[H.RECORD.EMPLOYEE_NAME] = data.employeeName;
   record[H.RECORD.EMPLOYEE_ID] = data.employeeId;
+  record[H.RECORD.EMPLOYEE_HIRE_DATE] = dateOnly_(data.employeeHireDate);
+  record[H.RECORD.EMPLOYEE_JOB_TITLE] = data.employeeJobTitle;
   record[H.RECORD.EMPLOYEE_EMAIL] = data.employeeEmail;
   record[H.RECORD.CURRENT_UNIT] = data.currentUnit;
+  record[H.RECORD.CURRENT_DEPARTMENT] = data.currentDepartment;
   record[H.RECORD.CURRENT_UNIT_HEAD] = currentUnit.headName;
   record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL] = currentUnit.headEmail;
   record[H.RECORD.ROTATION_UNIT] = data.rotationUnit;
@@ -167,7 +172,7 @@ function parseFormSubmission_(e) {
   var section = '';
   Object.keys(named).forEach(function(key) {
     if (section) return;
-    if (key.indexOf(FORM.SECTION_QUESTION_PREFIX) === 0 || normalizeKey_(key).indexOf('section') !== -1 || key.indexOf('القسم المطلوب') !== -1) {
+    if (isRotationSectionResponseHeader_(key)) {
       var candidate = safeString_(val(key));
       if (candidate) section = candidate;
     }
@@ -177,11 +182,16 @@ function parseFormSubmission_(e) {
     timestamp: firstNonEmpty(['Timestamp', 'الطابع الزمني']),
     submitterEmail: submitterEmail || firstNonEmpty(['Email Address', 'البريد الإلكتروني', FORM.TITLES.DIRECT_MANAGER_EMAIL]),
     directManagerName: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.DIRECT_MANAGER_NAME),
+    directManagerId: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.DIRECT_MANAGER_ID),
     directManagerEmail: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.DIRECT_MANAGER_EMAIL),
+    directManagerExtension: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.DIRECT_MANAGER_EXTENSION),
     employeeName: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_NAME),
     employeeId: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_ID),
+    employeeHireDate: parseDateFlexible_(firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_HIRE_DATE)),
+    employeeJobTitle: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_JOB_TITLE),
     employeeEmail: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_EMAIL),
     currentUnit: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.CURRENT_UNIT),
+    currentDepartment: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.CURRENT_DEPARTMENT),
     rotationUnit: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_UNIT),
     section: section,
     startDate: parseDateFlexible_(firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.START_DATE)),
@@ -219,7 +229,7 @@ function parseLinkedResponseRow_(headers, row) {
   headers.forEach(function(header, index) {
     header = safeString_(header);
     if (section || !header) return;
-    if (header.indexOf(FORM.SECTION_QUESTION_PREFIX) === 0 || normalizeKey_(header).indexOf('section') !== -1 || header.indexOf('القسم المطلوب') !== -1) {
+    if (isRotationSectionResponseHeader_(header)) {
       var candidate = safeString_(row[index]);
       if (candidate) section = candidate;
     }
@@ -229,11 +239,16 @@ function parseLinkedResponseRow_(headers, row) {
     timestamp: firstNonEmpty(['Timestamp', 'الطابع الزمني']),
     submitterEmail: firstNonEmpty(['Email Address', 'البريد الإلكتروني', FORM.TITLES.DIRECT_MANAGER_EMAIL]),
     directManagerName: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.DIRECT_MANAGER_NAME),
+    directManagerId: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.DIRECT_MANAGER_ID),
     directManagerEmail: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.DIRECT_MANAGER_EMAIL),
+    directManagerExtension: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.DIRECT_MANAGER_EXTENSION),
     employeeName: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_NAME),
     employeeId: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_ID),
+    employeeHireDate: parseDateFlexible_(firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_HIRE_DATE)),
+    employeeJobTitle: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_JOB_TITLE),
     employeeEmail: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_EMAIL),
     currentUnit: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.CURRENT_UNIT),
+    currentDepartment: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.CURRENT_DEPARTMENT),
     rotationUnit: firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_UNIT),
     section: section,
     startDate: parseDateFlexible_(firstNonEmpty(FORM_RESPONSE_TITLE_CANDIDATES.START_DATE)),
@@ -246,6 +261,19 @@ function parseLinkedResponseRow_(headers, row) {
 
   parsed.responseSourceId = makeFormResponseSourceId_(parsed);
   return parsed;
+}
+
+
+function isRotationSectionResponseHeader_(header) {
+  header = safeString_(header);
+  if (!header) return false;
+  if (header.indexOf(FORM.SECTION_QUESTION_PREFIX) === 0) return true;
+  if (header === FORM.TITLES.ROTATION_DEPARTMENT) return true;
+  if (header.indexOf('قسم التدوير') !== -1 || header.indexOf('القسم المطلوب') !== -1) return true;
+  var normalized = normalizeKey_(header);
+  if (normalized.indexOf('rotationsection') !== -1 || normalized.indexOf('requestedsection') !== -1) return true;
+  if (normalized.indexOf('current') !== -1 || header.indexOf('الحالي') !== -1) return false;
+  return normalized === 'section' || normalized === 'rotationdepartment';
 }
 
 function buildRequestSourceInfo_(data) {
@@ -264,12 +292,17 @@ function createRequestFromFormData_(e) {
 
 function validateSubmissionData_(data) {
   throwIfMissing_(data.directManagerName, 'Direct manager name is missing.');
+  throwIfMissing_(data.directManagerId, 'Line manager employee ID is missing.');
   if (!data.directManagerEmail) data.directManagerEmail = data.submitterEmail || data.employeeEmail;
   throwIfMissing_(data.directManagerEmail, 'Direct manager email is missing.');
+  throwIfMissing_(data.directManagerExtension, 'Line manager extension is missing.');
   throwIfMissing_(data.employeeName, 'Employee name is missing.');
   throwIfMissing_(data.employeeId, 'Employee ID is missing.');
+  if (!data.employeeHireDate) throw new Error('Employee hire date is missing or invalid.');
+  throwIfMissing_(data.employeeJobTitle, 'Employee job title is missing.');
   throwIfMissing_(data.employeeEmail, 'Employee email is missing.');
   throwIfMissing_(data.currentUnit, 'Current unit is missing.');
+  throwIfMissing_(data.currentDepartment, 'Current department is missing.');
   throwIfMissing_(data.rotationUnit, 'Rotation unit is missing.');
   throwIfMissing_(data.section, 'Requested section is missing.');
   if (data.section === FORM.NO_AVAILABLE_SECTIONS) throw new Error('No available section was selected.');
