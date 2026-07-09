@@ -26,7 +26,7 @@ function rebuildEvaluationForm_(form) {
   addEvaluationSection_(form, 'أولاً: بيانات الموظف / First: Employee Information');
   ensureText_(form, 'أسم الموظف (اختياري) / Employee name (optional)', false);
   ensureText_(form, 'المسمى الوظيفي / Job title', false);
-  ensureText_(form, 'الوحدة/الدائرة / Unit/Department', false);
+  ensureText_(form, 'الوحدة/القسم / Unit/Section', false);
   ensureText_(form, 'مدة المشاركة في البرنامج / Program participation duration', false);
 
   addEvaluationSection_(form, 'ثانياً: تقييم البرنامج / Second: Program Evaluation');
