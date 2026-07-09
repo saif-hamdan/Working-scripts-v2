@@ -59,7 +59,7 @@ function resolveMainFormResource_() {
   if (!BOOTSTRAP_CONFIG.CREATE_NEW_MAIN_FORM) {
     throw new Error('EXISTING_MAIN_FORM_ID is required when CREATE_NEW_MAIN_FORM is false.');
   }
-  return FormApp.create('طلب تدوير وظيفي للموظف / Employee Job Rotation Request');
+  return FormApp.create('استمارة تحديد مسار التدوير الوظيفي للموظفين الجدد / New Employee Job Rotation Path Form');
 }
 
 function resolveEvaluationFormResource_() {
@@ -77,5 +77,5 @@ function resolveEvaluationFormResource_() {
   if (!BOOTSTRAP_CONFIG.CREATE_NEW_EVALUATION_FORM) {
     throw new Error('EXISTING_EVALUATION_FORM_ID is required when CREATE_NEW_EVALUATION_FORM is false.');
   }
-  return FormApp.create('تقييم تجربة التدوير الوظيفي / Job Rotation Evaluation');
+  return FormApp.create('تقييم تجربة التدوير الوظيفي / Job Rotation Experience Evaluation');
 }

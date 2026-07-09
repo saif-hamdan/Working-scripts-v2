@@ -1,8 +1,8 @@
 # Deployment Checklist
 
-- [ ] Create or prepare dashboard spreadsheet.
-- [ ] Create or prepare main job rotation request Google Form.
-- [ ] Create or prepare evaluation Google Form.
+- [ ] Create or prepare the `SQU Job Rotation Dashboard` spreadsheet.
+- [ ] Create or prepare the `استمارة تحديد مسار التدوير الوظيفي للموظفين الجدد / New Employee Job Rotation Path Form` Google Form.
+- [ ] Create or prepare the `تقييم تجربة التدوير الوظيفي / Job Rotation Experience Evaluation` Google Form.
 - [ ] Add all working script files to one Apps Script project.
 - [ ] Add Script Properties from `CONFIG_TEMPLATE.json`.
 - [ ] Run `setupAll()` and authorize.
