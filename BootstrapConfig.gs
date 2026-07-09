@@ -88,7 +88,7 @@ const BH = {
 };
 
 const BFORM = {
-  SECTION_PAGE_PREFIX: 'اختيار القسم - ',
+  SECTION_PAGE_PREFIX: 'قسم التدوير / Rotation Section - ',
   SECTION_QUESTION_PREFIX: 'قسم التدوير / Rotation Section - ',
   NO_UNITS: 'لا توجد وحدات نشطة حالياً / No active units are available',
   NO_SECTIONS: 'لا توجد أقسام متاحة حالياً / No sections are currently available',
@@ -108,7 +108,7 @@ const BFORM = {
     EMPLOYEE_EMAIL: 'البريد الالكتروني للموظف / Employee Email',
     CURRENT_EMPLOYEE_SECTION: 'بيانات الموظف الحالية / Current Employee Details',
     CURRENT_UNIT: 'الوحدة الحالية للموظف / Current Employee Unit',
-    CURRENT_DEPARTMENT: 'القسم الحالي للموظف / Current Employee Section',
+    CURRENT_DEPARTMENT: 'القسم الحالي للموظف / Current Employee Department',
     ROTATION_SECTION: 'بيانات التدوير الوظيفي / Job Rotation Details',
     START_DATE: 'تاريخ بداية التدوير / Rotation Start Date',
     END_DATE: 'تاريخ نهاية التدوير / Rotation End Date',

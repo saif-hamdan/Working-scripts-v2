@@ -24,10 +24,19 @@ function run05_startMainFormBranching() {
 
 function removeExistingBranchItems_(form) {
   clearFormNavigationReferences_(form);
+  var legacyPagePrefix = 'اختيار القسم - ';
+  var legacyQuestionPrefixes = [
+    'القسم المطلوب - ',
+    'Requested Section - ',
+    'القسم المطلوب / Requested Section - '
+  ];
   var items = form.getItems();
   for (var i = items.length - 1; i >= 0; i--) {
     var title = items[i].getTitle ? items[i].getTitle() : '';
-    if (title.indexOf(BFORM.SECTION_PAGE_PREFIX) === 0 || title.indexOf(BFORM.SECTION_QUESTION_PREFIX) === 0) {
+    var isLegacyBranchItem = title.indexOf(legacyPagePrefix) === 0 || legacyQuestionPrefixes.some(function(prefix) {
+      return title.indexOf(prefix) === 0;
+    });
+    if (title.indexOf(BFORM.SECTION_PAGE_PREFIX) === 0 || title.indexOf(BFORM.SECTION_QUESTION_PREFIX) === 0 || isLegacyBranchItem) {
       try {
         form.deleteItem(items[i]);
       } catch (err) {

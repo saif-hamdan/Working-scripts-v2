@@ -44,7 +44,7 @@ function sendInvalidDatesSubmissionEmail(data, responseId, error) {
       { ar: 'بريد المسؤول المباشر', en: 'Line Manager Email', value: data.directManagerEmail || '' },
       { ar: 'رقم محول المسؤول المباشر', en: 'Line Manager Extension', value: data.directManagerExtension || '' },
       { ar: 'الوحدة الحالية', en: 'Current Unit', value: data.currentUnit || '' },
-      { ar: 'القسم الحالي للموظف', en: 'Current Department', value: data.currentDepartment || '' },
+      { ar: 'القسم الحالي للموظف', en: 'Current Employee Department', value: data.currentDepartment || '' },
       { ar: 'وحدة التدوير', en: 'Rotation Unit', value: data.rotationUnit || '' },
       { ar: 'قسم التدوير', en: 'Rotation Section', value: data.section || '' },
       { ar: 'تاريخ البداية المرسل', en: 'Submitted Start Date', value: formatDate_(data.startDate) },
