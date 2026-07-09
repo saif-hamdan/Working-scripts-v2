@@ -80,6 +80,7 @@ const H = Object.freeze({
     CURRENT_UNIT_HEAD_EMAIL: 'بريد رئيس الوحدة الحالية',
     ROTATION_UNIT: 'وحدة التدوير',
     SECTION: 'قسم التدوير',
+    OPTION_ORDER: 'رقم الخيار',
     START_DATE: 'من تاريخ',
     END_DATE: 'إلى تاريخ',
     HOURS: 'عدد الساعات اليومية المطلوبة',
@@ -270,6 +271,8 @@ const APPROVER_UNIT_MODE = Object.freeze({
 const FORM = Object.freeze({
   SECTION_PAGE_PREFIX: 'قسم التدوير / Rotation Section - ',
   SECTION_QUESTION_PREFIX: 'قسم التدوير / Rotation Section - ',
+  MAX_INTERNAL_OPTIONS: 3,
+  MAX_EXTERNAL_OPTIONS: 3,
   NO_AVAILABLE_SECTIONS: 'لا توجد أقسام متاحة حالياً',
   TITLES: Object.freeze({
     FORM_TITLE: 'استمارة تحديد مسار التدوير الوظيفي للموظفين الجدد / New Employee Job Rotation Path Form',
@@ -289,6 +292,14 @@ const FORM = Object.freeze({
     CURRENT_UNIT: 'الوحدة الحالية للموظف / Current Employee Unit',
     CURRENT_DEPARTMENT: 'القسم الحالي للموظف / Current Employee Section',
     ROTATION_SECTION: 'بيانات التدوير الوظيفي / Job Rotation Details',
+    PHASE_ONE_INTERNAL: 'المرحلة الأولى: التدوير داخل الوحدة / Phase One: Rotation Inside the Current Unit',
+    PHASE_TWO_EXTERNAL: 'المرحلة الثانية: التدوير خارج الوحدة / Phase Two: Rotation Outside the Current Unit',
+    INTERNAL_SECTION_PREFIX: 'التدوير داخل الوحدة - الخيار {n}: القسم / Section',
+    INTERNAL_FROM_PREFIX: 'التدوير داخل الوحدة - الخيار {n}: الفترة من / Period from',
+    INTERNAL_TO_PREFIX: 'التدوير داخل الوحدة - الخيار {n}: إلى / To',
+    EXTERNAL_SECTION_PREFIX: 'التدوير خارج الوحدة - الخيار {n}: القسم / Section',
+    EXTERNAL_FROM_PREFIX: 'التدوير خارج الوحدة - الخيار {n}: الفترة من / Period from',
+    EXTERNAL_TO_PREFIX: 'التدوير خارج الوحدة - الخيار {n}: إلى / To',
     START_DATE: 'تاريخ بداية التدوير / Rotation Start Date',
     END_DATE: 'تاريخ نهاية التدوير / Rotation End Date',
     HOURS: 'عدد الساعات اليومية المطلوبة / Required Daily Hours',
@@ -314,5 +325,12 @@ const FORM_RESPONSE_TITLE_CANDIDATES = Object.freeze({
   START_DATE: Object.freeze([FORM.TITLES.START_DATE, 'من تاريخ']),
   END_DATE: Object.freeze([FORM.TITLES.END_DATE, 'إلى تاريخ']),
   HOURS: Object.freeze([FORM.TITLES.HOURS, 'عدد الساعات اليومية المطلوبة', 'عدد الساعات', 'عدد ساعات ال' + 'تد' + 'ريب اليومية', 'Daily ' + 'Train' + 'ing Hours', 'عدد ساعات ال' + 'تد' + 'ريب اليومية / Daily ' + 'Train' + 'ing Hours']),
+
+  INTERNAL_SECTION: Object.freeze(['التدوير داخل الوحدة - الخيار {n}: القسم / Section', 'Internal section {n}', 'Internal Section {n}', 'القسم الداخلي {n}']),
+  INTERNAL_FROM: Object.freeze(['التدوير داخل الوحدة - الخيار {n}: الفترة من / Period from', 'From date {n}', 'الفترة من {n}']),
+  INTERNAL_TO: Object.freeze(['التدوير داخل الوحدة - الخيار {n}: إلى / To', 'To date {n}', 'إلى {n}']),
+  EXTERNAL_SECTION: Object.freeze(['التدوير خارج الوحدة - الخيار {n}: القسم / Section', 'External section {n}', 'External Section {n}', 'القسم الخارجي {n}']),
+  EXTERNAL_FROM: Object.freeze(['التدوير خارج الوحدة - الخيار {n}: الفترة من / Period from', 'From date {n}', 'الفترة من {n}']),
+  EXTERNAL_TO: Object.freeze(['التدوير خارج الوحدة - الخيار {n}: إلى / To', 'To date {n}', 'إلى {n}']),
   NOTES: Object.freeze([FORM.TITLES.NOTES, 'ملاحظات إضافية', 'ملاحظات'])
 });
