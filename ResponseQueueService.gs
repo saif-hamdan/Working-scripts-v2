@@ -321,7 +321,7 @@ function makeResponseSourceIdFromRow_(headers, row, map) {
 
   for (var k = 0; k < headers.length; k++) {
     if (isResponseQueueColumnIndex_(k + 1, map)) continue;
-    if (headers[k].indexOf(FORM.SECTION_QUESTION_PREFIX) === 0 || normalizeKey_(headers[k]).indexOf('section') !== -1 || headers[k].indexOf('القسم المطلوب') !== -1) {
+    if (isRotationSectionResponseHeader_(headers[k])) {
       data.section = row[k];
       break;
     }
