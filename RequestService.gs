@@ -11,7 +11,8 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
   sourceInfo = sourceInfo || buildRequestSourceInfo_(data);
   if (sourceInfo.responseId) data.responseId = sourceInfo.responseId;
   if (sourceInfo.responseSourceId) data.responseSourceId = sourceInfo.responseSourceId;
-  validateSubmissionData_(data);
+  var rotationOptions = normalizeRotationOptionsFromSubmission_(data);
+  validateSubmissionData_(data, rotationOptions);
 
   if (data.responseId) {
     var existingRecord = findIndexedRequestByResponseId_(data.responseId);
@@ -29,12 +30,22 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
     }
   }
 
+  var createdRecords = [];
+  for (var optionIndex = 0; optionIndex < rotationOptions.length; optionIndex++) {
+    var option = rotationOptions[optionIndex];
+    var created = createRequestRecordForRotationOption_(data, option, options);
+    createdRecords.push(created);
+  }
+  return createdRecords.length === 1 ? createdRecords[0] : createdRecords;
+}
+
+function createRequestRecordForRotationOption_(data, option, options) {
   var currentUnit = findUnitByName_(data.currentUnit) || { name: data.currentUnit, headName: '', headEmail: '' };
-  var rotationUnit = findUnitByName_(data.rotationUnit) || { name: data.rotationUnit, headName: '', headEmail: '' };
-  var approver = getApproverForRequest_(data.currentUnit, data.rotationUnit);
+  var rotationUnit = findUnitByName_(option.rotationUnit) || { name: option.rotationUnit, headName: '', headEmail: '' };
+  var approver = getApproverForRequest_(data.currentUnit, option.rotationUnit);
   var requestId = makeRequestId_();
   var token = generateToken_();
-  var type = normalizeKey_(data.currentUnit) === normalizeKey_(data.rotationUnit) ? STATUS.TYPE_INTERNAL : STATUS.TYPE_EXTERNAL;
+  var type = option.rotationType === 'internal' ? STATUS.TYPE_INTERNAL : STATUS.TYPE_EXTERNAL;
 
   var record = {};
   record[H.RECORD.REQUEST_ID] = requestId;
@@ -53,10 +64,11 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
   record[H.RECORD.CURRENT_DEPARTMENT] = data.currentDepartment;
   record[H.RECORD.CURRENT_UNIT_HEAD] = currentUnit.headName;
   record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL] = currentUnit.headEmail;
-  record[H.RECORD.ROTATION_UNIT] = data.rotationUnit;
-  record[H.RECORD.SECTION] = data.section;
-  record[H.RECORD.START_DATE] = dateOnly_(data.startDate);
-  record[H.RECORD.END_DATE] = dateOnly_(data.endDate);
+  record[H.RECORD.ROTATION_UNIT] = option.rotationUnit;
+  record[H.RECORD.SECTION] = option.section;
+  record[H.RECORD.OPTION_ORDER] = option.optionOrder;
+  record[H.RECORD.START_DATE] = dateOnly_(option.fromDate);
+  record[H.RECORD.END_DATE] = dateOnly_(option.toDate);
   record[H.RECORD.HOURS] = data.hours;
   record[H.RECORD.TYPE] = type;
   record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_PENDING;
@@ -91,10 +103,10 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
     record[H.RECORD.DECISION_DATE] = now_();
   } else {
     conflict = findConflicts({
-      rotationUnit: data.rotationUnit,
-      section: data.section,
-      startDate: data.startDate,
-      endDate: data.endDate,
+      rotationUnit: option.rotationUnit,
+      section: option.section,
+      startDate: option.fromDate,
+      endDate: option.toDate,
       excludeRequestId: requestId
     });
   }
@@ -202,6 +214,7 @@ function parseFormSubmission_(e) {
     responseSourceId: e && e.responseSourceId ? safeString_(e.responseSourceId) : ''
   };
 
+  parsed.rotationOptions = parseRotationOptionsFromAccessor_(firstNonEmpty, parsed.currentUnit);
   if (!parsed.responseSourceId) parsed.responseSourceId = makeFormResponseSourceId_(parsed);
   return parsed;
 }
@@ -259,6 +272,7 @@ function parseLinkedResponseRow_(headers, row) {
     responseSourceId: ''
   };
 
+  parsed.rotationOptions = parseRotationOptionsFromAccessor_(firstNonEmpty, parsed.currentUnit);
   parsed.responseSourceId = makeFormResponseSourceId_(parsed);
   return parsed;
 }
@@ -290,7 +304,7 @@ function createRequestFromFormData_(e) {
   return createRequestFromNormalizedData_(data);
 }
 
-function validateSubmissionData_(data) {
+function validateSubmissionData_(data, rotationOptions) {
   throwIfMissing_(data.directManagerName, 'Direct manager name is missing.');
   throwIfMissing_(data.directManagerId, 'Line manager employee ID is missing.');
   if (!data.directManagerEmail) data.directManagerEmail = data.submitterEmail || data.employeeEmail;
@@ -303,11 +317,62 @@ function validateSubmissionData_(data) {
   throwIfMissing_(data.employeeEmail, 'Employee email is missing.');
   throwIfMissing_(data.currentUnit, 'Current unit is missing.');
   throwIfMissing_(data.currentDepartment, 'Current section is missing.');
-  throwIfMissing_(data.rotationUnit, 'Rotation unit is missing.');
-  throwIfMissing_(data.section, 'Rotation section is missing.');
-  if (data.section === FORM.NO_AVAILABLE_SECTIONS) throw new Error('No available section was selected.');
-  if (!data.startDate || !data.endDate) throw new Error('Start date or end date is invalid.');
-  if (dateOnly_(data.startDate).getTime() > dateOnly_(data.endDate).getTime()) throw new Error('Start date cannot be after end date.');
+  rotationOptions = rotationOptions || normalizeRotationOptionsFromSubmission_(data);
+  if (!rotationOptions.length) throw new Error('At least one rotation option is required.');
+  var seen = {};
+  rotationOptions.forEach(function(option) {
+    throwIfMissing_(option.section, 'Rotation section is missing.');
+    if (option.section === FORM.NO_AVAILABLE_SECTIONS) throw new Error('No available section was selected.');
+    if (!option.fromDate || !option.toDate) throw new Error('Start date or end date is invalid.');
+    if (dateOnly_(option.fromDate).getTime() > dateOnly_(option.toDate).getTime()) throw new Error('Start date cannot be after end date.');
+    var duplicateKey = [option.rotationType, option.rotationUnit, option.section, dateOnly_(option.fromDate).getTime(), dateOnly_(option.toDate).getTime()].map(normalizeKey_).join('|');
+    if (seen[duplicateKey]) throw new Error('Duplicate rotation option rows are not allowed.');
+    seen[duplicateKey] = true;
+  });
+}
+
+function parseRotationOptionsFromAccessor_(firstNonEmpty, currentUnit) {
+  var options = [];
+  appendParsedRotationOptions_(options, 'internal', FORM.MAX_INTERNAL_OPTIONS || 3, firstNonEmpty, currentUnit);
+  appendParsedRotationOptions_(options, 'external', FORM.MAX_EXTERNAL_OPTIONS || 3, firstNonEmpty, '');
+  return options;
+}
+
+function appendParsedRotationOptions_(options, rotationType, maxOptions, firstNonEmpty, currentUnit) {
+  for (var i = 1; i <= maxOptions; i++) {
+    var section = firstNonEmpty(expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES[rotationType === 'internal' ? 'INTERNAL_SECTION' : 'EXTERNAL_SECTION'], i));
+    var fromDate = parseDateFlexible_(firstNonEmpty(expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES[rotationType === 'internal' ? 'INTERNAL_FROM' : 'EXTERNAL_FROM'], i)));
+    var toDate = parseDateFlexible_(firstNonEmpty(expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES[rotationType === 'internal' ? 'INTERNAL_TO' : 'EXTERNAL_TO'], i)));
+    if (!section && !fromDate && !toDate) continue;
+    var parsedSection = parseRotationSectionChoice_(section, currentUnit);
+    options.push({
+      rotationType: rotationType,
+      rotationUnit: parsedSection.unit || currentUnit,
+      section: parsedSection.section,
+      fromDate: fromDate,
+      toDate: toDate,
+      optionOrder: i
+    });
+  }
+}
+
+function expandOptionTitles_(templates, optionNumber) {
+  return (templates || []).map(function(title) { return safeString_(title).replace('{n}', optionNumber); });
+}
+
+function parseRotationSectionChoice_(choice, fallbackUnit) {
+  choice = safeString_(choice);
+  var parts = choice.split(' / ');
+  if (parts.length >= 2) return { unit: parts[0], section: parts.slice(1).join(' / ') };
+  return { unit: fallbackUnit || '', section: choice };
+}
+
+function normalizeRotationOptionsFromSubmission_(data) {
+  if (data.rotationOptions && data.rotationOptions.length) return data.rotationOptions.slice(0, (FORM.MAX_INTERNAL_OPTIONS || 3) + (FORM.MAX_EXTERNAL_OPTIONS || 3));
+  if (data.section || data.startDate || data.endDate) {
+    return [{ rotationType: normalizeKey_(data.currentUnit) === normalizeKey_(data.rotationUnit) ? 'internal' : 'external', rotationUnit: data.rotationUnit || data.currentUnit, section: data.section, fromDate: data.startDate, toDate: data.endDate, optionOrder: data.optionOrder || 1 }];
+  }
+  return [];
 }
 
 function buildActiveEmployeeRejectionReason_(activeRotation) {

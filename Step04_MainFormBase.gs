@@ -47,12 +47,31 @@ function rebuildMainFormBase_(form, dashboard) {
   ensureText_(form, BFORM.TITLES.CURRENT_DEPARTMENT, true);
 
   ensureSectionHeader_(form, BFORM.TITLES.ROTATION_SECTION);
-  ensureDate_(form, BFORM.TITLES.START_DATE, true);
-  ensureDate_(form, BFORM.TITLES.END_DATE, true);
   applyNumericValidation_(ensureText_(form, BFORM.TITLES.HOURS, true));
 
-  var rotationUnit = ensureList_(form, BFORM.TITLES.ROTATION_UNIT, true);
-  rotationUnit.setChoiceValues(unitNames);
+  var currentUnitSections = readSections_(dashboard).map(function(section) { return section.name; });
+  var allSectionChoices = readSections_(dashboard).map(function(section) {
+    return section.unitName ? section.unitName + ' / ' + section.name : section.name;
+  });
+  if (!currentUnitSections.length) currentUnitSections = [BFORM.NO_SECTIONS];
+  if (!allSectionChoices.length) allSectionChoices = [BFORM.NO_SECTIONS];
+
+  ensureSectionHeader_(form, BFORM.TITLES.PHASE_ONE_INTERNAL);
+  for (var internalIndex = 1; internalIndex <= 3; internalIndex++) {
+    var internalSection = ensureList_(form, optionTitle_(BFORM.TITLES.INTERNAL_SECTION_PREFIX, internalIndex), internalIndex === 1);
+    internalSection.setChoiceValues(currentUnitSections);
+    ensureDate_(form, optionTitle_(BFORM.TITLES.INTERNAL_FROM_PREFIX, internalIndex), internalIndex === 1);
+    ensureDate_(form, optionTitle_(BFORM.TITLES.INTERNAL_TO_PREFIX, internalIndex), internalIndex === 1);
+  }
+
+  ensureSectionHeader_(form, BFORM.TITLES.PHASE_TWO_EXTERNAL);
+  for (var externalIndex = 1; externalIndex <= 3; externalIndex++) {
+    var externalSection = ensureList_(form, optionTitle_(BFORM.TITLES.EXTERNAL_SECTION_PREFIX, externalIndex), false);
+    externalSection.setChoiceValues(allSectionChoices);
+    ensureDate_(form, optionTitle_(BFORM.TITLES.EXTERNAL_FROM_PREFIX, externalIndex), false);
+    ensureDate_(form, optionTitle_(BFORM.TITLES.EXTERNAL_TO_PREFIX, externalIndex), false);
+  }
+
   ensureParagraph_(form, BFORM.TITLES.NOTES, false);
 }
 
@@ -127,4 +146,8 @@ function applyNumericValidation_(textItem) {
     textItem.setValidation(validation);
   } catch (ignore) {}
   return textItem;
+}
+
+function optionTitle_(template, optionNumber) {
+  return safeString_(template).replace('{n}', optionNumber);
 }

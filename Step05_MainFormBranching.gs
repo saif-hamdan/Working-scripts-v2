@@ -2,24 +2,32 @@ function run05_startMainFormBranching() {
   var ss = openDashboardFromProperties_();
   var form = openMainFormFromProperties_();
   syncAdminReferenceData_(ss);
-  var units = readUnits_(ss);
-  if (!units.length) failStep_('05 Start Main Form Branching', 'No active units were found. Run run03_validateReferenceData() and fix the source data.');
-
-  var rotationUnit = getItem_(form, BFORM.TITLES.ROTATION_UNIT, FormApp.ItemType.LIST);
-  if (!rotationUnit) {
-    failStep_('05 Start Main Form Branching', 'Rotation Unit question is missing. Run run04_rebuildMainFormBaseQuestions() first.');
-  }
-
+  refreshMainFormRotationOptionChoices_(form, ss);
   removeExistingBranchItems_(form);
-  rotationUnit.asListItem().setChoiceValues(units.map(function(unit) { return unit.name; }));
 
   setBootstrapProperties_({
     [BSPROP.BRANCH_INDEX]: '0',
-    [BSPROP.BRANCH_TOTAL]: String(units.length),
-    [BSPROP.BRANCH_COMPLETE]: 'false'
+    [BSPROP.BRANCH_TOTAL]: '0',
+    [BSPROP.BRANCH_COMPLETE]: 'true'
   });
   writeSetupSummary_(ss, form, tryOpenEvaluationForm_());
-  return finishStep_('05 Start Main Form Branching', BSTATUS.COMPLETE, 'Branching reset. Run run06_continueMainFormBranching() until complete.');
+  return finishStep_('05 Start Main Form Branching', BSTATUS.COMPLETE, 'Main form now captures up to 3 internal and 3 external rotation options without unit branching.');
+}
+
+function refreshMainFormRotationOptionChoices_(form, dashboard) {
+  var sections = readSections_(dashboard);
+  var internalChoices = sections.map(function(section) { return section.name; });
+  var externalChoices = sections.map(function(section) {
+    return section.unitName ? section.unitName + ' / ' + section.name : section.name;
+  });
+  if (!internalChoices.length) internalChoices = [BFORM.NO_SECTIONS];
+  if (!externalChoices.length) externalChoices = [BFORM.NO_SECTIONS];
+  for (var i = 1; i <= 3; i++) {
+    var internalItem = getItem_(form, optionTitle_(BFORM.TITLES.INTERNAL_SECTION_PREFIX, i), FormApp.ItemType.LIST);
+    if (internalItem) internalItem.asListItem().setChoiceValues(internalChoices);
+    var externalItem = getItem_(form, optionTitle_(BFORM.TITLES.EXTERNAL_SECTION_PREFIX, i), FormApp.ItemType.LIST);
+    if (externalItem) externalItem.asListItem().setChoiceValues(externalChoices);
+  }
 }
 
 function removeExistingBranchItems_(form) {
