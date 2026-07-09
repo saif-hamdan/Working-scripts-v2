@@ -56,7 +56,7 @@ function makeFormResponseSourceId_(data) {
     data && data.employeeId,
     data && data.startDate,
     data && data.endDate,
-    data && data.trainingUnit,
+    data && data.rotationUnit,
     data && data.section
   ]);
 }

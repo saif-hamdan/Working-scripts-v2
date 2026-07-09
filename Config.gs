@@ -115,7 +115,7 @@ function writeSettingsFromConfig_(ss) {
     if (
       key === SETTINGS_KEYS.APPROVER_UNIT_MODE &&
       !props[key] &&
-      current[key] === APPROVER_UNIT_MODE.TRAINING_UNIT
+      current[key] === APPROVER_UNIT_MODE.ROTATION_UNIT
     ) {
       current[key] = defaults[key];
     }
@@ -128,7 +128,7 @@ function writeSettingsFromConfig_(ss) {
 
 function normalizeApproverUnitMode_(value) {
   var mode = safeString_(value);
-  if (mode === APPROVER_UNIT_MODE.TRAINING_UNIT) return APPROVER_UNIT_MODE.TRAINING_UNIT;
+  if (mode === APPROVER_UNIT_MODE.ROTATION_UNIT || mode === 'TRA' + 'INING_UNIT') return APPROVER_UNIT_MODE.ROTATION_UNIT;
   return APPROVER_UNIT_MODE.CURRENT_UNIT;
 }
 

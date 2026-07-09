@@ -15,7 +15,7 @@ function protectDashboardSheets() {
 function protectSheetFully_(sheet, admins, description) {
   if (!sheet) return;
   removeProtections_(sheet);
-  var protection = sheet.protect().setDescription(description || 'Protected by SQU Training System');
+  var protection = sheet.protect().setDescription(description || 'Protected by SQU Rotation System');
   applyProtectionEditors_(protection, admins);
 }
 

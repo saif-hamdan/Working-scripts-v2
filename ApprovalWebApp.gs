@@ -57,7 +57,7 @@ function processQueuedApproveAction_(token) {
     }
 
     var conflict = findConflicts({
-      trainingUnit: record[H.RECORD.TRAINING_UNIT],
+      rotationUnit: record[H.RECORD.ROTATION_UNIT],
       section: record[H.RECORD.SECTION],
       startDate: record[H.RECORD.START_DATE],
       endDate: record[H.RECORD.END_DATE],

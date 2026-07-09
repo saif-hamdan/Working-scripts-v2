@@ -41,7 +41,7 @@ function resolveDashboardResource_() {
   if (!BOOTSTRAP_CONFIG.CREATE_NEW_DASHBOARD_SPREADSHEET) {
     throw new Error('EXISTING_DASHBOARD_SPREADSHEET_ID is required when CREATE_NEW_DASHBOARD_SPREADSHEET is false.');
   }
-  return SpreadsheetApp.create('SQU Training Dashboard');
+  return SpreadsheetApp.create('SQU Job Rotation Dashboard');
 }
 
 function resolveMainFormResource_() {
@@ -59,7 +59,7 @@ function resolveMainFormResource_() {
   if (!BOOTSTRAP_CONFIG.CREATE_NEW_MAIN_FORM) {
     throw new Error('EXISTING_MAIN_FORM_ID is required when CREATE_NEW_MAIN_FORM is false.');
   }
-  return FormApp.create('طلب تدريب موظف / Employee Training Request');
+  return FormApp.create('طلب تدوير وظيفي للموظف / Employee Job Rotation Request');
 }
 
 function resolveEvaluationFormResource_() {
@@ -77,5 +77,5 @@ function resolveEvaluationFormResource_() {
   if (!BOOTSTRAP_CONFIG.CREATE_NEW_EVALUATION_FORM) {
     throw new Error('EXISTING_EVALUATION_FORM_ID is required when CREATE_NEW_EVALUATION_FORM is false.');
   }
-  return FormApp.create('تقييم تجربة التدريب / Training Evaluation');
+  return FormApp.create('تقييم تجربة التدوير الوظيفي / Job Rotation Evaluation');
 }

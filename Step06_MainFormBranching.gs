@@ -11,7 +11,7 @@ function run06_continueMainFormBranching() {
 
   if (!total) failStep_('06 Continue Main Form Branching', 'No active units were found.');
   if (index >= total) {
-    rebuildTrainingUnitRoutingChoices_(form, units, total);
+    rebuildRotationUnitRoutingChoices_(form, units, total);
     setBootstrapProperties_({
       [BSPROP.BRANCH_INDEX]: String(total),
       [BSPROP.BRANCH_TOTAL]: String(total),
@@ -27,7 +27,7 @@ function run06_continueMainFormBranching() {
     processed++;
   }
 
-  rebuildTrainingUnitRoutingChoices_(form, units, index);
+  rebuildRotationUnitRoutingChoices_(form, units, index);
   var complete = index >= total;
   setBootstrapProperties_({
     [BSPROP.BRANCH_INDEX]: String(index),

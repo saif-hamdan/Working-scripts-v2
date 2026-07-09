@@ -8,7 +8,7 @@ function openMainForm_() {
 function setupFormStructure(options) {
   options = options || {};
   var form = openMainForm_();
-  form.setTitle('Employee / طلب تدريب موظف Training Request');
+  form.setTitle('Employee / طلب تدوير وظيفي للموظف Job Rotation Request');
   form.setDescription('يرجى إدخال بيانات الطلب بدقة. يتم التحقق من التعارضات مرة أخرى عند اعتماد رئيس الوحدة.\nPlease enter the request details carefully. Conflicts are checked again when the unit head approves.');
   try { form.setCollectEmail(true); } catch (ignore) {}
   try { form.setRequireLogin(true); } catch (ignoreLogin) {}
@@ -25,7 +25,7 @@ function setupFormStructure(options) {
   ensureDateItem_(form, FORM.TITLES.END_DATE, true);
   ensureTextItem_(form, FORM.TITLES.HOURS, true);
   ensureParagraphItem_(form, FORM.TITLES.NOTES, false);
-  ensureTrainingUnitItem_(form);
+  ensureRotationUnitItem_(form);
   if (options.skipChoiceRefresh !== true) refreshFormChoices();
 }
 
@@ -49,7 +49,7 @@ function refreshFormChoices(skipReferenceSync) {
   var currentUnitItem = ensureCurrentUnitItem_(form);
   currentUnitItem.setChoiceValues(units.map(function(unit) { return unit.name; }));
 
-  var trainingUnitItem = ensureTrainingUnitItem_(form);
+  var rotationUnitItem = ensureRotationUnitItem_(form);
   var pageBreakByUnit = {};
 
   units.forEach(function(unit) {
@@ -69,9 +69,9 @@ function refreshFormChoices(skipReferenceSync) {
   });
 
   var choices = units.map(function(unit) {
-    return trainingUnitItem.createChoice(unit.name, pageBreakByUnit[unit.name]);
+    return rotationUnitItem.createChoice(unit.name, pageBreakByUnit[unit.name]);
   });
-  if (choices.length) trainingUnitItem.setChoices(choices);
+  if (choices.length) rotationUnitItem.setChoices(choices);
   logInfo_('refreshFormChoices', '', 'Form choices refreshed.');
 }
 
@@ -115,8 +115,8 @@ function ensureCurrentUnitItem_(form) {
   return ensureListItem_(form, FORM.TITLES.CURRENT_UNIT, true);
 }
 
-function ensureTrainingUnitItem_(form) {
-  return ensureListItem_(form, FORM.TITLES.TRAINING_UNIT, true);
+function ensureRotationUnitItem_(form) {
+  return ensureListItem_(form, FORM.TITLES.ROTATION_UNIT, true);
 }
 
 function ensurePageBreak_(form, title) {
@@ -150,7 +150,7 @@ function getUnavailableSectionIdsForCurrentDate_() {
   records.forEach(function(record) {
     if (!isRecordActiveOrApproved_(record)) return;
     if (!isTodayWithinRange_(record[H.RECORD.START_DATE], record[H.RECORD.END_DATE])) return;
-    var key = normalizeKey_(record[H.RECORD.TRAINING_UNIT]) + '|' + normalizeKey_(record[H.RECORD.SECTION]);
+    var key = normalizeKey_(record[H.RECORD.ROTATION_UNIT]) + '|' + normalizeKey_(record[H.RECORD.SECTION]);
     var sectionId = sectionIdByKey[key] || key;
     counts[sectionId] = (counts[sectionId] || 0) + 1;
   });

@@ -15,12 +15,12 @@ function installTriggers() {
   installSyncTriggerSafe();
   ScriptApp.newTrigger('sendEvaluationEmails').timeBased().everyDays(1).atHour(6).create();
   ScriptApp.newTrigger('maintenanceCheck').timeBased().everyDays(1).atHour(3).create();
-  installEmployeeTrainingHoursSummaryTriggerSafe();
+  installEmployeeRotationHoursSummaryTriggerSafe();
   logInfo_('installTriggers', '', 'Triggers installed.');
 }
 
 function deleteExistingTriggers() {
-  var handlerNames = ['onFormSubmit', 'onEdit', 'sendEvaluationEmails', 'maintenanceCheck', 'scheduledRefreshEmployeeTrainingHoursSummary'];
+  var handlerNames = ['onFormSubmit', 'onEdit', 'sendEvaluationEmails', 'maintenanceCheck', 'scheduledRefreshEmployeeRotationHoursSummary'];
   ScriptApp.getProjectTriggers().forEach(function(trigger) {
     if (handlerNames.indexOf(trigger.getHandlerFunction()) !== -1) {
       ScriptApp.deleteTrigger(trigger);
@@ -69,17 +69,17 @@ function repairSyncTriggerIfMissing() {
 }
 
 
-function installEmployeeTrainingHoursSummaryTriggerSafe() {
-  var newTrigger = ScriptApp.newTrigger('scheduledRefreshEmployeeTrainingHoursSummary')
+function installEmployeeRotationHoursSummaryTriggerSafe() {
+  var newTrigger = ScriptApp.newTrigger('scheduledRefreshEmployeeRotationHoursSummary')
     .timeBased()
-    .everyMinutes(EMPLOYEE_TRAINING_HOURS_CONFIG.TRIGGER_EVERY_MINUTES)
+    .everyMinutes(EMPLOYEE_ROTATION_HOURS_CONFIG.TRIGGER_EVERY_MINUTES)
     .create();
   var newTriggerId = newTrigger.getUniqueId();
   ScriptApp.getProjectTriggers().forEach(function(trigger) {
-    if (trigger.getHandlerFunction() === 'scheduledRefreshEmployeeTrainingHoursSummary' && trigger.getUniqueId() !== newTriggerId) {
+    if (trigger.getHandlerFunction() === 'scheduledRefreshEmployeeRotationHoursSummary' && trigger.getUniqueId() !== newTriggerId) {
       ScriptApp.deleteTrigger(trigger);
     }
   });
-  logInfo_('installEmployeeTrainingHoursSummaryTriggerSafe', '', 'Employee training hours summary trigger installed: ' + newTriggerId);
+  logInfo_('installEmployeeRotationHoursSummaryTriggerSafe', '', 'Employee rotation hours summary trigger installed: ' + newTriggerId);
   return newTriggerId;
 }

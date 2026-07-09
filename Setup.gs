@@ -47,8 +47,8 @@ function ensureMainSheets_(ss) {
   setSheetHeaders_(ensureSheet_(ss, SHEETS.RECORDS), RECORD_HEADERS);
   applyCleanTableFormatting_(ss.getSheetByName(SHEETS.DASHBOARD), DASHBOARD_HEADERS.length);
   applyCleanTableFormatting_(ss.getSheetByName(SHEETS.RECORDS), RECORD_HEADERS.length);
-  setSheetHeaders_(ensureSheet_(ss, SHEETS.EMPLOYEE_TRAINING_HOURS), EMPLOYEE_TRAINING_HOURS_HEADERS);
-  applyCleanTableFormatting_(ss.getSheetByName(SHEETS.EMPLOYEE_TRAINING_HOURS), EMPLOYEE_TRAINING_HOURS_HEADERS.length);
+  setSheetHeaders_(ensureSheet_(ss, SHEETS.EMPLOYEE_ROTATION_HOURS), EMPLOYEE_ROTATION_HOURS_HEADERS);
+  applyCleanTableFormatting_(ss.getSheetByName(SHEETS.EMPLOYEE_ROTATION_HOURS), EMPLOYEE_ROTATION_HOURS_HEADERS.length);
   hideInternalColumns_(ss.getSheetByName(SHEETS.RECORDS));
 }
 

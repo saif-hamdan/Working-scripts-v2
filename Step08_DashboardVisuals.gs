@@ -26,8 +26,8 @@ function refreshDashboardSectionSummary_(ss) {
   var rMap = bsGetHeaderMap_(records);
   var employeeNameCol = columnLetter_(rMap['اسم الموظف']);
   var employeeIdCol = columnLetter_(rMap['الرقم الوظيفي للموظف']);
-  var requestedUnitCol = columnLetter_(rMap['وحدة التدريب المطلوبة']);
-  var requestedSectionCol = columnLetter_(rMap['القسم المطلوب']);
+  var requestedUnitCol = columnLetter_(rMap['وحدة التدوير']);
+  var requestedSectionCol = columnLetter_(rMap['قسم التدوير']);
   var startDateCol = columnLetter_(rMap['من تاريخ']);
   var endDateCol = columnLetter_(rMap['إلى تاريخ']);
   var headApprovalCol = columnLetter_(rMap['حالة موافقة رئيس الوحدة']);
@@ -59,7 +59,7 @@ function refreshDashboardSectionSummary_(ss) {
       recordsName + '!$' + requestedSectionCol + ':$' + requestedSectionCol + '=$B' + row + ',' +
       recordsName + '!$' + headApprovalCol + ':$' + headApprovalCol + '="' + approvedStatus + '"))),"")';
 
-    var lastTraining = '=IFERROR(MAX(FILTER(' +
+    var lastRotation = '=IFERROR(MAX(FILTER(' +
       recordsName + '!$' + endDateCol + ':$' + endDateCol + ',' +
       recordsName + '!$' + requestedUnitCol + ':$' + requestedUnitCol + '=$A' + row + ',' +
       recordsName + '!$' + requestedSectionCol + ':$' + requestedSectionCol + '=$B' + row + ',' +
@@ -67,7 +67,7 @@ function refreshDashboardSectionSummary_(ss) {
 
     var status = '=IF(E' + row + '>0,"مشغول / Occupied","متاح / Available")';
 
-    return [unit.name, section.name, unit.headName, unit.headEmail, activeCount, activeEmployeeIds, allNames, lastTraining, status];
+    return [unit.name, section.name, unit.headName, unit.headEmail, activeCount, activeEmployeeIds, allNames, lastRotation, status];
   });
 
   if (rows.length) dashboard.getRange(2, 1, rows.length, BH.DASHBOARD.length).setValues(rows);

@@ -31,9 +31,9 @@ function rebuildEvaluationForm_(form) {
 
   addEvaluationSection_(form, 'ثانياً: تقييم البرنامج / Second: Program Evaluation');
   addEvaluationSection_(form, 'مقياس التقييم / Rating scale: (1 = ضعيف جداً / Very Poor | 2 = ضعيف / Poor | 3 = متوسط / Average | 4 = جيد / Good | 5 = ممتاز / Excellent)');
-  addEvaluationGrid_(form, 'التهيئة والتدريب / Orientation and Training', [
+  addEvaluationGrid_(form, 'التهيئة والتدوير الوظيفي / Orientation and Rotation', [
     'وضوح برنامج التهيئة في بداية التوظيف / Clarity of the orientation program at the start of employment',
-    'جودة التدريب على الأنظمة والإجراءات / Quality of training on systems and procedures',
+    'جودة التدوير الوظيفي على الأنظمة والإجراءات / Quality of rotation on systems and procedures',
     'مدى استفادتي من مرحلة التهيئة / How much I benefited from the orientation phase'
   ], true);
   addEvaluationGrid_(form, 'التدوير داخل الوحدة / Rotation Within the Unit', [

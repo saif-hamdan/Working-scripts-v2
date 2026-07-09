@@ -26,11 +26,11 @@ function onOpen() {
       .addSeparator()
       .addItem('Bootstrap all (small setups only)', 'bootstrapAll');
 
-    ui.createMenu('SQU Training')
+    ui.createMenu('SQU Rotation')
       .addItem('إعداد/تحديث النظام', 'setupAllFromMenu')
       .addItem('Production setupAll', 'setupAll')
       .addItem('تحديث لوحة الأقسام', 'refreshDashboard')
-      .addItem('تحديث ملخص ساعات تدريب الموظفين', 'refreshEmployeeTrainingHoursSummary')
+      .addItem('تحديث ملخص ساعات التدوير الوظيفي للموظفين', 'refreshEmployeeRotationHoursSummary')
       .addItem('تحديث القوائم في النموذج', 'refreshFormChoices')
       .addItem('معالجة الطلبات غير المعالجة', 'processResponseQueueOnce')
       .addItem('إعادة بناء فهرس مصادر الطلبات', 'rebuildRequestSourceIndex')

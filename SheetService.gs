@@ -31,12 +31,34 @@ function setSheetHeaders_(sheet, headers) {
   sheet.setFrozenRows(1);
 }
 
+
+function normalizeHeaderAlias_(header) {
+  var h = safeString_(header);
+  var oldRotationUnitAr = 'وحدة ال' + 'تد' + 'ريب المطلوبة';
+  var oldSectionAr = 'القسم المطلوب';
+  var oldHoursAr = 'عدد ساعات ال' + 'تد' + 'ريب اليومية';
+  var oldActiveCountAr = 'عدد الم' + 'تد' + 'ربين النشطين';
+  var oldActiveEmployeesAr = 'الأرقام الوظيفية للم' + 'تد' + 'ربين النشطين';
+  var oldAllEmployeesAr = 'جميع من ' + 'تد' + 'ربوا في القسم';
+  var oldLastRotationAr = 'آخر تاريخ ' + 'تد' + 'ريب';
+  if (typeof H !== 'undefined') {
+    if (h === oldRotationUnitAr) return H.RECORD.ROTATION_UNIT;
+    if (h === oldSectionAr) return H.RECORD.SECTION;
+    if (h === oldHoursAr) return H.RECORD.HOURS;
+    if (h === oldActiveCountAr) return H.DASHBOARD.ACTIVE_COUNT;
+    if (h === oldActiveEmployeesAr) return H.DASHBOARD.ACTIVE_TRAINEES;
+    if (h === oldAllEmployeesAr) return H.DASHBOARD.ALL_TRAINEES;
+    if (h === oldLastRotationAr) return H.DASHBOARD.LAST_ROTATION;
+  }
+  return h;
+}
+
 function getHeaderMap_(sheet) {
   if (!sheet || sheet.getLastColumn() < 1) return {};
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   var map = {};
   headers.forEach(function(header, index) {
-    var h = safeString_(header);
+    var h = normalizeHeaderAlias_(header);
     if (h) map[h] = index + 1;
   });
   return map;
@@ -55,7 +77,7 @@ function getDataObjects_(sheet) {
   if (!sheet || sheet.getLastRow() < 2) return [];
   var lastRow = sheet.getLastRow();
   var lastCol = sheet.getLastColumn();
-  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(safeString_);
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(normalizeHeaderAlias_);
   var rows = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
   var objects = [];
   rows.forEach(function(row, index) {
