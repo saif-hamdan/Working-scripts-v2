@@ -55,10 +55,10 @@ const H = Object.freeze({
     SECTION: 'القسم',
     HEAD: 'رئيس الوحدة',
     HEAD_EMAIL: 'بريد رئيس الوحدة',
-    ACTIVE_COUNT: 'عدد الموظفين قيد التدوير النشط',
-    ACTIVE_TRAINEES: 'الأرقام الوظيفية للموظفين قيد التدوير النشط',
-    ALL_TRAINEES: 'جميع من تم تدويرهم في القسم',
-    LAST_ROTATION: 'آخر تاريخ تدوير وظيفي',
+    ACTIVE_COUNT: 'عدد الموظفين في التدوير النشط',
+    ACTIVE_TRAINEES: 'الأرقام الوظيفية للموظفين في التدوير النشط',
+    ALL_TRAINEES: 'جميع من أتموا التدوير في القسم',
+    LAST_ROTATION: 'آخر تاريخ تدوير',
     STATUS: 'حالة القسم'
   }),
   RECORD: Object.freeze({
@@ -153,8 +153,8 @@ const H = Object.freeze({
   EMPLOYEE_ROTATION_HOURS: Object.freeze({
     EMPLOYEE_NAME: 'اسم الموظف',
     EMPLOYEE_ID: 'الرقم الوظيفي للموظف',
-    COMPLETED_HOURS: 'إجمالي ساعات التدوير المنجزة',
-    ONGOING_HOURS: 'إجمالي ساعات التدوير الجارية'
+    COMPLETED_HOURS: 'إجمالي ساعات التدوير المنجز',
+    ONGOING_HOURS: 'إجمالي ساعات التدوير الجاري'
   }),
   QUEUE: Object.freeze({
     MESSAGE_ID: 'معرف الرسالة',

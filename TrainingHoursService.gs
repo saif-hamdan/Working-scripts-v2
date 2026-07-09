@@ -26,6 +26,14 @@ function scheduledRefreshEmployeeRotationHoursSummary() {
   }
 }
 
+function refreshEmployeeTrainingHoursSummary() {
+  return refreshEmployeeRotationHoursSummary();
+}
+
+function scheduledRefreshEmployeeTrainingHoursSummary() {
+  return scheduledRefreshEmployeeRotationHoursSummary();
+}
+
 function isEmployeeRotationHoursSummaryActiveTime_(date) {
   var d = date || new Date();
   var hour = Number(Utilities.formatDate(d, EMPLOYEE_ROTATION_HOURS_CONFIG.TIMEZONE, 'H'));

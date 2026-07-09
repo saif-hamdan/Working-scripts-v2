@@ -20,7 +20,7 @@ function installTriggers() {
 }
 
 function deleteExistingTriggers() {
-  var handlerNames = ['onFormSubmit', 'onEdit', 'sendEvaluationEmails', 'maintenanceCheck', 'scheduledRefreshEmployeeRotationHoursSummary'];
+  var handlerNames = ['onFormSubmit', 'onEdit', 'sendEvaluationEmails', 'maintenanceCheck', 'scheduledRefreshEmployeeRotationHoursSummary', 'scheduledRefreshEmployeeTrainingHoursSummary'];
   ScriptApp.getProjectTriggers().forEach(function(trigger) {
     if (handlerNames.indexOf(trigger.getHandlerFunction()) !== -1) {
       ScriptApp.deleteTrigger(trigger);
