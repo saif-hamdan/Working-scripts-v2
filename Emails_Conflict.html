@@ -9,12 +9,12 @@
     <div class="card">
       <div class="header" style="background:<?= data.brand.primaryColor ?>;">
         <? if (data.brand.logoUrl) { ?><img class="logo" src="<?= data.brand.logoUrl ?>" alt="Employees and Retirees Services Section / قسم خدمات الموظفين والمتقاعدين Logo"><? } ?>
-        <div class="title-ar">تعذر اعتماد الطلب بسبب وجود تعارض</div>
-        <div class="title-en">Request Blocked Due to Conflict</div>
+        <div class="title-ar">طلب تدوير وظيفي</div>
+        <div class="title-en">Job Rotation Request</div>
       </div>
       <div class="content">
-        <div class="intro-ar">تعذر اعتماد الطلب بسبب تعارض في القسم أو الفترة. يرجى اختيار وقت أو قسم آخر.</div>
-        <div class="intro-en">This request has a section or date conflict. Please choose another time or section.</div>
+        <div class="intro-ar">تعذر اعتماد طلب التدوير الوظيفي بسبب تعارض في القسم أو الفترة. يرجى اختيار وقت أو قسم آخر.</div>
+        <div class="intro-en">This job rotation request has a section or date conflict. Please choose another time or section.</div>
         
 <table class="details">
   <tr><th>البيان / Field</th><th>القيمة / Value</th></tr>
@@ -28,7 +28,7 @@
 
         
         <div class="danger" dir="rtl">
-          <strong>تفاصيل التعارض:</strong><br>
+          <strong>تفاصيل تعارض طلب التدوير الوظيفي / Job rotation request conflict details:</strong><br>
           <pre style="white-space:pre-wrap; text-align:center; font-family:Arial,Tahoma,sans-serif;"><?= data.conflictDetails ?></pre>
         </div>
 

@@ -3,6 +3,8 @@ function buildTemplateData_(record, extra) {
   var cfg = getConfig();
   var rows = [
     { ar: 'رقم الطلب', en: 'Request ID', value: record[H.RECORD.REQUEST_ID] },
+    { ar: 'الطابع الزمني', en: 'Timestamp', value: formatDateTime_(record[H.RECORD.TIMESTAMP]) },
+    { ar: 'بريد مقدم الطلب', en: 'Submitter Email', value: record[H.RECORD.SUBMITTER_EMAIL] },
     { ar: 'اسم الموظف', en: 'Employee', value: record[H.RECORD.EMPLOYEE_NAME] },
     { ar: 'الرقم الوظيفي للموظف', en: 'Employee ID', value: record[H.RECORD.EMPLOYEE_ID] },
     { ar: 'تاريخ تعيين الموظف', en: 'Employee Hire Date', value: formatDate_(record[H.RECORD.EMPLOYEE_HIRE_DATE]) },
@@ -14,6 +16,8 @@ function buildTemplateData_(record, extra) {
     { ar: 'رقم محول المسؤول المباشر', en: 'Line Manager Extension', value: record[H.RECORD.DIRECT_MANAGER_EXTENSION] },
     { ar: 'الوحدة الحالية', en: 'Current Unit', value: record[H.RECORD.CURRENT_UNIT] },
     { ar: 'القسم الحالي للموظف', en: 'Current Employee Department', value: record[H.RECORD.CURRENT_DEPARTMENT] },
+    { ar: 'رئيس الوحدة الحالية', en: 'Current Unit Head', value: record[H.RECORD.CURRENT_UNIT_HEAD] },
+    { ar: 'بريد رئيس الوحدة الحالية', en: 'Current Unit Head Email', value: record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL] },
     { ar: 'وحدة التدوير', en: 'Rotation Unit', value: record[H.RECORD.ROTATION_UNIT] },
     { ar: 'قسم التدوير', en: 'Rotation Section', value: record[H.RECORD.SECTION] },
     { ar: 'من تاريخ', en: 'Start Date', value: formatDate_(record[H.RECORD.START_DATE]) },
@@ -21,7 +25,20 @@ function buildTemplateData_(record, extra) {
     { ar: 'عدد الساعات اليومية المطلوبة', en: 'Required Daily Hours', value: record[H.RECORD.HOURS] },
     { ar: 'نوع الطلب', en: 'Request Type', value: record[H.RECORD.TYPE] },
     { ar: 'حالة موافقة رئيس الوحدة', en: 'Unit Head Approval Status', value: record[H.RECORD.HEAD_STATUS] },
-    { ar: 'حالة الاعتماد النهائي من الإدارة', en: 'Final Admin Approval Status', value: record[H.RECORD.FINAL_STATUS] }
+    { ar: 'حالة الاعتماد النهائي من الإدارة', en: 'Final Admin Approval Status', value: record[H.RECORD.FINAL_STATUS] },
+    { ar: 'سبب الرفض', en: 'Rejection Reason', value: record[H.RECORD.REJECTION_REASON] },
+    { ar: 'رقم الطلب المتعارض', en: 'Conflicting Request ID', value: record[H.RECORD.CONFLICT_ID] },
+    { ar: 'تفاصيل التعارض', en: 'Conflict Details', value: record[H.RECORD.CONFLICT_DETAILS] },
+    { ar: 'تاريخ إرسال بريد الموافقة', en: 'Approval Email Sent At', value: formatDateTime_(record[H.RECORD.APPROVAL_EMAIL_SENT_AT]) },
+    { ar: 'تاريخ الرد', en: 'Decision Date', value: formatDateTime_(record[H.RECORD.DECISION_DATE]) },
+    { ar: 'رابط التقييم', en: 'Evaluation Link', value: record[H.RECORD.EVALUATION_LINK] },
+    { ar: 'تم إرسال التقييم', en: 'Evaluation Sent', value: record[H.RECORD.EVALUATION_SENT] },
+    { ar: 'تاريخ إرسال التقييم', en: 'Evaluation Sent At', value: formatDateTime_(record[H.RECORD.EVALUATION_SENT_AT]) },
+    { ar: 'آخر تحديث', en: 'Last Updated', value: formatDateTime_(record[H.RECORD.LAST_UPDATED]) },
+    { ar: 'ملاحظات', en: 'Notes', value: record[H.RECORD.NOTES] },
+    { ar: 'بريد المعتمد', en: 'Approver Email', value: record[H.RECORD.APPROVER_EMAIL] },
+    { ar: 'معرف رد النموذج', en: 'Form Response ID', value: record[H.RECORD.FORM_RESPONSE_ID] },
+    { ar: 'معرف مصدر رد النموذج', en: 'Form Response Source ID', value: record[H.RECORD.FORM_RESPONSE_SOURCE_ID] }
   ];
   var data = {
     record: record,

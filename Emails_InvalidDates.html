@@ -9,12 +9,12 @@
     <div class="card">
       <div class="header" style="background:<?= data.brand.primaryColor ?>;">
         <? if (data.brand.logoUrl) { ?><img class="logo" src="<?= data.brand.logoUrl ?>" alt="Employees and Retirees Services Section / قسم خدمات الموظفين والمتقاعدين Logo"><? } ?>
-        <div class="title-ar">تعذر استلام طلب التدوير الوظيفي</div>
-        <div class="title-en">Job Rotation Request Could Not Be Submitted</div>
+        <div class="title-ar">تم استلام طلب التدوير الوظيفي</div>
+        <div class="title-en">Job Rotation Request Submitted</div>
       </div>
       <div class="content">
-        <div class="intro-ar">تاريخ البداية بعد تاريخ النهاية. يرجى إرسال الطلب بتواريخ صحيحة.</div>
-        <div class="intro-en">The start date is after the end date. Please submit again with correct dates.</div>
+        <div class="intro-ar">تم استلام طلب التدوير الوظيفي، لكن تاريخ البداية بعد تاريخ النهاية. يرجى إرسال الطلب بتواريخ صحيحة.</div>
+        <div class="intro-en">The job rotation request was received, but the start date is after the end date. Please submit again with correct dates.</div>
 
 <table class="details">
   <tr><th>البيان / Field</th><th>القيمة / Value</th></tr>
@@ -26,7 +26,7 @@
   <? } ?>
 </table>
 
-        <div class="note">لن يتم إرسال الطلب. / The request will not be sent.</div>
+        <div class="note">لن تتم معالجة طلب التدوير الوظيفي بهذه التواريخ. / The job rotation request will not be processed with these dates.</div>
       </div>
       <div class="footer">
         <div dir="rtl">رسالة آلية من <?= data.orgAr ?>. يرجى عدم الرد.</div>
