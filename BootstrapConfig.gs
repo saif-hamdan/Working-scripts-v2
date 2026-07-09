@@ -108,7 +108,7 @@ const BFORM = {
     EMPLOYEE_EMAIL: 'البريد الالكتروني للموظف / Employee Email',
     CURRENT_EMPLOYEE_SECTION: 'بيانات الموظف الحالية / Current Employee Details',
     CURRENT_UNIT: 'الوحدة الحالية للموظف / Current Employee Unit',
-    CURRENT_DEPARTMENT: 'القسم الحالي للموظف / Current Employee Department',
+    CURRENT_DEPARTMENT: 'القسم الحالي للموظف / Current Employee Section',
     ROTATION_SECTION: 'بيانات التدوير الوظيفي / Job Rotation Details',
     START_DATE: 'تاريخ بداية التدوير / Rotation Start Date',
     END_DATE: 'تاريخ نهاية التدوير / Rotation End Date',

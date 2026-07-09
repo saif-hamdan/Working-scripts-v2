@@ -302,9 +302,9 @@ function validateSubmissionData_(data) {
   throwIfMissing_(data.employeeJobTitle, 'Employee job title is missing.');
   throwIfMissing_(data.employeeEmail, 'Employee email is missing.');
   throwIfMissing_(data.currentUnit, 'Current unit is missing.');
-  throwIfMissing_(data.currentDepartment, 'Current department is missing.');
+  throwIfMissing_(data.currentDepartment, 'Current section is missing.');
   throwIfMissing_(data.rotationUnit, 'Rotation unit is missing.');
-  throwIfMissing_(data.section, 'Rotation department is missing.');
+  throwIfMissing_(data.section, 'Rotation section is missing.');
   if (data.section === FORM.NO_AVAILABLE_SECTIONS) throw new Error('No available section was selected.');
   if (!data.startDate || !data.endDate) throw new Error('Start date or end date is invalid.');
   if (dateOnly_(data.startDate).getTime() > dateOnly_(data.endDate).getTime()) throw new Error('Start date cannot be after end date.');

@@ -1,4 +1,4 @@
-/** Conflict checking: same rotation unit + rotation department + overlapping date range + already accepted/active. */
+/** Conflict checking: same rotation unit + rotation section + overlapping date range + already accepted/active. */
 function findConflicts(criteria) {
   var records = getRecords_();
   var rotationKey = normalizeKey_(criteria.rotationUnit);

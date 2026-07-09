@@ -15,7 +15,7 @@ function buildTemplateData_(record, extra) {
     { ar: 'بريد المسؤول المباشر', en: 'Line Manager Email', value: record[H.RECORD.DIRECT_MANAGER_EMAIL] },
     { ar: 'رقم محول المسؤول المباشر', en: 'Line Manager Extension', value: record[H.RECORD.DIRECT_MANAGER_EXTENSION] },
     { ar: 'الوحدة الحالية', en: 'Current Unit', value: record[H.RECORD.CURRENT_UNIT] },
-    { ar: 'القسم الحالي للموظف', en: 'Current Employee Department', value: record[H.RECORD.CURRENT_DEPARTMENT] },
+    { ar: 'القسم الحالي للموظف', en: 'Current Employee Section', value: record[H.RECORD.CURRENT_DEPARTMENT] },
     { ar: 'رئيس الوحدة الحالية', en: 'Current Unit Head', value: record[H.RECORD.CURRENT_UNIT_HEAD] },
     { ar: 'بريد رئيس الوحدة الحالية', en: 'Current Unit Head Email', value: record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL] },
     { ar: 'وحدة التدوير', en: 'Rotation Unit', value: record[H.RECORD.ROTATION_UNIT] },
