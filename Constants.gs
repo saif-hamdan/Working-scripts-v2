@@ -264,7 +264,7 @@ const APPROVER_UNIT_MODE = Object.freeze({
 
 const FORM = Object.freeze({
   SECTION_PAGE_PREFIX: 'اختيار القسم - ',
-  SECTION_QUESTION_PREFIX: 'قسم التدوير / Rotation Department - ',
+  SECTION_QUESTION_PREFIX: 'قسم التدوير / Rotation Section - ',
   NO_AVAILABLE_SECTIONS: 'لا توجد أقسام متاحة حالياً',
   TITLES: Object.freeze({
     FORM_TITLE: 'استمارة تحديد مسار التدوير الوظيفي للموظفين الجدد / New Employee Job Rotation Path Form',
@@ -282,13 +282,13 @@ const FORM = Object.freeze({
     EMPLOYEE_EMAIL: 'البريد الالكتروني للموظف / Employee Email',
     CURRENT_EMPLOYEE_SECTION: 'بيانات الموظف الحالية / Current Employee Details',
     CURRENT_UNIT: 'الوحدة الحالية للموظف / Current Employee Unit',
-    CURRENT_DEPARTMENT: 'القسم الحالي للموظف / Current Employee Department',
+    CURRENT_DEPARTMENT: 'القسم الحالي للموظف / Current Employee Section',
     ROTATION_SECTION: 'بيانات التدوير الوظيفي / Job Rotation Details',
     START_DATE: 'تاريخ بداية التدوير / Rotation Start Date',
     END_DATE: 'تاريخ نهاية التدوير / Rotation End Date',
     HOURS: 'عدد الساعات اليومية المطلوبة / Required Daily Hours',
     ROTATION_UNIT: 'وحدة التدوير / Rotation Unit',
-    ROTATION_DEPARTMENT: 'قسم التدوير / Rotation Department',
+    ROTATION_DEPARTMENT: 'قسم التدوير / Rotation Section',
     NOTES: 'ملاحظات إضافية / Additional Notes'
   })
 });
