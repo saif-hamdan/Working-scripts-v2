@@ -16,10 +16,10 @@ function run05_startMainFormBranching() {
 
 function refreshMainFormRotationOptionChoices_(form, dashboard) {
   var sections = readSections_(dashboard);
-  var internalChoices = sections.map(function(section) { return section.name; });
-  var externalChoices = sections.map(function(section) {
+  var internalChoices = uniqueNonEmpty_(sections.map(function(section) { return section.name; }));
+  var externalChoices = uniqueNonEmpty_(sections.map(function(section) {
     return section.unitName ? section.unitName + ' / ' + section.name : section.name;
-  });
+  }));
   if (!internalChoices.length) internalChoices = [BFORM.NO_SECTIONS];
   if (!externalChoices.length) externalChoices = [BFORM.NO_SECTIONS];
   for (var i = 1; i <= 3; i++) {
@@ -60,12 +60,12 @@ function buildUnitBranchPage_(form, unit, sections) {
 
   var sectionItem = ensureList_(form, BFORM.SECTION_QUESTION_PREFIX + unit.name, true);
 
-  var sectionNames = sections.filter(function(section) {
+  var sectionNames = uniqueNonEmpty_(sections.filter(function(section) {
     if (unit.id && section.unitId) return section.unitId === unit.id;
     return section.unitName === unit.name;
   }).map(function(section) {
     return section.name;
-  });
+  }));
   if (!sectionNames.length) sectionNames = [BFORM.NO_SECTIONS];
   sectionItem.setChoiceValues(sectionNames);
 }

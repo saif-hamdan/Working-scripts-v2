@@ -86,12 +86,12 @@ function refreshFormChoices(skipReferenceSync) {
   var unavailable = getUnavailableSectionIdsForCurrentDate_();
 
   var currentUnitItem = ensureCurrentUnitItem_(form);
-  currentUnitItem.setChoiceValues(units.map(function(unit) { return unit.name; }));
+  currentUnitItem.setChoiceValues(uniqueNonEmpty_(units.map(function(unit) { return unit.name; })));
 
-  var internalChoices = sections.map(function(section) { return section.name; });
-  var externalChoices = sections.map(function(section) {
+  var internalChoices = uniqueNonEmpty_(sections.map(function(section) { return section.name; }));
+  var externalChoices = uniqueNonEmpty_(sections.map(function(section) {
     return section.unitName ? section.unitName + ' / ' + section.name : section.name;
-  });
+  }));
   if (!internalChoices.length) internalChoices = [FORM.NO_AVAILABLE_SECTIONS];
   if (!externalChoices.length) externalChoices = [FORM.NO_AVAILABLE_SECTIONS];
   ensureRotationOptionItems_(form);
