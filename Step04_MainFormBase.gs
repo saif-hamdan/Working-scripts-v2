@@ -25,7 +25,7 @@ function rebuildMainFormBase_(form, dashboard) {
   if (BOOTSTRAP_CONFIG.REBUILD_MAIN_FORM_ITEMS) deleteAllFormItems_(form);
 
   var units = readUnits_(dashboard);
-  var unitNames = units.map(function(unit) { return unit.name; });
+  var unitNames = uniqueNonEmpty_(units.map(function(unit) { return unit.name; }));
   if (!unitNames.length) unitNames = [BFORM.NO_UNITS];
 
   ensureSectionHeader_(form, BFORM.TITLES.LINE_MANAGER_SECTION);
@@ -49,10 +49,10 @@ function rebuildMainFormBase_(form, dashboard) {
   ensureSectionHeader_(form, BFORM.TITLES.ROTATION_SECTION);
   applyNumericValidation_(ensureText_(form, BFORM.TITLES.HOURS, true));
 
-  var currentUnitSections = readSections_(dashboard).map(function(section) { return section.name; });
-  var allSectionChoices = readSections_(dashboard).map(function(section) {
+  var currentUnitSections = uniqueNonEmpty_(readSections_(dashboard).map(function(section) { return section.name; }));
+  var allSectionChoices = uniqueNonEmpty_(readSections_(dashboard).map(function(section) {
     return section.unitName ? section.unitName + ' / ' + section.name : section.name;
-  });
+  }));
   if (!currentUnitSections.length) currentUnitSections = [BFORM.NO_SECTIONS];
   if (!allSectionChoices.length) allSectionChoices = [BFORM.NO_SECTIONS];
 
