@@ -2,32 +2,25 @@ function run05_startMainFormBranching() {
   var ss = openDashboardFromProperties_();
   var form = openMainFormFromProperties_();
   syncAdminReferenceData_(ss);
-  refreshMainFormRotationOptionChoices_(form, ss);
   removeExistingBranchItems_(form);
+  refreshMainFormRotationOptionChoices_(form, ss);
 
+  var units = readUnits_(ss);
   setBootstrapProperties_({
     [BSPROP.BRANCH_INDEX]: '0',
-    [BSPROP.BRANCH_TOTAL]: '0',
-    [BSPROP.BRANCH_COMPLETE]: 'true'
+    [BSPROP.BRANCH_TOTAL]: String(units.length),
+    [BSPROP.BRANCH_COMPLETE]: 'false'
   });
   writeSetupSummary_(ss, form, tryOpenEvaluationForm_());
-  return finishStep_('05 Start Main Form Branching', BSTATUS.COMPLETE, 'Main form now captures up to 3 internal and 3 external rotation options without unit branching.');
+  return finishStep_('05 Start Main Form Branching', BSTATUS.IN_PROGRESS, 'Main form unit branching was reset. Run run06_continueMainFormBranching() until branching is complete.');
 }
 
 function refreshMainFormRotationOptionChoices_(form, dashboard) {
-  var sections = readSections_(dashboard);
-  var internalChoices = sections.map(function(section) { return section.name; });
-  var externalChoices = sections.map(function(section) {
-    return section.unitName ? section.unitName + ' / ' + section.name : section.name;
-  });
-  if (!internalChoices.length) internalChoices = [BFORM.NO_SECTIONS];
-  if (!externalChoices.length) externalChoices = [BFORM.NO_SECTIONS];
-  for (var i = 1; i <= 3; i++) {
-    var internalItem = getItem_(form, optionTitle_(BFORM.TITLES.INTERNAL_SECTION_PREFIX, i), FormApp.ItemType.LIST);
-    if (internalItem) internalItem.asListItem().setChoiceValues(internalChoices);
-    var externalItem = getItem_(form, optionTitle_(BFORM.TITLES.EXTERNAL_SECTION_PREFIX, i), FormApp.ItemType.LIST);
-    if (externalItem) externalItem.asListItem().setChoiceValues(externalChoices);
-  }
+  var units = readUnits_(dashboard);
+  var unitNames = uniqueNonEmpty_(units.map(function(unit) { return unit.name; }));
+  if (!unitNames.length) unitNames = [BFORM.NO_UNITS];
+  var rotationUnit = getItem_(form, BFORM.TITLES.ROTATION_UNIT, FormApp.ItemType.LIST) || ensureList_(form, BFORM.TITLES.ROTATION_UNIT, true);
+  rotationUnit.asListItem().setChoiceValues(unitNames);
 }
 
 function removeExistingBranchItems_(form) {
@@ -60,19 +53,19 @@ function buildUnitBranchPage_(form, unit, sections) {
 
   var sectionItem = ensureList_(form, BFORM.SECTION_QUESTION_PREFIX + unit.name, true);
 
-  var sectionNames = sections.filter(function(section) {
+  var sectionNames = uniqueNonEmpty_(sections.filter(function(section) {
     if (unit.id && section.unitId) return section.unitId === unit.id;
     return section.unitName === unit.name;
   }).map(function(section) {
     return section.name;
-  });
+  }));
   if (!sectionNames.length) sectionNames = [BFORM.NO_SECTIONS];
   sectionItem.setChoiceValues(sectionNames);
 }
 
 function rebuildRotationUnitRoutingChoices_(form, units, processedCount) {
   var item = getItem_(form, BFORM.TITLES.ROTATION_UNIT, FormApp.ItemType.LIST);
-  if (!item) throw new Error('Rotation Unit question is missing.');
+  if (!item) throw new Error('Rotation Unit question is missing. Run run04_rebuildMainFormBaseQuestions() before continuing branching.');
   var listItem = item.asListItem();
   var choices = [];
   for (var i = 0; i < processedCount; i++) {
@@ -80,4 +73,5 @@ function rebuildRotationUnitRoutingChoices_(form, units, processedCount) {
     if (page) choices.push(listItem.createChoice(units[i].name, page.asPageBreakItem()));
   }
   if (choices.length) listItem.setChoices(choices);
+  return true;
 }
