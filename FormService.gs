@@ -42,25 +42,32 @@ function setupFormStructure(options) {
   ensureTextItem_(form, FORM.TITLES.CURRENT_DEPARTMENT, true);
 
   ensureSectionHeaderItem_(form, FORM.TITLES.ROTATION_SECTION);
+  ensureDateItem_(form, FORM.TITLES.START_DATE, true);
+  ensureDateItem_(form, FORM.TITLES.END_DATE, true);
   applyNumericValidation_(ensureTextItem_(form, FORM.TITLES.HOURS, true));
-  ensureRotationOptionItems_(form);
   ensureParagraphItem_(form, FORM.TITLES.NOTES, false);
+  removeObsoleteRotationOptionItems_(form);
+  ensureRotationUnitItem_(form);
   if (options.skipChoiceRefresh !== true) refreshFormChoices();
 }
 
 
 function ensureRotationOptionItems_(form) {
-  ensureSectionHeaderItem_(form, FORM.TITLES.PHASE_ONE_INTERNAL);
-  for (var internalIndex = 1; internalIndex <= (FORM.MAX_INTERNAL_OPTIONS || 3); internalIndex++) {
-    ensureListItem_(form, optionTitle_(FORM.TITLES.INTERNAL_SECTION_PREFIX, internalIndex), internalIndex === 1);
-    ensureDateItem_(form, optionTitle_(FORM.TITLES.INTERNAL_FROM_PREFIX, internalIndex), internalIndex === 1);
-    ensureDateItem_(form, optionTitle_(FORM.TITLES.INTERNAL_TO_PREFIX, internalIndex), internalIndex === 1);
+  ensureRotationUnitItem_(form);
+}
+
+function removeObsoleteRotationOptionItems_(form) {
+  deleteFormItemIfPresent_(form, FORM.TITLES.PHASE_ONE_INTERNAL, FormApp.ItemType.SECTION_HEADER);
+  deleteFormItemIfPresent_(form, FORM.TITLES.PHASE_TWO_EXTERNAL, FormApp.ItemType.SECTION_HEADER);
+  for (var i = 1; i <= (FORM.MAX_INTERNAL_OPTIONS || 3); i++) {
+    deleteFormItemIfPresent_(form, optionTitle_(FORM.TITLES.INTERNAL_SECTION_PREFIX, i), FormApp.ItemType.LIST);
+    deleteFormItemIfPresent_(form, optionTitle_(FORM.TITLES.INTERNAL_FROM_PREFIX, i), FormApp.ItemType.DATE);
+    deleteFormItemIfPresent_(form, optionTitle_(FORM.TITLES.INTERNAL_TO_PREFIX, i), FormApp.ItemType.DATE);
   }
-  ensureSectionHeaderItem_(form, FORM.TITLES.PHASE_TWO_EXTERNAL);
-  for (var externalIndex = 1; externalIndex <= (FORM.MAX_EXTERNAL_OPTIONS || 3); externalIndex++) {
-    ensureListItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_SECTION_PREFIX, externalIndex), false);
-    ensureDateItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_FROM_PREFIX, externalIndex), false);
-    ensureDateItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_TO_PREFIX, externalIndex), false);
+  for (var j = 1; j <= (FORM.MAX_EXTERNAL_OPTIONS || 3); j++) {
+    deleteFormItemIfPresent_(form, optionTitle_(FORM.TITLES.EXTERNAL_SECTION_PREFIX, j), FormApp.ItemType.LIST);
+    deleteFormItemIfPresent_(form, optionTitle_(FORM.TITLES.EXTERNAL_FROM_PREFIX, j), FormApp.ItemType.DATE);
+    deleteFormItemIfPresent_(form, optionTitle_(FORM.TITLES.EXTERNAL_TO_PREFIX, j), FormApp.ItemType.DATE);
   }
 }
 
@@ -83,26 +90,52 @@ function refreshFormChoices(skipReferenceSync) {
   var form = openMainForm_();
   var units = getUnits_();
   var sections = getSections_();
-  var unavailable = getUnavailableSectionIdsForCurrentDate_();
+
+  var unitNames = uniqueNonEmpty_(units.map(function(unit) { return unit.name; }));
+  if (!unitNames.length) unitNames = [FORM.NO_AVAILABLE_SECTIONS];
 
   var currentUnitItem = ensureCurrentUnitItem_(form);
-  currentUnitItem.setChoiceValues(uniqueNonEmpty_(units.map(function(unit) { return unit.name; })));
-
-  var internalChoices = uniqueNonEmpty_(sections.map(function(section) { return section.name; }));
-  var externalChoices = uniqueNonEmpty_(sections.map(function(section) {
-    return section.unitName ? section.unitName + ' / ' + section.name : section.name;
-  }));
-  if (!internalChoices.length) internalChoices = [FORM.NO_AVAILABLE_SECTIONS];
-  if (!externalChoices.length) externalChoices = [FORM.NO_AVAILABLE_SECTIONS];
-  ensureRotationOptionItems_(form);
-  for (var i = 1; i <= (FORM.MAX_INTERNAL_OPTIONS || 3); i++) {
-    ensureListItem_(form, optionTitle_(FORM.TITLES.INTERNAL_SECTION_PREFIX, i), i === 1).setChoiceValues(internalChoices);
-  }
-  for (var j = 1; j <= (FORM.MAX_EXTERNAL_OPTIONS || 3); j++) {
-    ensureListItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_SECTION_PREFIX, j), false).setChoiceValues(externalChoices);
-  }
+  currentUnitItem.setChoiceValues(unitNames);
+  ensureRotationUnitItem_(form).setChoiceValues(unitNames);
+  rebuildUnitSectionBranching_(form, units, sections);
 
   logInfo_('refreshFormChoices', '', 'Form choices refreshed.');
+}
+
+function rebuildUnitSectionBranching_(form, units, sections) {
+  removeUnitSectionBranchItems_(form);
+  var rotationUnitItem = ensureRotationUnitItem_(form);
+  var choices = [];
+  (units || []).forEach(function(unit) {
+    var page = ensurePageBreak_(form, FORM.SECTION_PAGE_PREFIX + unit.name);
+    try { page.setGoToPage(FormApp.PageNavigationType.SUBMIT); } catch (ignore) {}
+
+    var sectionItem = ensureListItem_(form, FORM.SECTION_QUESTION_PREFIX + unit.name, true);
+    var sectionNames = uniqueNonEmpty_((sections || []).filter(function(section) {
+      if (unit.id && section.unitId) return section.unitId === unit.id;
+      return section.unitName === unit.name;
+    }).map(function(section) {
+      return section.name;
+    }));
+    if (!sectionNames.length) sectionNames = [FORM.NO_AVAILABLE_SECTIONS];
+    sectionItem.setChoiceValues(sectionNames);
+    choices.push(rotationUnitItem.createChoice(unit.name, page));
+  });
+  if (choices.length) rotationUnitItem.setChoices(choices);
+}
+
+function removeUnitSectionBranchItems_(form) {
+  var items = form.getItems();
+  for (var i = items.length - 1; i >= 0; i--) {
+    var title = items[i].getTitle ? safeString_(items[i].getTitle()) : '';
+    if (title.indexOf(FORM.SECTION_PAGE_PREFIX) === 0 || title.indexOf(FORM.SECTION_QUESTION_PREFIX) === 0) {
+      try {
+        form.deleteItem(items[i]);
+      } catch (err) {
+        logWarn_('removeUnitSectionBranchItems_', '', 'Could not delete old branch item "' + title + '": ' + err.message);
+      }
+    }
+  }
 }
 
 function removeLegacyRotationSectionBranchItems_(form) {

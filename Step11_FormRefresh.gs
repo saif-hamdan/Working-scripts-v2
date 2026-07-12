@@ -36,7 +36,7 @@ function resetMainFormBranchingFromReferenceData_(ss, form) {
     failStep_('11 Refresh Main Form From Admin Sheets', 'Rotation Unit question is missing after form rebuild.');
   }
   if (units.length) {
-    rotationUnit.asListItem().setChoiceValues(units.map(function(unit) { return unit.name; }));
+    rotationUnit.asListItem().setChoiceValues(uniqueNonEmpty_(units.map(function(unit) { return unit.name; })));
   }
 
   setBootstrapProperties_({
