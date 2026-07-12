@@ -72,7 +72,7 @@ function buildUnitBranchPage_(form, unit, sections) {
 
 function rebuildRotationUnitRoutingChoices_(form, units, processedCount) {
   var item = getItem_(form, BFORM.TITLES.ROTATION_UNIT, FormApp.ItemType.LIST);
-  if (!item) throw new Error('Rotation Unit question is missing.');
+  if (!item) return false;
   var listItem = item.asListItem();
   var choices = [];
   for (var i = 0; i < processedCount; i++) {
@@ -80,4 +80,5 @@ function rebuildRotationUnitRoutingChoices_(form, units, processedCount) {
     if (page) choices.push(listItem.createChoice(units[i].name, page.asPageBreakItem()));
   }
   if (choices.length) listItem.setChoices(choices);
+  return true;
 }
