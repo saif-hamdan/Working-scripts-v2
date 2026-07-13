@@ -47,13 +47,10 @@ function rebuildMainFormBase_(form, dashboard) {
   ensureText_(form, BFORM.TITLES.CURRENT_DEPARTMENT, true);
 
   ensureSectionHeader_(form, BFORM.TITLES.ROTATION_SECTION);
-  ensureDate_(form, BFORM.TITLES.START_DATE, true);
-  ensureDate_(form, BFORM.TITLES.END_DATE, true);
   applyNumericValidation_(ensureText_(form, BFORM.TITLES.HOURS, true));
+  ensureBootstrapRotationOptionItems_(form);
+  setBootstrapRotationOptionChoices_(form, readUnits_(dashboard), readSections_(dashboard));
   ensureParagraph_(form, BFORM.TITLES.NOTES, false);
-
-  var rotationUnit = ensureList_(form, BFORM.TITLES.ROTATION_UNIT, true);
-  rotationUnit.setChoiceValues(unitNames);
 }
 
 function ensureSectionHeader_(form, title) {
@@ -131,4 +128,46 @@ function applyNumericValidation_(textItem) {
 
 function optionTitle_(template, optionNumber) {
   return safeString_(template).replace('{n}', optionNumber);
+}
+
+function ensureBootstrapRotationOptionItems_(form) {
+  ensureSectionHeader_(form, BFORM.TITLES.PHASE_ONE_INTERNAL);
+  for (var i = 1; i <= (BFORM.MAX_INTERNAL_OPTIONS || 3); i++) {
+    ensureList_(form, optionTitle_(BFORM.TITLES.INTERNAL_SECTION_PREFIX, i), i === 1);
+    ensureDate_(form, optionTitle_(BFORM.TITLES.INTERNAL_FROM_PREFIX, i), i === 1);
+    ensureDate_(form, optionTitle_(BFORM.TITLES.INTERNAL_TO_PREFIX, i), i === 1);
+  }
+  ensureSectionHeader_(form, BFORM.TITLES.PHASE_TWO_EXTERNAL);
+  for (var j = 1; j <= (BFORM.MAX_EXTERNAL_OPTIONS || 3); j++) {
+    ensureList_(form, optionTitle_(BFORM.TITLES.EXTERNAL_SECTION_PREFIX, j), false);
+    ensureDate_(form, optionTitle_(BFORM.TITLES.EXTERNAL_FROM_PREFIX, j), false);
+    ensureDate_(form, optionTitle_(BFORM.TITLES.EXTERNAL_TO_PREFIX, j), false);
+  }
+}
+
+function setBootstrapRotationOptionChoices_(form, units, sections) {
+  var internalChoices = buildBootstrapSectionNameChoices_(sections);
+  var externalChoices = buildBootstrapSectionChoices_(units, sections);
+  if (!internalChoices.length) internalChoices = [BFORM.NO_SECTIONS];
+  if (!externalChoices.length) externalChoices = [BFORM.NO_SECTIONS];
+  for (var i = 1; i <= (BFORM.MAX_INTERNAL_OPTIONS || 3); i++) {
+    ensureList_(form, optionTitle_(BFORM.TITLES.INTERNAL_SECTION_PREFIX, i), i === 1).setChoiceValues(internalChoices);
+  }
+  for (var j = 1; j <= (BFORM.MAX_EXTERNAL_OPTIONS || 3); j++) {
+    ensureList_(form, optionTitle_(BFORM.TITLES.EXTERNAL_SECTION_PREFIX, j), false).setChoiceValues(externalChoices);
+  }
+}
+
+function buildBootstrapSectionNameChoices_(sections) {
+  return uniqueNonEmpty_((sections || []).map(function(section) { return section.name; }));
+}
+
+function buildBootstrapSectionChoices_(units, sections) {
+  var unitById = {};
+  (units || []).forEach(function(unit) { if (unit.id) unitById[unit.id] = unit.name; });
+  return uniqueNonEmpty_((sections || []).map(function(section) {
+    var unitName = section.unitName || (section.unitId ? unitById[section.unitId] : '');
+    if (!section.name) return '';
+    return unitName ? unitName + ' / ' + section.name : section.name;
+  }));
 }

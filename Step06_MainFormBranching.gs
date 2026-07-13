@@ -9,7 +9,6 @@ function run06_continueMainFormBranching() {
   var chunkSize = Math.max(Number(BOOTSTRAP_CONFIG.MAIN_FORM_BRANCH_UNITS_PER_RUN) || 25, 1);
   var timeBudget = Math.max(Number(BOOTSTRAP_CONFIG.MAIN_FORM_BRANCH_TIME_BUDGET_MS) || 260000, 30000);
 
-  if (!total) failStep_('06 Continue Main Form Branching', 'No active units were found.');
   if (!getItem_(form, BFORM.TITLES.ROTATION_UNIT, FormApp.ItemType.LIST)) {
     setBootstrapProperties_({
       [BSPROP.BRANCH_INDEX]: String(total),
@@ -19,6 +18,7 @@ function run06_continueMainFormBranching() {
     writeSetupSummary_(ss, form, tryOpenEvaluationForm_());
     return finishStep_('06 Continue Main Form Branching', BSTATUS.COMPLETE, 'Unit branching is not required because the current main form uses internal/external rotation option lists.');
   }
+  if (!total) failStep_('06 Continue Main Form Branching', 'No active units were found.');
   if (index >= total) {
     rebuildRotationUnitRoutingChoices_(form, units, total);
     setBootstrapProperties_({

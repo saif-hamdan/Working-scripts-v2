@@ -42,18 +42,35 @@ function setupFormStructure(options) {
   ensureTextItem_(form, FORM.TITLES.CURRENT_DEPARTMENT, true);
 
   ensureSectionHeaderItem_(form, FORM.TITLES.ROTATION_SECTION);
-  ensureDateItem_(form, FORM.TITLES.START_DATE, true);
-  ensureDateItem_(form, FORM.TITLES.END_DATE, true);
   applyNumericValidation_(ensureTextItem_(form, FORM.TITLES.HOURS, true));
+  ensureRotationOptionItems_(form);
   ensureParagraphItem_(form, FORM.TITLES.NOTES, false);
-  removeObsoleteRotationOptionItems_(form);
-  ensureRotationUnitItem_(form);
+  removeObsoleteSingleRotationItems_(form);
   if (options.skipChoiceRefresh !== true) refreshFormChoices();
 }
 
 
 function ensureRotationOptionItems_(form) {
-  ensureRotationUnitItem_(form);
+  ensureSectionHeaderItem_(form, FORM.TITLES.PHASE_ONE_INTERNAL);
+  for (var i = 1; i <= (FORM.MAX_INTERNAL_OPTIONS || 3); i++) {
+    ensureListItem_(form, optionTitle_(FORM.TITLES.INTERNAL_SECTION_PREFIX, i), i === 1);
+    ensureDateItem_(form, optionTitle_(FORM.TITLES.INTERNAL_FROM_PREFIX, i), i === 1);
+    ensureDateItem_(form, optionTitle_(FORM.TITLES.INTERNAL_TO_PREFIX, i), i === 1);
+  }
+
+  ensureSectionHeaderItem_(form, FORM.TITLES.PHASE_TWO_EXTERNAL);
+  for (var j = 1; j <= (FORM.MAX_EXTERNAL_OPTIONS || 3); j++) {
+    ensureListItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_SECTION_PREFIX, j), false);
+    ensureDateItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_FROM_PREFIX, j), false);
+    ensureDateItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_TO_PREFIX, j), false);
+  }
+}
+
+function removeObsoleteSingleRotationItems_(form) {
+  deleteFormItemIfPresent_(form, FORM.TITLES.START_DATE, FormApp.ItemType.DATE);
+  deleteFormItemIfPresent_(form, FORM.TITLES.END_DATE, FormApp.ItemType.DATE);
+  deleteFormItemIfPresent_(form, FORM.TITLES.ROTATION_UNIT, FormApp.ItemType.LIST);
+  deleteFormItemIfPresent_(form, FORM.TITLES.ROTATION_DEPARTMENT, FormApp.ItemType.LIST);
 }
 
 function removeObsoleteRotationOptionItems_(form) {
@@ -96,10 +113,41 @@ function refreshFormChoices(skipReferenceSync) {
 
   var currentUnitItem = ensureCurrentUnitItem_(form);
   currentUnitItem.setChoiceValues(unitNames);
-  ensureRotationUnitItem_(form).setChoiceValues(unitNames);
-  rebuildUnitSectionBranching_(form, units, sections);
+  setRotationOptionChoices_(form, units, sections);
+  removeUnitSectionBranchItems_(form);
 
   logInfo_('refreshFormChoices', '', 'Form choices refreshed.');
+}
+
+
+function setRotationOptionChoices_(form, units, sections) {
+  var internalChoices = buildSectionNameChoices_(sections);
+  var externalChoices = buildAllSectionChoices_(units, sections);
+  if (!internalChoices.length) internalChoices = [FORM.NO_AVAILABLE_SECTIONS];
+  if (!externalChoices.length) externalChoices = [FORM.NO_AVAILABLE_SECTIONS];
+
+  for (var i = 1; i <= (FORM.MAX_INTERNAL_OPTIONS || 3); i++) {
+    ensureListItem_(form, optionTitle_(FORM.TITLES.INTERNAL_SECTION_PREFIX, i), i === 1).setChoiceValues(internalChoices);
+  }
+  for (var j = 1; j <= (FORM.MAX_EXTERNAL_OPTIONS || 3); j++) {
+    ensureListItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_SECTION_PREFIX, j), false).setChoiceValues(externalChoices);
+  }
+}
+
+function buildSectionNameChoices_(sections) {
+  return uniqueNonEmpty_((sections || []).map(function(section) { return section.name; }));
+}
+
+function buildAllSectionChoices_(units, sections) {
+  var unitById = {};
+  (units || []).forEach(function(unit) {
+    if (unit.id) unitById[unit.id] = unit.name;
+  });
+  return uniqueNonEmpty_((sections || []).map(function(section) {
+    var unitName = section.unitName || (section.unitId ? unitById[section.unitId] : '');
+    if (!section.name) return '';
+    return unitName ? unitName + ' / ' + section.name : section.name;
+  }));
 }
 
 function rebuildUnitSectionBranching_(form, units, sections) {
