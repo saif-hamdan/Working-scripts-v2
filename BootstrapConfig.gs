@@ -88,6 +88,8 @@ const BH = {
 };
 
 const BFORM = {
+  MAX_INTERNAL_OPTIONS: 3,
+  MAX_EXTERNAL_OPTIONS: 3,
   SECTION_PAGE_PREFIX: 'قسم التدوير / Rotation Section - ',
   SECTION_QUESTION_PREFIX: 'قسم التدوير / Rotation Section - ',
   NO_UNITS: 'لا توجد وحدات نشطة حالياً / No active units are available',

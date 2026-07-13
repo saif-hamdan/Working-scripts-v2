@@ -5,22 +5,17 @@ function run05_startMainFormBranching() {
   removeExistingBranchItems_(form);
   refreshMainFormRotationOptionChoices_(form, ss);
 
-  var units = readUnits_(ss);
   setBootstrapProperties_({
     [BSPROP.BRANCH_INDEX]: '0',
-    [BSPROP.BRANCH_TOTAL]: String(units.length),
-    [BSPROP.BRANCH_COMPLETE]: 'false'
+    [BSPROP.BRANCH_TOTAL]: '0',
+    [BSPROP.BRANCH_COMPLETE]: 'true'
   });
   writeSetupSummary_(ss, form, tryOpenEvaluationForm_());
-  return finishStep_('05 Start Main Form Branching', BSTATUS.IN_PROGRESS, 'Main form unit branching was reset. Run run06_continueMainFormBranching() until branching is complete.');
+  return finishStep_('05 Start Main Form Branching', BSTATUS.COMPLETE, 'Main form uses internal/external rotation option lists; unit branching is not required.');
 }
 
 function refreshMainFormRotationOptionChoices_(form, dashboard) {
-  var units = readUnits_(dashboard);
-  var unitNames = uniqueNonEmpty_(units.map(function(unit) { return unit.name; }));
-  if (!unitNames.length) unitNames = [BFORM.NO_UNITS];
-  var rotationUnit = getItem_(form, BFORM.TITLES.ROTATION_UNIT, FormApp.ItemType.LIST) || ensureList_(form, BFORM.TITLES.ROTATION_UNIT, true);
-  rotationUnit.asListItem().setChoiceValues(unitNames);
+  setBootstrapRotationOptionChoices_(form, readUnits_(dashboard), readSections_(dashboard));
 }
 
 function removeExistingBranchItems_(form) {
