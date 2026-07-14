@@ -42,7 +42,6 @@ function setupFormStructure(options) {
   ensureTextItem_(form, FORM.TITLES.CURRENT_DEPARTMENT, true);
 
   ensureSectionHeaderItem_(form, FORM.TITLES.ROTATION_SECTION);
-  applyNumericValidation_(ensureTextItem_(form, FORM.TITLES.HOURS, true));
   ensureRotationOptionItems_(form);
   ensureParagraphItem_(form, FORM.TITLES.NOTES, false);
   removeObsoleteSingleRotationItems_(form);
@@ -60,9 +59,11 @@ function ensureRotationOptionItems_(form) {
 
   ensureSectionHeaderItem_(form, FORM.TITLES.PHASE_TWO_EXTERNAL);
   for (var j = 1; j <= (FORM.MAX_EXTERNAL_OPTIONS || 3); j++) {
+    ensureListItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_UNIT_PREFIX, j), false);
     ensureListItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_SECTION_PREFIX, j), false);
     ensureDateItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_FROM_PREFIX, j), false);
     ensureDateItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_TO_PREFIX, j), false);
+    applyNumericValidation_(ensureTextItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_HOURS_PREFIX, j), false));
   }
 }
 
@@ -71,6 +72,7 @@ function removeObsoleteSingleRotationItems_(form) {
   deleteFormItemIfPresent_(form, FORM.TITLES.END_DATE, FormApp.ItemType.DATE);
   deleteFormItemIfPresent_(form, FORM.TITLES.ROTATION_UNIT, FormApp.ItemType.LIST);
   deleteFormItemIfPresent_(form, FORM.TITLES.ROTATION_DEPARTMENT, FormApp.ItemType.LIST);
+  deleteFormItemIfPresent_(form, FORM.TITLES.HOURS, FormApp.ItemType.TEXT);
 }
 
 function removeObsoleteRotationOptionItems_(form) {
@@ -82,9 +84,11 @@ function removeObsoleteRotationOptionItems_(form) {
     deleteFormItemIfPresent_(form, optionTitle_(FORM.TITLES.INTERNAL_TO_PREFIX, i), FormApp.ItemType.DATE);
   }
   for (var j = 1; j <= (FORM.MAX_EXTERNAL_OPTIONS || 3); j++) {
+    deleteFormItemIfPresent_(form, optionTitle_(FORM.TITLES.EXTERNAL_UNIT_PREFIX, j), FormApp.ItemType.LIST);
     deleteFormItemIfPresent_(form, optionTitle_(FORM.TITLES.EXTERNAL_SECTION_PREFIX, j), FormApp.ItemType.LIST);
     deleteFormItemIfPresent_(form, optionTitle_(FORM.TITLES.EXTERNAL_FROM_PREFIX, j), FormApp.ItemType.DATE);
     deleteFormItemIfPresent_(form, optionTitle_(FORM.TITLES.EXTERNAL_TO_PREFIX, j), FormApp.ItemType.DATE);
+    deleteFormItemIfPresent_(form, optionTitle_(FORM.TITLES.EXTERNAL_HOURS_PREFIX, j), FormApp.ItemType.TEXT);
   }
 }
 
@@ -129,7 +133,10 @@ function setRotationOptionChoices_(form, units, sections) {
   for (var i = 1; i <= (FORM.MAX_INTERNAL_OPTIONS || 3); i++) {
     ensureListItem_(form, optionTitle_(FORM.TITLES.INTERNAL_SECTION_PREFIX, i), i === 1).setChoiceValues(internalChoices);
   }
+  var unitChoices = uniqueNonEmpty_((units || []).map(function(unit) { return unit.name; }));
+  if (!unitChoices.length) unitChoices = [FORM.NO_AVAILABLE_SECTIONS];
   for (var j = 1; j <= (FORM.MAX_EXTERNAL_OPTIONS || 3); j++) {
+    ensureListItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_UNIT_PREFIX, j), false).setChoiceValues(unitChoices);
     ensureListItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_SECTION_PREFIX, j), false).setChoiceValues(externalChoices);
   }
 }

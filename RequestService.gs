@@ -69,7 +69,7 @@ function createRequestRecordForRotationOption_(data, option, options) {
   record[H.RECORD.OPTION_ORDER] = option.optionOrder;
   record[H.RECORD.START_DATE] = dateOnly_(option.fromDate);
   record[H.RECORD.END_DATE] = dateOnly_(option.toDate);
-  record[H.RECORD.HOURS] = data.hours;
+  record[H.RECORD.HOURS] = option.hours || data.hours;
   record[H.RECORD.TYPE] = type;
   record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_PENDING;
   record[H.RECORD.FINAL_STATUS] = STATUS.FINAL_PENDING;
@@ -304,6 +304,19 @@ function createRequestFromFormData_(e) {
   return createRequestFromNormalizedData_(data);
 }
 
+
+function datesOverlap_(startA, endA, startB, endB) {
+  return dateOnly_(startA).getTime() <= dateOnly_(endB).getTime() && dateOnly_(startB).getTime() <= dateOnly_(endA).getTime();
+}
+
+function isSectionInUnit_(unitName, sectionName) {
+  var targetUnit = normalizeKey_(unitName);
+  var targetSection = normalizeKey_(sectionName);
+  return getSections_().some(function(section) {
+    return normalizeKey_(section.unitName) === targetUnit && normalizeKey_(section.name) === targetSection;
+  });
+}
+
 function validateSubmissionData_(data, rotationOptions) {
   throwIfMissing_(data.directManagerName, 'Direct manager name is missing.');
   throwIfMissing_(data.directManagerId, 'Line manager employee ID is missing.');
@@ -320,15 +333,34 @@ function validateSubmissionData_(data, rotationOptions) {
   rotationOptions = rotationOptions || normalizeRotationOptionsFromSubmission_(data);
   if (!rotationOptions.length) throw new Error('At least one rotation option is required.');
   var seen = {};
+  var internalOptions = [];
   rotationOptions.forEach(function(option) {
     throwIfMissing_(option.section, 'Rotation section is missing.');
     if (option.section === FORM.NO_AVAILABLE_SECTIONS) throw new Error('No available section was selected.');
     if (!option.fromDate || !option.toDate) throw new Error('Start date or end date is invalid.');
     if (dateOnly_(option.fromDate).getTime() > dateOnly_(option.toDate).getTime()) throw new Error('Start date cannot be after end date.');
+    if (option.rotationType === 'internal') {
+      if (normalizeKey_(option.rotationUnit) !== normalizeKey_(data.currentUnit)) throw new Error('Internal rotation sections must be inside the employee current unit.');
+      if (!isSectionInUnit_(data.currentUnit, option.section)) throw new Error('Internal rotation section must belong to the employee current unit.');
+      internalOptions.push(option);
+    } else {
+      throwIfMissing_(option.rotationUnit, 'External rotation unit is missing.');
+      if (normalizeKey_(option.rotationUnit) === normalizeKey_(data.currentUnit)) throw new Error('External rotation unit must be different from the employee current unit.');
+      if (!isSectionInUnit_(option.rotationUnit, option.section)) throw new Error('External rotation section must belong to the selected external unit.');
+      if (!option.hours || toNumber_(option.hours, 0) <= 0) throw new Error('External rotation daily hours are required.');
+    }
     var duplicateKey = [option.rotationType, option.rotationUnit, option.section, dateOnly_(option.fromDate).getTime(), dateOnly_(option.toDate).getTime()].map(normalizeKey_).join('|');
     if (seen[duplicateKey]) throw new Error('Duplicate rotation option rows are not allowed.');
     seen[duplicateKey] = true;
   });
+  if (!internalOptions.length) throw new Error('At least one internal rotation option is required.');
+  for (var i = 0; i < internalOptions.length; i++) {
+    for (var j = i + 1; j < internalOptions.length; j++) {
+      if (datesOverlap_(internalOptions[i].fromDate, internalOptions[i].toDate, internalOptions[j].fromDate, internalOptions[j].toDate)) {
+        throw new Error('Internal rotation date ranges cannot overlap.');
+      }
+    }
+  }
 }
 
 function parseRotationOptionsFromAccessor_(firstNonEmpty, currentUnit) {
@@ -343,14 +375,17 @@ function appendParsedRotationOptions_(options, rotationType, maxOptions, firstNo
     var section = firstNonEmpty(expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES[rotationType === 'internal' ? 'INTERNAL_SECTION' : 'EXTERNAL_SECTION'], i));
     var fromDate = parseDateFlexible_(firstNonEmpty(expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES[rotationType === 'internal' ? 'INTERNAL_FROM' : 'EXTERNAL_FROM'], i)));
     var toDate = parseDateFlexible_(firstNonEmpty(expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES[rotationType === 'internal' ? 'INTERNAL_TO' : 'EXTERNAL_TO'], i)));
-    if (!section && !fromDate && !toDate) continue;
-    var parsedSection = parseRotationSectionChoice_(section, currentUnit);
+    var externalUnit = rotationType === 'external' ? firstNonEmpty(expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES.EXTERNAL_UNIT, i)) : '';
+    var externalHours = rotationType === 'external' ? firstNonEmpty(expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES.EXTERNAL_HOURS, i)) : '';
+    if (!section && !fromDate && !toDate && !externalUnit && !externalHours) continue;
+    var parsedSection = parseRotationSectionChoice_(section, rotationType === 'internal' ? currentUnit : externalUnit);
     options.push({
       rotationType: rotationType,
-      rotationUnit: parsedSection.unit || currentUnit,
+      rotationUnit: rotationType === 'external' ? (externalUnit || parsedSection.unit) : (parsedSection.unit || currentUnit),
       section: parsedSection.section,
       fromDate: fromDate,
       toDate: toDate,
+      hours: externalHours,
       optionOrder: i
     });
   }

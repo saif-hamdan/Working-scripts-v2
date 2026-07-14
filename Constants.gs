@@ -297,9 +297,11 @@ const FORM = Object.freeze({
     INTERNAL_SECTION_PREFIX: 'التدوير داخل الوحدة - الخيار {n}: القسم / Section',
     INTERNAL_FROM_PREFIX: 'التدوير داخل الوحدة - الخيار {n}: الفترة من / Period from',
     INTERNAL_TO_PREFIX: 'التدوير داخل الوحدة - الخيار {n}: إلى / To',
+    EXTERNAL_UNIT_PREFIX: 'التدوير خارج الوحدة - الخيار {n}: الوحدة / Unit',
     EXTERNAL_SECTION_PREFIX: 'التدوير خارج الوحدة - الخيار {n}: القسم / Section',
     EXTERNAL_FROM_PREFIX: 'التدوير خارج الوحدة - الخيار {n}: الفترة من / Period from',
     EXTERNAL_TO_PREFIX: 'التدوير خارج الوحدة - الخيار {n}: إلى / To',
+    EXTERNAL_HOURS_PREFIX: 'التدوير خارج الوحدة - الخيار {n}: عدد الساعات اليومية / Daily Hours',
     START_DATE: 'تاريخ بداية التدوير / Rotation Start Date',
     END_DATE: 'تاريخ نهاية التدوير / Rotation End Date',
     HOURS: 'عدد الساعات اليومية المطلوبة / Required Daily Hours',
@@ -329,8 +331,10 @@ const FORM_RESPONSE_TITLE_CANDIDATES = Object.freeze({
   INTERNAL_SECTION: Object.freeze(['التدوير داخل الوحدة - الخيار {n}: القسم / Section', 'Internal section {n}', 'Internal Section {n}', 'القسم الداخلي {n}']),
   INTERNAL_FROM: Object.freeze(['التدوير داخل الوحدة - الخيار {n}: الفترة من / Period from', 'From date {n}', 'الفترة من {n}']),
   INTERNAL_TO: Object.freeze(['التدوير داخل الوحدة - الخيار {n}: إلى / To', 'To date {n}', 'إلى {n}']),
+  EXTERNAL_UNIT: Object.freeze(['التدوير خارج الوحدة - الخيار {n}: الوحدة / Unit', 'External unit {n}', 'External Unit {n}', 'الوحدة الخارجية {n}']),
   EXTERNAL_SECTION: Object.freeze(['التدوير خارج الوحدة - الخيار {n}: القسم / Section', 'External section {n}', 'External Section {n}', 'القسم الخارجي {n}']),
   EXTERNAL_FROM: Object.freeze(['التدوير خارج الوحدة - الخيار {n}: الفترة من / Period from', 'From date {n}', 'الفترة من {n}']),
   EXTERNAL_TO: Object.freeze(['التدوير خارج الوحدة - الخيار {n}: إلى / To', 'To date {n}', 'إلى {n}']),
+  EXTERNAL_HOURS: Object.freeze(['التدوير خارج الوحدة - الخيار {n}: عدد الساعات اليومية / Daily Hours', 'External daily hours {n}', 'External Daily Hours {n}', 'عدد الساعات اليومية الخارجية {n}']),
   NOTES: Object.freeze([FORM.TITLES.NOTES, 'ملاحظات إضافية', 'ملاحظات'])
 });
