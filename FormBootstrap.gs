@@ -1,13 +1,9 @@
 function setupMainForm_(form, dashboard) {
   ensureMainFormResponseDestination_(form, dashboard);
   rebuildMainFormBase_(form, dashboard);
-  removeExistingBranchItems_(form);
   var units = readUnits_(dashboard);
   var sections = readSections_(dashboard);
-  units.forEach(function(unit) {
-    buildUnitBranchPage_(form, unit, sections);
-  });
-  rebuildRotationUnitRoutingChoices_(form, units, units.length);
+  rebuildBootstrapRotationOptionBranching_(form, units, sections);
 }
 
 function setupEvaluationForm_(form) {

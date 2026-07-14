@@ -271,9 +271,13 @@ const APPROVER_UNIT_MODE = Object.freeze({
 const FORM = Object.freeze({
   SECTION_PAGE_PREFIX: 'قسم التدوير / Rotation Section - ',
   SECTION_QUESTION_PREFIX: 'قسم التدوير / Rotation Section - ',
+  INTERNAL_BRANCH_PAGE_PREFIX: 'التدوير الداخلي حسب الوحدة / Internal Rotation by Unit - ',
+  EXTERNAL_ROUTER_PAGE_PREFIX: 'اختيار وحدة التدوير الخارجي / Select External Rotation Unit - ',
+  EXTERNAL_BRANCH_PAGE_PREFIX: 'تفاصيل التدوير الخارجي / External Rotation Details - ',
   MAX_INTERNAL_OPTIONS: 3,
   MAX_EXTERNAL_OPTIONS: 3,
   NO_AVAILABLE_SECTIONS: 'لا توجد أقسام متاحة حالياً',
+  NO_EXTERNAL_ROTATION: 'لا أرغب في إضافة تدوير خارجي / No external rotation',
   TITLES: Object.freeze({
     FORM_TITLE: 'استمارة تحديد مسار التدوير الوظيفي للموظفين الجدد / New Employee Job Rotation Path Form',
     FORM_DESCRIPTION: 'في إطار تطوير الأداء المؤسسي وتأهيل الموظفين الجدد، تم إعداد هذه الاستبانة لتحديد مسار التدوير الوظيفي بما يدعم اكتساب الخبرات العملية وتسريع اندماج الموظف في بيئة العمل.\nTo support institutional performance enhancement and the effective onboarding of new employees, this form has been developed to identify each employee\'s job rotation pathway, facilitating the acquisition of practical experience and accelerating integration into the work environment.',

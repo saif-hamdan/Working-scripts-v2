@@ -23,18 +23,17 @@ function run11_refreshMainFormFromAdminSheets() {
 
   run06_continueMainFormBranching();
   writeSetupSummary_(ss, form, tryOpenEvaluationForm_());
-  return finishStep_('11 Refresh Main Form From Admin Sheets', BSTATUS.IN_PROGRESS, 'Main form refresh ran. If branching is not complete, run this function again or use the 30-minute trigger.');
+  return finishStep_('11 Refresh Main Form From Admin Sheets', BSTATUS.COMPLETE, 'Main form reference data and unit-to-section branching were refreshed.');
 }
 
 function resetMainFormBranchingFromReferenceData_(ss, form) {
   rebuildMainFormBase_(form, ss);
-  removeExistingBranchItems_(form);
-
-  setBootstrapRotationOptionChoices_(form, readUnits_(ss), readSections_(ss));
+  var units = readUnits_(ss);
+  rebuildBootstrapRotationOptionBranching_(form, units, readSections_(ss));
 
   setBootstrapProperties_({
-    [BSPROP.BRANCH_INDEX]: '0',
-    [BSPROP.BRANCH_TOTAL]: '0',
+    [BSPROP.BRANCH_INDEX]: String(units.length),
+    [BSPROP.BRANCH_TOTAL]: String(units.length),
     [BSPROP.BRANCH_COMPLETE]: 'true'
   });
 }

@@ -165,7 +165,7 @@ When diagnosing any stuck row, capture the row number, queue status, retry/attem
 ## Main functions
 
 - `setupAll()` — run after configuration changes.
-- `refreshFormChoices()` — refresh unit/section choices in the Google Form.
+- `refreshFormChoices()` — rebuild the Google Form's unit-to-section branching so internal and external section dropdowns contain only sections from the selected unit.
 - `refreshDashboard()` — rebuild the clean dashboard sheet.
 - `installTriggers()` — install edit, five-minute sync, and daily evaluation triggers. It intentionally does not install a direct form-submit request-creation trigger.
 - `processUnprocessedFormResponses()` — create requests from unprocessed rows in the linked Google Form response sheet.

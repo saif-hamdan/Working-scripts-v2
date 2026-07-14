@@ -42,30 +42,12 @@ function setupFormStructure(options) {
   ensureTextItem_(form, FORM.TITLES.CURRENT_DEPARTMENT, true);
 
   ensureSectionHeaderItem_(form, FORM.TITLES.ROTATION_SECTION);
-  ensureRotationOptionItems_(form);
   ensureParagraphItem_(form, FORM.TITLES.NOTES, false);
   removeObsoleteSingleRotationItems_(form);
+  removeObsoleteRotationOptionItems_(form);
   if (options.skipChoiceRefresh !== true) refreshFormChoices();
 }
 
-
-function ensureRotationOptionItems_(form) {
-  ensureSectionHeaderItem_(form, FORM.TITLES.PHASE_ONE_INTERNAL);
-  for (var i = 1; i <= (FORM.MAX_INTERNAL_OPTIONS || 3); i++) {
-    ensureListItem_(form, optionTitle_(FORM.TITLES.INTERNAL_SECTION_PREFIX, i), i === 1);
-    ensureDateItem_(form, optionTitle_(FORM.TITLES.INTERNAL_FROM_PREFIX, i), i === 1);
-    ensureDateItem_(form, optionTitle_(FORM.TITLES.INTERNAL_TO_PREFIX, i), i === 1);
-  }
-
-  ensureSectionHeaderItem_(form, FORM.TITLES.PHASE_TWO_EXTERNAL);
-  for (var j = 1; j <= (FORM.MAX_EXTERNAL_OPTIONS || 3); j++) {
-    ensureListItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_UNIT_PREFIX, j), false);
-    ensureListItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_SECTION_PREFIX, j), false);
-    ensureDateItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_FROM_PREFIX, j), false);
-    ensureDateItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_TO_PREFIX, j), false);
-    applyNumericValidation_(ensureTextItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_HOURS_PREFIX, j), false));
-  }
-}
 
 function removeObsoleteSingleRotationItems_(form) {
   deleteFormItemIfPresent_(form, FORM.TITLES.START_DATE, FormApp.ItemType.DATE);
@@ -111,107 +93,148 @@ function refreshFormChoices(skipReferenceSync) {
   var form = openMainForm_();
   var units = getUnits_();
   var sections = getSections_();
-
-  var unitNames = uniqueNonEmpty_(units.map(function(unit) { return unit.name; }));
-  if (!unitNames.length) unitNames = [FORM.NO_AVAILABLE_SECTIONS];
-
-  var currentUnitItem = ensureCurrentUnitItem_(form);
-  currentUnitItem.setChoiceValues(unitNames);
   setRotationOptionChoices_(form, units, sections);
-  removeUnitSectionBranchItems_(form);
 
   logInfo_('refreshFormChoices', '', 'Form choices refreshed.');
 }
 
 
 function setRotationOptionChoices_(form, units, sections) {
-  var internalChoices = buildSectionNameChoices_(sections);
-  var externalChoices = buildAllSectionChoices_(units, sections);
-  if (!internalChoices.length) internalChoices = [FORM.NO_AVAILABLE_SECTIONS];
-  if (!externalChoices.length) externalChoices = [FORM.NO_AVAILABLE_SECTIONS];
-
-  for (var i = 1; i <= (FORM.MAX_INTERNAL_OPTIONS || 3); i++) {
-    ensureListItem_(form, optionTitle_(FORM.TITLES.INTERNAL_SECTION_PREFIX, i), i === 1).setChoiceValues(internalChoices);
-  }
-  var unitChoices = uniqueNonEmpty_((units || []).map(function(unit) { return unit.name; }));
-  if (!unitChoices.length) unitChoices = [FORM.NO_AVAILABLE_SECTIONS];
-  for (var j = 1; j <= (FORM.MAX_EXTERNAL_OPTIONS || 3); j++) {
-    ensureListItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_UNIT_PREFIX, j), false).setChoiceValues(unitChoices);
-    ensureListItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_SECTION_PREFIX, j), false).setChoiceValues(externalChoices);
-  }
+  rebuildRotationOptionBranching_(form, units, sections);
 }
 
-function buildSectionNameChoices_(sections) {
-  return uniqueNonEmpty_((sections || []).map(function(section) { return section.name; }));
+function branchedOptionTitle_(template, optionNumber, unitName) {
+  return optionTitle_(template, optionNumber) + ' - ' + safeString_(unitName);
 }
 
-function buildAllSectionChoices_(units, sections) {
-  var unitById = {};
-  (units || []).forEach(function(unit) {
-    if (unit.id) unitById[unit.id] = unit.name;
-  });
-  return uniqueNonEmpty_((sections || []).map(function(section) {
-    var unitName = section.unitName || (section.unitId ? unitById[section.unitId] : '');
-    if (!section.name) return '';
-    return unitName ? unitName + ' / ' + section.name : section.name;
+function sectionNamesForFormUnit_(unit, sections) {
+  return uniqueNonEmpty_((sections || []).filter(function(section) {
+    if (unit.id && section.unitId) return normalizeKey_(section.unitId) === normalizeKey_(unit.id);
+    return normalizeKey_(section.unitName) === normalizeKey_(unit.name);
+  }).map(function(section) {
+    return section.name;
   }));
 }
 
-function rebuildUnitSectionBranching_(form, units, sections) {
-  removeUnitSectionBranchItems_(form);
-  var rotationUnitItem = ensureRotationUnitItem_(form);
-  var choices = [];
-  (units || []).forEach(function(unit) {
-    var page = ensurePageBreak_(form, FORM.SECTION_PAGE_PREFIX + unit.name);
-    try { page.setGoToPage(FormApp.PageNavigationType.SUBMIT); } catch (ignore) {}
-
-    var sectionItem = ensureListItem_(form, FORM.SECTION_QUESTION_PREFIX + unit.name, true);
-    var sectionNames = uniqueNonEmpty_((sections || []).filter(function(section) {
-      if (unit.id && section.unitId) return section.unitId === unit.id;
-      return section.unitName === unit.name;
-    }).map(function(section) {
-      return section.name;
-    }));
-    if (!sectionNames.length) sectionNames = [FORM.NO_AVAILABLE_SECTIONS];
-    sectionItem.setChoiceValues(sectionNames);
-    choices.push(rotationUnitItem.createChoice(unit.name, page));
+function unitsWithFormSections_(units, sections) {
+  return (units || []).filter(function(unit) {
+    return safeString_(unit.name) && sectionNamesForFormUnit_(unit, sections).length;
   });
-  if (choices.length) rotationUnitItem.setChoices(choices);
 }
 
-function removeUnitSectionBranchItems_(form) {
-  var items = form.getItems();
-  for (var i = items.length - 1; i >= 0; i--) {
-    var title = items[i].getTitle ? safeString_(items[i].getTitle()) : '';
-    if (title.indexOf(FORM.SECTION_PAGE_PREFIX) === 0 || title.indexOf(FORM.SECTION_QUESTION_PREFIX) === 0) {
-      try {
-        form.deleteItem(items[i]);
-      } catch (err) {
-        logWarn_('removeUnitSectionBranchItems_', '', 'Could not delete old branch item "' + title + '": ' + err.message);
-      }
-    }
+function rebuildRotationOptionBranching_(form, units, sections) {
+  clearRotationOptionNavigation_(form);
+  removeObsoleteRotationOptionItems_(form);
+  removeRotationOptionBranchItems_(form);
+
+  var eligibleUnits = unitsWithFormSections_(units, sections);
+  var currentUnitItem = ensureCurrentUnitItem_(form);
+  if (!eligibleUnits.length) {
+    currentUnitItem.setChoiceValues([FORM.NO_AVAILABLE_SECTIONS]);
+    return;
   }
+
+  var internalPages = eligibleUnits.map(function(unit) {
+    var page = ensurePageBreak_(form, FORM.INTERNAL_BRANCH_PAGE_PREFIX + unit.name);
+    var sectionNames = sectionNamesForFormUnit_(unit, sections);
+    for (var optionNumber = 1; optionNumber <= (FORM.MAX_INTERNAL_OPTIONS || 3); optionNumber++) {
+      var required = optionNumber === 1;
+      ensureListItem_(form, branchedOptionTitle_(FORM.TITLES.INTERNAL_SECTION_PREFIX, optionNumber, unit.name), required)
+        .setChoiceValues(sectionNames);
+      ensureDateItem_(form, branchedOptionTitle_(FORM.TITLES.INTERNAL_FROM_PREFIX, optionNumber, unit.name), required);
+      ensureDateItem_(form, branchedOptionTitle_(FORM.TITLES.INTERNAL_TO_PREFIX, optionNumber, unit.name), required);
+    }
+    return { unit: unit, page: page };
+  });
+
+  var externalStages = [];
+  for (var externalOption = 1; externalOption <= (FORM.MAX_EXTERNAL_OPTIONS || 3); externalOption++) {
+    var routerPage = ensurePageBreak_(form, FORM.EXTERNAL_ROUTER_PAGE_PREFIX + externalOption);
+    var routerItem = ensureListItem_(form, optionTitle_(FORM.TITLES.EXTERNAL_UNIT_PREFIX, externalOption), true);
+    try {
+      routerItem.setHelpText('اختر وحدة مختلفة عن وحدة الموظف الحالية، أو اختر عدم إضافة تدوير خارجي. / Select a unit different from the employee current unit, or choose not to add external rotation.');
+    } catch (ignoreHelp) {}
+
+    var detailPages = eligibleUnits.map(function(unit) {
+      var page = ensurePageBreak_(form, FORM.EXTERNAL_BRANCH_PAGE_PREFIX + externalOption + ' - ' + unit.name);
+      ensureListItem_(form, branchedOptionTitle_(FORM.TITLES.EXTERNAL_SECTION_PREFIX, externalOption, unit.name), true)
+        .setChoiceValues(sectionNamesForFormUnit_(unit, sections));
+      ensureDateItem_(form, branchedOptionTitle_(FORM.TITLES.EXTERNAL_FROM_PREFIX, externalOption, unit.name), true);
+      ensureDateItem_(form, branchedOptionTitle_(FORM.TITLES.EXTERNAL_TO_PREFIX, externalOption, unit.name), true);
+      applyNumericValidation_(ensureTextItem_(form, branchedOptionTitle_(FORM.TITLES.EXTERNAL_HOURS_PREFIX, externalOption, unit.name), true));
+      return { unit: unit, page: page };
+    });
+    externalStages.push({ routerPage: routerPage, routerItem: routerItem, detailPages: detailPages });
+  }
+
+  for (var stageIndex = 0; stageIndex < externalStages.length; stageIndex++) {
+    var stage = externalStages[stageIndex];
+    var choices = [stage.routerItem.createChoice(FORM.NO_EXTERNAL_ROTATION, FormApp.PageNavigationType.SUBMIT)];
+    stage.detailPages.forEach(function(detail) {
+      choices.push(stage.routerItem.createChoice(detail.unit.name, detail.page));
+      var nextRouter = stageIndex + 1 < externalStages.length ? externalStages[stageIndex + 1].routerPage : null;
+      try {
+        detail.page.setGoToPage(nextRouter || FormApp.PageNavigationType.SUBMIT);
+      } catch (ignoreNavigation) {}
+    });
+    stage.routerItem.setChoices(choices);
+  }
+
+  var firstExternalRouter = externalStages[0].routerPage;
+  var currentUnitChoices = [];
+  internalPages.forEach(function(entry) {
+    currentUnitChoices.push(currentUnitItem.createChoice(entry.unit.name, entry.page));
+    try { entry.page.setGoToPage(firstExternalRouter); } catch (ignoreInternalNavigation) {}
+  });
+  currentUnitItem.setChoices(currentUnitChoices);
 }
 
-function removeLegacyRotationSectionBranchItems_(form) {
-  var oldPagePrefix = 'اختيار القسم - ';
-  var oldQuestionPrefixes = [
-    'القسم المطلوب - ',
-    'Requested Section - ',
-    'القسم المطلوب / Requested Section - '
+function clearRotationOptionNavigation_(form) {
+  var temporaryChoice = 'إعادة ضبط مؤقتة / Temporary reset';
+  var navigationTitles = [FORM.TITLES.CURRENT_UNIT, FORM.TITLES.ROTATION_UNIT];
+  for (var optionNumber = 1; optionNumber <= (FORM.MAX_EXTERNAL_OPTIONS || 3); optionNumber++) {
+    navigationTitles.push(optionTitle_(FORM.TITLES.EXTERNAL_UNIT_PREFIX, optionNumber));
+  }
+  navigationTitles.forEach(function(title) {
+    var item = getFormItemByTitle_(form, title, FormApp.ItemType.LIST);
+    if (item) {
+      try { asTypedFormItem_(item, 'asListItem').setChoiceValues([temporaryChoice]); } catch (ignoreChoice) {}
+    }
+  });
+  form.getItems(FormApp.ItemType.PAGE_BREAK).forEach(function(item) {
+    try { asTypedFormItem_(item, 'asPageBreakItem').setGoToPage(FormApp.PageNavigationType.CONTINUE); } catch (ignorePage) {}
+  });
+}
+
+function removeRotationOptionBranchItems_(form) {
+  var pagePrefixes = [
+    FORM.INTERNAL_BRANCH_PAGE_PREFIX,
+    FORM.EXTERNAL_ROUTER_PAGE_PREFIX,
+    FORM.EXTERNAL_BRANCH_PAGE_PREFIX,
+    FORM.SECTION_PAGE_PREFIX
   ];
+  var questionPrefixes = [FORM.SECTION_QUESTION_PREFIX];
+  for (var optionNumber = 1; optionNumber <= (FORM.MAX_INTERNAL_OPTIONS || 3); optionNumber++) {
+    questionPrefixes.push(optionTitle_(FORM.TITLES.INTERNAL_SECTION_PREFIX, optionNumber) + ' - ');
+    questionPrefixes.push(optionTitle_(FORM.TITLES.INTERNAL_FROM_PREFIX, optionNumber) + ' - ');
+    questionPrefixes.push(optionTitle_(FORM.TITLES.INTERNAL_TO_PREFIX, optionNumber) + ' - ');
+  }
+  for (var externalOption = 1; externalOption <= (FORM.MAX_EXTERNAL_OPTIONS || 3); externalOption++) {
+    questionPrefixes.push(optionTitle_(FORM.TITLES.EXTERNAL_SECTION_PREFIX, externalOption) + ' - ');
+    questionPrefixes.push(optionTitle_(FORM.TITLES.EXTERNAL_FROM_PREFIX, externalOption) + ' - ');
+    questionPrefixes.push(optionTitle_(FORM.TITLES.EXTERNAL_TO_PREFIX, externalOption) + ' - ');
+    questionPrefixes.push(optionTitle_(FORM.TITLES.EXTERNAL_HOURS_PREFIX, externalOption) + ' - ');
+  }
   var items = form.getItems();
-  for (var i = items.length - 1; i >= 0; i--) {
-    var title = items[i].getTitle ? safeString_(items[i].getTitle()) : '';
-    if (!title) continue;
-    var isLegacy = title.indexOf(oldPagePrefix) === 0 || oldQuestionPrefixes.some(function(prefix) {
-      return title.indexOf(prefix) === 0;
-    });
-    if (!isLegacy) continue;
+  for (var itemIndex = items.length - 1; itemIndex >= 0; itemIndex--) {
+    var title = items[itemIndex].getTitle ? safeString_(items[itemIndex].getTitle()) : '';
+    var isBranchItem = pagePrefixes.some(function(prefix) { return title.indexOf(prefix) === 0; }) ||
+      questionPrefixes.some(function(prefix) { return title.indexOf(prefix) === 0; });
+    if (!isBranchItem) continue;
     try {
-      form.deleteItem(items[i]);
+      form.deleteItem(items[itemIndex]);
     } catch (err) {
-      logWarn_('removeLegacyRotationSectionBranchItems_', '', 'Could not delete legacy branch item "' + title + '": ' + err.message);
+      logWarn_('removeRotationOptionBranchItems_', '', 'Could not delete old branch item "' + title + '": ' + err.message);
     }
   }
 }
@@ -280,10 +303,6 @@ function ensureListItem_(form, title, required) {
 
 function ensureCurrentUnitItem_(form) {
   return ensureListItem_(form, FORM.TITLES.CURRENT_UNIT, true);
-}
-
-function ensureRotationUnitItem_(form) {
-  return ensureListItem_(form, FORM.TITLES.ROTATION_UNIT, true);
 }
 
 function ensurePageBreak_(form, title) {

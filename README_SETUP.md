@@ -43,13 +43,12 @@ Run these functions from Apps Script in order:
 5. `run03_validateReferenceData()`
 6. `run04_rebuildMainFormBaseQuestions()`
 7. `run05_startMainFormBranching()`
-8. `run06_continueMainFormBranching()`
-9. Repeat `run06_continueMainFormBranching()` until `Setup Summary` says `Main form branching complete = true`.
-10. `run07_setupEvaluationForm()`
-11. `run08_buildDashboardSummaryAndCharts()`
-12. `run09_applyProtections()`
-13. `run10_finalizeSetupSummary()`
-14. Run `run13_verifyProductionCompatibility()` repeatedly until it reports `Complete`. This verifies the current production setup functions in smaller chunks after the bootstrap IDs have been written into the project settings sheet.
+8. `run06_continueMainFormBranching()` to verify that branching is complete.
+9. `run07_setupEvaluationForm()`
+10. `run08_buildDashboardSummaryAndCharts()`
+11. `run09_applyProtections()`
+12. `run10_finalizeSetupSummary()`
+13. Run `run13_verifyProductionCompatibility()` repeatedly until it reports `Complete`. This verifies the current production setup functions in smaller chunks after the bootstrap IDs have been written into the project settings sheet.
 
 ## Repair existing resources after script changes
 
@@ -59,12 +58,12 @@ After `run14_repairExistingResourcesFromLatestScript()` finishes, run:
 
 1. `run03_validateReferenceData()`
 2. `run05_startMainFormBranching()`
-3. `run06_continueMainFormBranching()` repeatedly until `Setup Summary` says `Main form branching complete = true`
+3. `run06_continueMainFormBranching()` to verify that branching is complete
 4. `run09_applyProtections()`
 5. `run10_finalizeSetupSummary()`
 6. `run13_verifyProductionCompatibility()` repeatedly until it reports `Complete`
 
-`bootstrapAll()` is kept only as a compatibility wrapper. For large unit/section lists, use the staged functions above.
+`bootstrapAll()` is kept only as a compatibility wrapper. The staged functions above make setup and verification easier to audit.
 
 Each numbered runner is in the matching `StepNN_*.gs` file. For example, `run06_continueMainFormBranching()` is in `Step06_MainFormBranching.gs`.
 
@@ -92,9 +91,9 @@ Use the same run order above. The key repair steps are:
 
 - `run04_rebuildMainFormBaseQuestions()`
 - `run05_startMainFormBranching()`
-- Repeated `run06_continueMainFormBranching()`
+- `run06_continueMainFormBranching()`
 
-These rebuild the base questions first, then add unit-specific section pages in chunks so the script does not time out.
+These rebuild the base questions first, create the unit-specific internal and external rotation paths, and then verify that branching is complete.
 
 ## How the form gets section choices
 
@@ -107,7 +106,8 @@ The setup script syncs those admin tabs into hidden system tabs:
 
 - `الوحدات` provides the current unit and rotation unit dropdown choices.
 - `الأقسام` provides the unit-to-section mapping.
-- `run06_continueMainFormBranching()` creates one Google Form page per unit, so the section dropdown on that page only shows sections under the selected unit.
+- Internal rotation routes from the employee's current-unit answer to a page containing only that unit's sections.
+- Each of the three optional external rotation stages first asks for a unit, then routes to a page containing only that unit's sections, dates, and daily-hours fields. Selecting `No external rotation` submits the form without requiring another external option.
 
 To remove a unit or section from the form without deleting it, set its `نشط` value to `لا` in the admin sheet and run `run11_refreshMainFormFromAdminSheets()`.
 
