@@ -401,53 +401,26 @@ function validateUnifiedRotationOptions_(data, rotationOptions) {
   if (rotationOptions.some(function(option) { return option.rotationType !== 'rotation'; })) {
     throw new Error('Legacy internal/external rotations cannot be mixed with the new rotation-unit selections.');
   }
-  if (rotationOptions.length > (FORM.MAX_ROTATION_OPTIONS || 5)) {
-    throw new Error('A maximum of five rotation sections is allowed.');
-  }
+  if (rotationOptions.length !== 1) throw new Error('Exactly one rotation section is required per submission.');
 
   var selectedUnit = safeString_(data.rotationUnit || rotationOptions[0].rotationUnit);
   throwIfMissing_(selectedUnit, 'Rotation unit is missing.');
-  var seenSections = {};
-  var optionByOrder = {};
-  rotationOptions.forEach(function(option) {
-    var order = toNumber_(option.optionOrder, 0);
-    if (order < 1 || order > (FORM.MAX_ROTATION_OPTIONS || 5)) throw new Error('Rotation selection number is invalid.');
-    if (optionByOrder[order]) throw new Error('Duplicate rotation selection numbers are not allowed.');
-    optionByOrder[order] = option;
-
-    if (normalizeKey_(option.rotationUnit) !== normalizeKey_(selectedUnit)) {
-      throw new Error('All rotation sections must belong to the selected rotation unit.');
-    }
-    throwIfMissing_(option.section, 'Rotation section ' + order + ' is missing.');
-    if (option.section === FORM.NO_AVAILABLE_SECTIONS) throw new Error('No available section was selected.');
-    if (!isSectionInUnit_(selectedUnit, option.section)) {
-      throw new Error('Rotation section ' + order + ' does not belong to the selected rotation unit.');
-    }
-    if (!option.fromDate || !option.toDate) throw new Error('From or To date is missing for rotation selection ' + order + '.');
-    if (dateOnly_(option.fromDate).getTime() > dateOnly_(option.toDate).getTime()) {
-      throw new Error('From date cannot be after To date for rotation selection ' + order + '.');
-    }
-    if (!option.hours || toNumber_(option.hours, 0) <= 0) {
-      throw new Error('Daily hours are required for rotation selection ' + order + '.');
-    }
-
-    var sectionKey = normalizeKey_(option.section);
-    if (seenSections[sectionKey]) throw new Error('The same rotation section cannot be selected more than once.');
-    seenSections[sectionKey] = true;
-  });
-
-  if (!optionByOrder[1]) throw new Error('Rotation Selection 1 is required.');
-  for (var order = 2; order <= (FORM.MAX_ROTATION_OPTIONS || 5); order++) {
-    if (optionByOrder[order] && !optionByOrder[order - 1]) {
-      throw new Error('Rotation selections must be completed in number order without empty selections between them.');
-    }
+  var option = rotationOptions[0];
+  if (toNumber_(option.optionOrder, 1) !== 1) throw new Error('The rotation selection number is invalid.');
+  if (normalizeKey_(option.rotationUnit) !== normalizeKey_(selectedUnit)) {
+    throw new Error('The rotation section must belong to the selected rotation unit.');
   }
-  for (var i = 0; i < rotationOptions.length; i++) {
-    for (var j = i + 1; j < rotationOptions.length; j++) {
-      if (datesOverlap_(rotationOptions[i].fromDate, rotationOptions[i].toDate, rotationOptions[j].fromDate, rotationOptions[j].toDate)) {
-        throw new Error('Rotation date ranges cannot overlap.');
-      }
-    }
+  throwIfMissing_(option.section, 'Rotation section is missing.');
+  if (option.section === FORM.NO_AVAILABLE_SECTIONS) throw new Error('No available section was selected.');
+  if (!isSectionInUnit_(selectedUnit, option.section)) {
+    throw new Error('The rotation section does not belong to the selected rotation unit.');
+  }
+  if (!option.fromDate || !option.toDate) throw new Error('Rotation Start Date or Rotation End Date is missing.');
+  if (dateOnly_(option.fromDate).getTime() > dateOnly_(option.toDate).getTime()) {
+    throw new Error('Rotation Start Date cannot be after Rotation End Date.');
+  }
+  if (!option.hours || toNumber_(option.hours, 0) <= 0) {
+    throw new Error('Required Daily Hours must be greater than zero.');
   }
 }
 
@@ -463,46 +436,27 @@ function parseRotationOptionsFromAccessor_(firstNonEmpty, currentUnit, rotationU
 function parseUnifiedRotationOptions_(firstNonEmpty, rotationUnit) {
   rotationUnit = safeString_(rotationUnit);
   if (!rotationUnit) return [];
-  var options = [];
-  for (var optionNumber = 1; optionNumber <= (FORM.MAX_ROTATION_OPTIONS || 5); optionNumber++) {
-    var section = optionNumber === 1
-      ? firstNonEmpty(expandBranchedOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_SECTION, optionNumber, rotationUnit))
-      : firstNonEmpty(expandRotationGridRowHeaders_(rotationUnit, optionNumber));
-    var fromDate = parseDateFlexible_(firstNonEmpty(expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_FROM, optionNumber)));
-    var toDate = parseDateFlexible_(firstNonEmpty(expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_TO, optionNumber)));
-    var hours = firstNonEmpty(expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_HOURS, optionNumber));
-    if (optionNumber > 1 && section && !fromDate && !toDate && !hours) continue;
-    if (!section && !fromDate && !toDate && !hours) continue;
-    options.push({
-      rotationType: 'rotation',
-      rotationUnit: rotationUnit,
-      section: section,
-      fromDate: fromDate,
-      toDate: toDate,
-      hours: hours,
-      optionOrder: optionNumber
-    });
-  }
-  return options;
+  var section = firstNonEmpty(expandUnitScopedTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_SECTION, rotationUnit));
+  var fromDate = parseDateFlexible_(firstNonEmpty(expandUnitScopedTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_FROM, rotationUnit)));
+  var toDate = parseDateFlexible_(firstNonEmpty(expandUnitScopedTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_TO, rotationUnit)));
+  var hours = firstNonEmpty(expandUnitScopedTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_HOURS, rotationUnit));
+  if (!section && !fromDate && !toDate && !hours) return [];
+  return [{
+    rotationType: 'rotation',
+    rotationUnit: rotationUnit,
+    section: section,
+    fromDate: fromDate,
+    toDate: toDate,
+    hours: hours,
+    optionOrder: 1
+  }];
 }
 
-function expandRotationGridRowHeaders_(unitName, optionNumber) {
-  var gridTitles = (FORM_RESPONSE_TITLE_CANDIDATES.OPTIONAL_ROTATION_GRID || []).reduce(function(titles, title) {
-    titles.push(safeString_(title) + ' - ' + safeString_(unitName));
-    titles.push(safeString_(title));
-    return titles;
-  }, []);
-  var rowTitles = [
-    optionTitle_(FORM.TITLES.OPTIONAL_ROTATION_GRID_ROW_PREFIX, optionNumber),
-    'Rotation Selection ' + optionNumber
-  ];
-  var headers = [];
-  gridTitles.forEach(function(gridTitle) {
-    rowTitles.forEach(function(rowTitle) {
-      headers.push(gridTitle + ' [' + rowTitle + ']');
-    });
+function expandUnitScopedTitles_(titles, unitName) {
+  var scoped = (titles || []).map(function(title) {
+    return safeString_(title) + ' - ' + safeString_(unitName);
   });
-  return headers;
+  return scoped.concat(titles || []);
 }
 
 function appendParsedRotationOptions_(options, rotationType, maxOptions, firstNonEmpty, currentUnit) {

@@ -271,14 +271,15 @@ const APPROVER_UNIT_MODE = Object.freeze({
 
 const FORM = Object.freeze({
   ROTATION_ROUTER_PAGE_TITLE: 'اختيار وحدة التدوير / Select Rotation Unit',
-  ROTATION_BRANCH_PAGE_PREFIX: 'اختيار أقسام التدوير / Select Rotation Sections - ',
+  ROTATION_BRANCH_PAGE_PREFIX: 'تفاصيل التدوير / Rotation Details - ',
+  LEGACY_ROTATION_BRANCH_PAGE_PREFIX: 'اختيار أقسام التدوير / Select Rotation Sections - ',
   ROTATION_SCHEDULE_PAGE_PREFIX: 'جدول اختيار التدوير رقم / Schedule for Rotation Selection ',
   SECTION_PAGE_PREFIX: 'قسم التدوير / Rotation Section - ',
   SECTION_QUESTION_PREFIX: 'قسم التدوير / Rotation Section - ',
   INTERNAL_BRANCH_PAGE_PREFIX: 'التدوير الداخلي حسب الوحدة / Internal Rotation by Unit - ',
   EXTERNAL_ROUTER_PAGE_PREFIX: 'اختيار وحدة التدوير الخارجي / Select External Rotation Unit - ',
   EXTERNAL_BRANCH_PAGE_PREFIX: 'تفاصيل التدوير الخارجي / External Rotation Details - ',
-  MAX_ROTATION_OPTIONS: 5,
+  MAX_ROTATION_OPTIONS: 1,
   MAX_INTERNAL_OPTIONS: 3,
   MAX_EXTERNAL_OPTIONS: 3,
   NO_AVAILABLE_SECTIONS: 'لا توجد أقسام متاحة حالياً',
@@ -346,11 +347,10 @@ const FORM_RESPONSE_TITLE_CANDIDATES = Object.freeze({
   END_DATE: Object.freeze([FORM.TITLES.END_DATE, 'إلى تاريخ']),
   HOURS: Object.freeze([FORM.TITLES.HOURS, 'عدد الساعات اليومية المطلوبة', 'عدد الساعات', 'عدد ساعات ال' + 'تد' + 'ريب اليومية', 'Daily ' + 'Train' + 'ing Hours', 'عدد ساعات ال' + 'تد' + 'ريب اليومية / Daily ' + 'Train' + 'ing Hours']),
 
-  ROTATION_SECTION: Object.freeze([FORM.TITLES.ROTATION_SECTION_PREFIX, 'Rotation Selection {n}: Section']),
-  OPTIONAL_ROTATION_GRID: Object.freeze([FORM.TITLES.OPTIONAL_ROTATION_GRID, 'Additional Rotation Selections']),
-  ROTATION_FROM: Object.freeze([FORM.TITLES.ROTATION_FROM_PREFIX, 'Rotation Selection {n}: From']),
-  ROTATION_TO: Object.freeze([FORM.TITLES.ROTATION_TO_PREFIX, 'Rotation Selection {n}: To']),
-  ROTATION_HOURS: Object.freeze([FORM.TITLES.ROTATION_HOURS_PREFIX, 'Rotation Selection {n}: Daily Hours']),
+  ROTATION_SECTION: Object.freeze([FORM.TITLES.ROTATION_DEPARTMENT, 'Rotation Section']),
+  ROTATION_FROM: Object.freeze([FORM.TITLES.START_DATE, 'Rotation Start Date', 'From Date']),
+  ROTATION_TO: Object.freeze([FORM.TITLES.END_DATE, 'Rotation End Date', 'To Date']),
+  ROTATION_HOURS: Object.freeze([FORM.TITLES.HOURS, 'Required Daily Hours', 'Daily Hours']),
 
   INTERNAL_SECTION: Object.freeze(['التدوير داخل الوحدة - الخيار {n}: القسم / Section', 'Internal section {n}', 'Internal Section {n}', 'القسم الداخلي {n}']),
   INTERNAL_FROM: Object.freeze(['التدوير داخل الوحدة - الخيار {n}: الفترة من / Period from', 'From date {n}', 'الفترة من {n}']),

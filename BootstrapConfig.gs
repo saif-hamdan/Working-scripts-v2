@@ -89,11 +89,13 @@ const BH = {
 };
 
 const BFORM = {
-  MAX_ROTATION_OPTIONS: 5,
+  MAX_ROTATION_OPTIONS: 1,
+  LEGACY_MAX_ROTATION_OPTIONS: 5,
   MAX_INTERNAL_OPTIONS: 3,
   MAX_EXTERNAL_OPTIONS: 3,
   ROTATION_ROUTER_PAGE_TITLE: 'اختيار وحدة التدوير / Select Rotation Unit',
-  ROTATION_BRANCH_PAGE_PREFIX: 'اختيار أقسام التدوير / Select Rotation Sections - ',
+  ROTATION_BRANCH_PAGE_PREFIX: 'تفاصيل التدوير / Rotation Details - ',
+  LEGACY_ROTATION_BRANCH_PAGE_PREFIX: 'اختيار أقسام التدوير / Select Rotation Sections - ',
   ROTATION_SCHEDULE_PAGE_PREFIX: 'جدول اختيار التدوير رقم / Schedule for Rotation Selection ',
   SECTION_PAGE_PREFIX: 'قسم التدوير / Rotation Section - ',
   SECTION_QUESTION_PREFIX: 'قسم التدوير / Rotation Section - ',

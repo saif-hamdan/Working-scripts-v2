@@ -91,7 +91,7 @@ function clearFormNavigationReferences_(form) {
       try { item.asListItem().setChoiceValues([temporaryChoice]); } catch (ignore) {}
     }
   });
-  for (var rotationOption = 2; rotationOption <= (BFORM.MAX_ROTATION_OPTIONS || 5); rotationOption++) {
+  for (var rotationOption = 2; rotationOption <= (BFORM.LEGACY_MAX_ROTATION_OPTIONS || 5); rotationOption++) {
     var continuation = getItem_(form, optionTitle_(BFORM.TITLES.ROTATION_ADD_MORE_PREFIX, rotationOption), FormApp.ItemType.MULTIPLE_CHOICE);
     if (continuation) {
       try { continuation.asMultipleChoiceItem().setChoiceValues([temporaryChoice]); } catch (ignoreContinuation) {}
