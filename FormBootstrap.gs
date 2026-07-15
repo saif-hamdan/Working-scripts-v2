@@ -41,7 +41,9 @@ function ensurePage_(form, title) {
 function getItem_(form, title, type) {
   var items = form.getItems(type);
   for (var i = 0; i < items.length; i++) {
-    if (items[i].getTitle && items[i].getTitle() === title) return items[i];
+    try {
+      if (items[i].getTitle && items[i].getTitle() === title) return items[i];
+    } catch (ignoreMissingItem) {}
   }
   return null;
 }

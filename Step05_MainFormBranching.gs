@@ -106,10 +106,21 @@ function buildBootstrapRotationUnitBranch_(form, unit, sections) {
 function bootstrapItemsByTitle_(form, itemType, castMethodName) {
   var map = {};
   form.getItems(itemType).forEach(function(item) {
-    var typed = item && typeof item[castMethodName] === 'function' ? item[castMethodName]() : item;
-    if (typed && typed.getTitle) map[typed.getTitle()] = typed;
+    try {
+      var typed = item && typeof item[castMethodName] === 'function' ? item[castMethodName]() : item;
+      var title = safeBootstrapFormItemTitle_(typed);
+      if (title) map[title] = typed;
+    } catch (ignoreMissingItem) {}
   });
   return map;
+}
+
+function safeBootstrapFormItemTitle_(item) {
+  try {
+    return item && item.getTitle ? safeString_(item.getTitle()) : '';
+  } catch (ignoreMissingItem) {
+    return '';
+  }
 }
 
 function finalizeBootstrapRotationNavigation_(form, eligibleUnits) {
@@ -198,12 +209,16 @@ function removeExistingBranchItems_(form, options) {
     questionPrefixes.push(optionTitle_(BFORM.TITLES.EXTERNAL_HOURS_PREFIX, externalOption) + ' - ');
   }
 
-  var branchItems = form.getItems().filter(function(item) {
-    var title = item.getTitle ? item.getTitle() : '';
-    return exactTitles.indexOf(title) !== -1 ||
+  var branchItems = [];
+  form.getItems().forEach(function(item) {
+    var title = safeBootstrapFormItemTitle_(item);
+    if (!title) return;
+    var matches = exactTitles.indexOf(title) !== -1 ||
       pagePrefixes.some(function(prefix) { return title.indexOf(prefix) === 0; }) ||
       questionPrefixes.some(function(prefix) { return title.indexOf(prefix) === 0; });
-  }).reverse();
+    if (matches) branchItems.push({ item: item, title: title });
+  });
+  branchItems.reverse();
 
   var limit = Math.max(1, Number(options.limit) || branchItems.length || 1);
   var deadline = Number(options.deadline) || 0;
@@ -211,10 +226,14 @@ function removeExistingBranchItems_(form, options) {
   for (var itemIndex = 0; itemIndex < branchItems.length && removed < limit; itemIndex++) {
     if (deadline && Date.now() >= deadline) break;
     try {
-      form.deleteItem(branchItems[itemIndex]);
+      form.deleteItem(branchItems[itemIndex].item);
       removed++;
     } catch (err) {
-      Logger.log('Could not delete old branch item "' + (branchItems[itemIndex].getTitle ? branchItems[itemIndex].getTitle() : '') + '": ' + err.message);
+      if (/item is missing/i.test(safeString_(err && err.message))) {
+        removed++;
+        continue;
+      }
+      Logger.log('Could not delete old branch item "' + branchItems[itemIndex].title + '": ' + err.message);
     }
   }
   return { removed: removed, remaining: Math.max(0, branchItems.length - removed) };
