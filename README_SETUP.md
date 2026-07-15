@@ -30,6 +30,15 @@ Open `BootstrapConfig.gs` before running.
 - `MAIN_FORM_BRANCH_UNITS_PER_RUN` controls how many unit-specific form sections are created per execution.
 - The built-in default owner and admin email is `employeeservices@squ.edu.om`; the built-in dummy data still uses `saif.alkaanuni@gmail.com` for unit head sample data.
 
+## Start with completely new resources
+
+To create a new dashboard spreadsheet, main form, evaluation form, response destination, and sheets without reusing saved IDs:
+
+1. Set all three `CREATE_NEW_*` options to `true`, leave all `EXISTING_*_ID` values empty, and set `FORCE_CREATE_NEW_RESOURCES` to `true`.
+2. Run `run00_startCompletelyFreshSetup()`. This clears saved bootstrap resource IDs, production resource pointers, response-spreadsheet state, and production-compatibility progress before creating the new resources. Existing Drive files are not deleted.
+3. Immediately set `FORCE_CREATE_NEW_RESOURCES` back to `false` so later setup runs reuse the new files.
+4. Continue with `run02_setupDashboardSheets()` and the remaining required run order below. Do not run `run01_createOrOpenResources()` again because the fresh-start function already runs it.
+
 ## Required run order
 
 Run these functions from Apps Script in order:
@@ -75,7 +84,7 @@ If it looks like nothing was created:
 2. If all IDs are missing, run `run01_createOrOpenResources()`.
 3. After `run01_createOrOpenResources()`, check the execution logs for the dashboard and form URLs.
 4. If saved IDs point to files that cannot be opened, run `run00_clearSavedResourceIdsForFreshSetup()` and then run `run01_createOrOpenResources()` again.
-5. If saved IDs point to trashed/deleted files and you want a clean start, run `run00_startFreshSetupResources()` instead.
+5. If saved IDs point to trashed/deleted files and you want a clean start, run `run00_startCompletelyFreshSetup()` instead. `run00_startFreshSetupResources()` remains as a compatibility alias.
 
 The created spreadsheet and forms are Drive files, not tabs inside the Apps Script editor.
 

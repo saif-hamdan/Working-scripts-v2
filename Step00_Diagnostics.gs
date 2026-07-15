@@ -20,6 +20,10 @@ function run00_clearSavedResourceIdsForFreshSetup() {
 }
 
 function run00_startFreshSetupResources() {
+  return run00_startCompletelyFreshSetup();
+}
+
+function run00_startCompletelyFreshSetup() {
   clearSavedResourceProperties_();
   return run01_createOrOpenResources();
 }
@@ -39,7 +43,13 @@ function clearSavedResourceProperties_() {
     BSPROP.BRANCH_COMPLETE,
     BSPROP.REFERENCE_DATA_HASH,
     BSPROP.LAST_REFERENCE_SYNC,
-    BSPROP.READY
+    BSPROP.READY,
+    BSPROP.PRODUCTION_COMPATIBILITY_INDEX,
+    BSPROP.PRODUCTION_COMPATIBILITY_STATUS,
+    SETTINGS_KEYS.DASHBOARD_SPREADSHEET_ID,
+    SETTINGS_KEYS.MAIN_FORM_ID,
+    SETTINGS_KEYS.FORM_RESPONSES_SPREADSHEET_ID,
+    SETTINGS_KEYS.EVALUATION_FORM_URL
   ].forEach(function(key) {
     getBootstrapProps_().deleteProperty(key);
   });
