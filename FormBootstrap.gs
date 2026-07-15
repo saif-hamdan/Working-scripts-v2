@@ -34,6 +34,18 @@ function ensureList_(form, title, required) {
   try { listItem.setHelpText(''); } catch (ignore) {}
   return listItem.setRequired(Boolean(required));
 }
+function ensureGrid_(form, title, required) {
+  var item = getItem_(form, title, FormApp.ItemType.GRID);
+  var gridItem = item ? item.asGridItem() : form.addGridItem().setTitle(title);
+  try { gridItem.setHelpText(''); } catch (ignore) {}
+  return gridItem.setRequired(Boolean(required));
+}
+function ensureMultipleChoice_(form, title, required) {
+  var item = getItem_(form, title, FormApp.ItemType.MULTIPLE_CHOICE);
+  var multipleChoiceItem = item ? item.asMultipleChoiceItem() : form.addMultipleChoiceItem().setTitle(title);
+  try { multipleChoiceItem.setHelpText(''); } catch (ignore) {}
+  return multipleChoiceItem.setRequired(Boolean(required));
+}
 function ensurePage_(form, title) {
   var item = getItem_(form, title, FormApp.ItemType.PAGE_BREAK);
   return item ? item.asPageBreakItem() : form.addPageBreakItem().setTitle(title);

@@ -31,11 +31,15 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
   }
 
   var createdRecords = [];
+  var perRecordOptions = {};
+  Object.keys(options).forEach(function(key) { perRecordOptions[key] = options[key]; });
+  perRecordOptions.deferRefresh = true;
   for (var optionIndex = 0; optionIndex < rotationOptions.length; optionIndex++) {
     var option = rotationOptions[optionIndex];
-    var created = createRequestRecordForRotationOption_(data, option, options);
+    var created = createRequestRecordForRotationOption_(data, option, perRecordOptions);
     createdRecords.push(created);
   }
+  if (options.deferRefresh !== true) refreshDashboard();
   return createdRecords.length === 1 ? createdRecords[0] : createdRecords;
 }
 
@@ -45,7 +49,11 @@ function createRequestRecordForRotationOption_(data, option, options) {
   var approver = getApproverForRequest_(data.currentUnit, option.rotationUnit);
   var requestId = makeRequestId_();
   var token = generateToken_();
-  var type = option.rotationType === 'internal' ? STATUS.TYPE_INTERNAL : STATUS.TYPE_EXTERNAL;
+  var type = option.rotationType === 'rotation'
+    ? STATUS.TYPE_ROTATION
+    : option.rotationType === 'internal'
+      ? STATUS.TYPE_INTERNAL
+      : STATUS.TYPE_EXTERNAL;
 
   var record = {};
   record[H.RECORD.REQUEST_ID] = requestId;
@@ -138,10 +146,6 @@ function createRequestRecordForRotationOption_(data, option, options) {
     logInfo_('createRequestFromNormalizedData_', requestId, 'Request created and approval email processed.');
   }
 
-  if (options.deferRefresh !== true) {
-    refreshDashboard();
-    refreshFormChoices();
-  }
   return record;
 }
 
@@ -162,8 +166,18 @@ function parseFormSubmission_(e) {
     try { responseId = response.getId ? response.getId() : ''; } catch (ignore2) {}
     try { named.Timestamp = [response.getTimestamp ? response.getTimestamp() : '']; } catch (ignore3) {}
     response.getItemResponses().forEach(function(ir) {
-      var title = ir.getItem().getTitle();
-      named[title] = [ir.getResponse()];
+      var responseItem = ir.getItem();
+      var title = responseItem.getTitle();
+      var rawResponse = ir.getResponse();
+      named[title] = Array.isArray(rawResponse) ? rawResponse : [rawResponse];
+      if (Array.isArray(rawResponse)) {
+        try {
+          var gridRows = responseItem.asGridItem().getRows();
+          gridRows.forEach(function(rowTitle, rowIndex) {
+            named[title + ' [' + rowTitle + ']'] = [rawResponse[rowIndex] || ''];
+          });
+        } catch (ignoreGridRows) {}
+      }
     });
   }
 
@@ -219,7 +233,7 @@ function parseFormSubmission_(e) {
     responseSourceId: e && e.responseSourceId ? safeString_(e.responseSourceId) : ''
   };
 
-  parsed.rotationOptions = parseRotationOptionsFromAccessor_(firstNonEmpty, parsed.currentUnit);
+  parsed.rotationOptions = parseRotationOptionsFromAccessor_(firstNonEmpty, parsed.currentUnit, parsed.rotationUnit);
   if (!parsed.responseSourceId) parsed.responseSourceId = makeFormResponseSourceId_(parsed);
   return parsed;
 }
@@ -280,7 +294,7 @@ function parseLinkedResponseRow_(headers, row) {
     responseSourceId: ''
   };
 
-  parsed.rotationOptions = parseRotationOptionsFromAccessor_(firstNonEmpty, parsed.currentUnit);
+  parsed.rotationOptions = parseRotationOptionsFromAccessor_(firstNonEmpty, parsed.currentUnit, parsed.rotationUnit);
   parsed.responseSourceId = makeFormResponseSourceId_(parsed);
   return parsed;
 }
@@ -294,6 +308,7 @@ function isRotationSectionResponseHeader_(header) {
   if (header.indexOf('قسم التدوير') !== -1 || header.indexOf('القسم المطلوب') !== -1) return true;
   var normalized = normalizeKey_(header);
   if (normalized.indexOf('rotationsection') !== -1 || normalized.indexOf('requestedsection') !== -1) return true;
+  if (normalized.indexOf('rotationselection') !== -1 && normalized.indexOf('section') !== -1) return true;
   if (normalized.indexOf('current') !== -1 || header.indexOf('الحالي') !== -1) return false;
   return normalized === 'section' || normalized === 'rotationdepartment';
 }
@@ -340,6 +355,10 @@ function validateSubmissionData_(data, rotationOptions) {
   throwIfMissing_(data.currentDepartment, 'Current section is missing.');
   rotationOptions = rotationOptions || normalizeRotationOptionsFromSubmission_(data);
   if (!rotationOptions.length) throw new Error('At least one rotation option is required.');
+  if (rotationOptions.some(function(option) { return option.rotationType === 'rotation'; })) {
+    validateUnifiedRotationOptions_(data, rotationOptions);
+    return;
+  }
   var seen = {};
   var internalOptions = [];
   var externalOptions = [];
@@ -378,11 +397,112 @@ function validateSubmissionData_(data, rotationOptions) {
   }
 }
 
-function parseRotationOptionsFromAccessor_(firstNonEmpty, currentUnit) {
+function validateUnifiedRotationOptions_(data, rotationOptions) {
+  if (rotationOptions.some(function(option) { return option.rotationType !== 'rotation'; })) {
+    throw new Error('Legacy internal/external rotations cannot be mixed with the new rotation-unit selections.');
+  }
+  if (rotationOptions.length > (FORM.MAX_ROTATION_OPTIONS || 5)) {
+    throw new Error('A maximum of five rotation sections is allowed.');
+  }
+
+  var selectedUnit = safeString_(data.rotationUnit || rotationOptions[0].rotationUnit);
+  throwIfMissing_(selectedUnit, 'Rotation unit is missing.');
+  var seenSections = {};
+  var optionByOrder = {};
+  rotationOptions.forEach(function(option) {
+    var order = toNumber_(option.optionOrder, 0);
+    if (order < 1 || order > (FORM.MAX_ROTATION_OPTIONS || 5)) throw new Error('Rotation selection number is invalid.');
+    if (optionByOrder[order]) throw new Error('Duplicate rotation selection numbers are not allowed.');
+    optionByOrder[order] = option;
+
+    if (normalizeKey_(option.rotationUnit) !== normalizeKey_(selectedUnit)) {
+      throw new Error('All rotation sections must belong to the selected rotation unit.');
+    }
+    throwIfMissing_(option.section, 'Rotation section ' + order + ' is missing.');
+    if (option.section === FORM.NO_AVAILABLE_SECTIONS) throw new Error('No available section was selected.');
+    if (!isSectionInUnit_(selectedUnit, option.section)) {
+      throw new Error('Rotation section ' + order + ' does not belong to the selected rotation unit.');
+    }
+    if (!option.fromDate || !option.toDate) throw new Error('From or To date is missing for rotation selection ' + order + '.');
+    if (dateOnly_(option.fromDate).getTime() > dateOnly_(option.toDate).getTime()) {
+      throw new Error('From date cannot be after To date for rotation selection ' + order + '.');
+    }
+    if (!option.hours || toNumber_(option.hours, 0) <= 0) {
+      throw new Error('Daily hours are required for rotation selection ' + order + '.');
+    }
+
+    var sectionKey = normalizeKey_(option.section);
+    if (seenSections[sectionKey]) throw new Error('The same rotation section cannot be selected more than once.');
+    seenSections[sectionKey] = true;
+  });
+
+  if (!optionByOrder[1]) throw new Error('Rotation Selection 1 is required.');
+  for (var order = 2; order <= (FORM.MAX_ROTATION_OPTIONS || 5); order++) {
+    if (optionByOrder[order] && !optionByOrder[order - 1]) {
+      throw new Error('Rotation selections must be completed in number order without empty selections between them.');
+    }
+  }
+  for (var i = 0; i < rotationOptions.length; i++) {
+    for (var j = i + 1; j < rotationOptions.length; j++) {
+      if (datesOverlap_(rotationOptions[i].fromDate, rotationOptions[i].toDate, rotationOptions[j].fromDate, rotationOptions[j].toDate)) {
+        throw new Error('Rotation date ranges cannot overlap.');
+      }
+    }
+  }
+}
+
+function parseRotationOptionsFromAccessor_(firstNonEmpty, currentUnit, rotationUnit) {
+  var unifiedOptions = parseUnifiedRotationOptions_(firstNonEmpty, rotationUnit);
+  if (unifiedOptions.length) return unifiedOptions;
   var options = [];
   appendParsedRotationOptions_(options, 'internal', FORM.MAX_INTERNAL_OPTIONS || 3, firstNonEmpty, currentUnit);
   appendParsedRotationOptions_(options, 'external', FORM.MAX_EXTERNAL_OPTIONS || 3, firstNonEmpty, '');
   return options;
+}
+
+function parseUnifiedRotationOptions_(firstNonEmpty, rotationUnit) {
+  rotationUnit = safeString_(rotationUnit);
+  if (!rotationUnit) return [];
+  var options = [];
+  for (var optionNumber = 1; optionNumber <= (FORM.MAX_ROTATION_OPTIONS || 5); optionNumber++) {
+    var section = optionNumber === 1
+      ? firstNonEmpty(expandBranchedOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_SECTION, optionNumber, rotationUnit))
+      : firstNonEmpty(expandRotationGridRowHeaders_(rotationUnit, optionNumber));
+    var fromDate = parseDateFlexible_(firstNonEmpty(expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_FROM, optionNumber)));
+    var toDate = parseDateFlexible_(firstNonEmpty(expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_TO, optionNumber)));
+    var hours = firstNonEmpty(expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_HOURS, optionNumber));
+    if (optionNumber > 1 && section && !fromDate && !toDate && !hours) continue;
+    if (!section && !fromDate && !toDate && !hours) continue;
+    options.push({
+      rotationType: 'rotation',
+      rotationUnit: rotationUnit,
+      section: section,
+      fromDate: fromDate,
+      toDate: toDate,
+      hours: hours,
+      optionOrder: optionNumber
+    });
+  }
+  return options;
+}
+
+function expandRotationGridRowHeaders_(unitName, optionNumber) {
+  var gridTitles = (FORM_RESPONSE_TITLE_CANDIDATES.OPTIONAL_ROTATION_GRID || []).reduce(function(titles, title) {
+    titles.push(safeString_(title) + ' - ' + safeString_(unitName));
+    titles.push(safeString_(title));
+    return titles;
+  }, []);
+  var rowTitles = [
+    optionTitle_(FORM.TITLES.OPTIONAL_ROTATION_GRID_ROW_PREFIX, optionNumber),
+    'Rotation Selection ' + optionNumber
+  ];
+  var headers = [];
+  gridTitles.forEach(function(gridTitle) {
+    rowTitles.forEach(function(rowTitle) {
+      headers.push(gridTitle + ' [' + rowTitle + ']');
+    });
+  });
+  return headers;
 }
 
 function appendParsedRotationOptions_(options, rotationType, maxOptions, firstNonEmpty, currentUnit) {
@@ -440,7 +560,7 @@ function parseRotationSectionChoice_(choice, fallbackUnit) {
 function normalizeRotationOptionsFromSubmission_(data) {
   if (data.rotationOptions && data.rotationOptions.length) return data.rotationOptions.slice();
   if (data.section || data.startDate || data.endDate) {
-    return [{ rotationType: normalizeKey_(data.currentUnit) === normalizeKey_(data.rotationUnit) ? 'internal' : 'external', rotationUnit: data.rotationUnit || data.currentUnit, section: data.section, fromDate: data.startDate, toDate: data.endDate, optionOrder: data.optionOrder || 1 }];
+    return [{ rotationType: 'rotation', rotationUnit: data.rotationUnit || data.currentUnit, section: data.section, fromDate: data.startDate, toDate: data.endDate, hours: data.hours, optionOrder: data.optionOrder || 1 }];
   }
   return [];
 }

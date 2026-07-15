@@ -89,8 +89,12 @@ const BH = {
 };
 
 const BFORM = {
+  MAX_ROTATION_OPTIONS: 5,
   MAX_INTERNAL_OPTIONS: 3,
   MAX_EXTERNAL_OPTIONS: 3,
+  ROTATION_ROUTER_PAGE_TITLE: 'اختيار وحدة التدوير / Select Rotation Unit',
+  ROTATION_BRANCH_PAGE_PREFIX: 'اختيار أقسام التدوير / Select Rotation Sections - ',
+  ROTATION_SCHEDULE_PAGE_PREFIX: 'جدول اختيار التدوير رقم / Schedule for Rotation Selection ',
   SECTION_PAGE_PREFIX: 'قسم التدوير / Rotation Section - ',
   SECTION_QUESTION_PREFIX: 'قسم التدوير / Rotation Section - ',
   INTERNAL_BRANCH_PAGE_PREFIX: 'التدوير الداخلي حسب الوحدة / Internal Rotation by Unit - ',
@@ -117,6 +121,15 @@ const BFORM = {
     CURRENT_UNIT: 'الوحدة الحالية للموظف / Current Employee Unit',
     CURRENT_DEPARTMENT: 'القسم الحالي للموظف / Current Employee Section',
     ROTATION_SECTION: 'بيانات التدوير الوظيفي / Job Rotation Details',
+    ROTATION_SECTION_PREFIX: 'اختيار التدوير {n}: القسم / Rotation Selection {n}: Section',
+    OPTIONAL_ROTATION_GRID: 'اختيارات التدوير الإضافية / Additional Rotation Selections',
+    OPTIONAL_ROTATION_GRID_ROW_PREFIX: 'اختيار التدوير {n} / Rotation Selection {n}',
+    ROTATION_FROM_PREFIX: 'اختيار التدوير {n}: من تاريخ / Rotation Selection {n}: From',
+    ROTATION_TO_PREFIX: 'اختيار التدوير {n}: إلى تاريخ / Rotation Selection {n}: To',
+    ROTATION_HOURS_PREFIX: 'اختيار التدوير {n}: الساعات اليومية / Rotation Selection {n}: Daily Hours',
+    ROTATION_ADD_MORE_PREFIX: 'هل تريد إضافة قسم تدوير آخر (الاختيار {n})؟ / Do you want to add another rotation section (Selection {n})?',
+    ROTATION_ADD_MORE_YES: 'نعم / Yes',
+    ROTATION_ADD_MORE_NO: 'لا، إنهاء الطلب / No, finish the request',
     PHASE_ONE_INTERNAL: 'المرحلة الأولى: التدوير داخل الوحدة / Phase One: Rotation Inside the Current Unit',
     PHASE_TWO_EXTERNAL: 'المرحلة الثانية: التدوير خارج الوحدة / Phase Two: Rotation Outside the Current Unit',
     INTERNAL_SECTION_PREFIX: 'التدوير داخل الوحدة - الخيار {n}: القسم / Section',

@@ -236,10 +236,15 @@ function syncSystem() {
     var nowMs = Date.now();
     var queueChanged = hasSyncQueueChanges_(responseQueueStats, approvalActionQueueStats, emailQueueStats);
     var referenceChanged = Boolean(referenceSyncStats && referenceSyncStats.changed);
-    var capacityChanged = referenceChanged || hasCapacityAffectingQueueChanges_(responseQueueStats, approvalActionQueueStats);
     var dashboardRefreshDue = shouldRunScheduledDashboardRefresh_(nowMs);
     var needsDashboardRefresh = queueChanged || referenceChanged || dashboardRefreshDue;
-    var needsFormRefresh = referenceChanged || capacityChanged;
+    // Form choices now depend only on unit/section reference data. Request and
+    // approval status changes do not require rebuilding the Google Form.
+    var stagedBranchingInProgress = typeof getBootstrapProperty_ === 'function' &&
+      typeof BSPROP !== 'undefined' &&
+      getBootstrapProperty_(BSPROP.BRANCH_COMPLETE, 'false') !== 'true' &&
+      toNumber_(getBootstrapProperty_(BSPROP.BRANCH_TOTAL, '0'), 0) > 0;
+    var needsFormRefresh = referenceChanged || stagedBranchingInProgress;
 
     if (needsDashboardRefresh || needsFormRefresh) {
       var records = getRecords_();
@@ -252,7 +257,7 @@ function syncSystem() {
       if (shouldStopSync_(startedAt)) return;
       if (needsFormRefresh) {
         refreshFormChoicesFromSync_();
-        logInfo_('syncSystem', '', 'Form choice refresh completed; reason: ' + (referenceChanged ? 'reference data changes' : 'capacity-affecting queue changes') + '.');
+        logInfo_('syncSystem', '', 'Form choice refresh completed; reason: ' + (referenceChanged ? 'reference data changes' : 'staged branching progress') + '.');
       }
     } else {
       logInfo_('syncSystem', '', 'Refresh phases skipped: no queue/reference changes and scheduled intervals have not elapsed.');

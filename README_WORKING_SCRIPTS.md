@@ -86,9 +86,9 @@ Recommended `APPROVER_UNIT_MODE` is `CURRENT_UNIT`, meaning the head of the unit
 
 ## Important notes
 
-Native Google Forms cannot refresh a second dropdown live on the same page after the first dropdown is selected. This implementation uses the recommended Google Forms workaround: the rotation unit dropdown routes to a unit-specific page, where the section dropdown shows only sections under that unit.
+Native Google Forms cannot refresh a second dropdown live on the same page after the first dropdown is selected. This implementation routes the rotation-unit answer to a unit-specific page, where Rotation Selection 1 and optional selections 2-5 show only sections under that unit. Each numbered selection has a separate From, To, and Daily Hours schedule page. A required Yes/No question at the bottom of schedules 1-4 controls whether the next schedule is shown. Every completed selection becomes a separate Records-sheet row and dashboard record.
 
-The form choices are refreshed by the five-minute trigger and after decisions. Form submissions are not converted into requests by a direct form-submit trigger; the five-minute sync calls `processUnprocessedFormResponses()` to create requests from the linked response-sheet queue. Admins may also run `processResponseQueueOnce()` manually, or use the `معالجة الطلبات غير المعالجة` custom menu item, after a form outage or high-volume submission period; it logs the number of processed, skipped, and failed rows. If `FORM_RESPONSES_SPREADSHEET_ID` is missing, setup and sync log a warning and no submitted form responses can become requests. The approval handler still re-checks conflicts atomically with `LockService`, so even if the form choice was stale, the system blocks late conflicts.
+The five-minute trigger continues any staged form rebuild after unit/section reference data changes. Approval and request-status changes refresh the dashboard but do not rebuild the form. Form submissions are not converted into requests by a direct form-submit trigger; the five-minute sync calls `processUnprocessedFormResponses()` to create requests from the linked response-sheet queue. Admins may also run `processResponseQueueOnce()` manually, or use the `معالجة الطلبات غير المعالجة` custom menu item, after a form outage or high-volume submission period; it logs the number of processed, skipped, and failed rows. If `FORM_RESPONSES_SPREADSHEET_ID` is missing, setup and sync log a warning and no submitted form responses can become requests. The approval handler still re-checks conflicts atomically with `LockService`, so even if the form choice was stale, the system blocks late conflicts.
 
 Do not install the five-minute refresh trigger in the setup/resource project. It belongs only in this production workflow project.
 
@@ -165,7 +165,7 @@ When diagnosing any stuck row, capture the row number, queue status, retry/attem
 ## Main functions
 
 - `setupAll()` — run after configuration changes.
-- `refreshFormChoices()` — rebuild the Google Form's unit-to-section branching so internal and external section dropdowns contain only sections from the selected unit.
+- `refreshFormChoices()` — rebuild the Google Form's rotation-unit-to-section branching and the five optional schedule paths.
 - `refreshDashboard()` — rebuild the clean dashboard sheet.
 - `installTriggers()` — install edit, five-minute sync, and daily evaluation triggers. It intentionally does not install a direct form-submit request-creation trigger.
 - `processUnprocessedFormResponses()` — create requests from unprocessed rows in the linked Google Form response sheet.

@@ -13,7 +13,7 @@ function run06_continueMainFormBranching() {
   var complete = getBootstrapProperty_(BSPROP.BRANCH_COMPLETE, 'false') === 'true';
   if (complete && storedTotal === expectedTotal) {
     writeSetupSummary_(ss, form, tryOpenEvaluationForm_());
-    return finishStep_('06 Continue Main Form Branching', BSTATUS.COMPLETE, 'Internal and external unit-to-section branching was already complete.');
+    return finishStep_('06 Continue Main Form Branching', BSTATUS.COMPLETE, 'Rotation-unit-to-section branching was already complete.');
   }
   if (!storedTotal) {
     failStep_('06 Continue Main Form Branching', 'Branching is not initialized. Run run05_startMainFormBranching() first.');
@@ -83,7 +83,7 @@ function run06_continueMainFormBranching() {
     '06 Continue Main Form Branching',
     complete ? BSTATUS.COMPLETE : BSTATUS.IN_PROGRESS,
     complete
-      ? 'Internal and external unit-to-section branching is complete for ' + eligibleUnits.length + ' unit(s).'
+      ? 'Rotation-unit-to-section branching and five sequential schedules are complete for ' + eligibleUnits.length + ' unit(s).'
       : 'Completed ' + completedThisRun + ' task(s) while ' + lastWorkLabel + '. Progress is ' + progress + ' / ' + expectedTotal + '. Run Step 6 again.'
   );
 }

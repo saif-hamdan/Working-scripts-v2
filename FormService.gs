@@ -89,6 +89,9 @@ function deleteFormItemIfPresent_(form, title, type) {
 }
 
 function refreshFormChoices(skipReferenceSync) {
+  if (typeof run11_refreshMainFormFromAdminSheets === 'function') {
+    return run11_refreshMainFormFromAdminSheets();
+  }
   if (skipReferenceSync !== true) syncReferenceDataFromAdminSheets_();
   var form = openMainForm_();
   var units = getUnits_();

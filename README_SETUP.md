@@ -102,7 +102,7 @@ Use the same run order above. The key repair steps are:
 - `run05_startMainFormBranching()`
 - `run06_continueMainFormBranching()`
 
-These rebuild the base questions first, create the unit-specific internal and external rotation paths, and then verify that branching is complete.
+These rebuild the base questions first, create the unit-specific rotation paths and five shared schedule pages, and then verify that branching is complete.
 
 ## How the form gets section choices
 
@@ -113,10 +113,12 @@ The form does not read CSV files. Admins edit the visible Google Sheet tabs:
 
 The setup script syncs those admin tabs into hidden system tabs:
 
-- `الوحدات` provides the current unit and rotation unit dropdown choices.
+- `الوحدات` provides the current-unit and rotation-unit dropdown choices.
 - `الأقسام` provides the unit-to-section mapping.
-- Internal rotation routes from the employee's current-unit answer to a page containing only that unit's sections.
-- Each of the three optional external rotation stages first asks for a unit, then routes to a page containing only that unit's sections, dates, and daily-hours fields. Selecting `No external rotation` submits the form without requiring another external option.
+- The selected rotation unit routes to a page that contains only sections belonging to that unit.
+- Rotation Selection 1 is required. The same page provides optional selections 2-5 in a compact grid; unused rows stay blank.
+- Each selected section has a numbered schedule page with required From, To, and Daily Hours questions. At the bottom of schedules 1-4, `Yes` continues to the next numbered schedule and `No` submits the request.
+- Each completed rotation selection is written as a separate record in the Records sheet and contributes separately to the dashboard.
 
 To remove a unit or section from the form without deleting it, set its `نشط` value to `لا` in the admin sheet and run `run11_refreshMainFormFromAdminSheets()`.
 

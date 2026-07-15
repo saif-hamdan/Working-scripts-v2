@@ -8,7 +8,7 @@ function run05_startMainFormBranching() {
   return finishStep_(
     '05 Start Main Form Branching',
     BSTATUS.IN_PROGRESS,
-    'Branching was initialized for ' + eligibleUnits.length + ' unit(s). Run run06_continueMainFormBranching() repeatedly until it reports Complete.'
+    'Rotation-unit branching was initialized for ' + eligibleUnits.length + ' unit(s). Run run06_continueMainFormBranching() repeatedly until it reports Complete.'
   );
 }
 
@@ -42,6 +42,10 @@ function bootstrapBranchedOptionTitle_(template, optionNumber, unitName) {
   return optionTitle_(template, optionNumber) + ' - ' + safeString_(unitName);
 }
 
+function bootstrapUnitScopedTitle_(title, unitName) {
+  return safeString_(title) + ' - ' + safeString_(unitName);
+}
+
 function bootstrapSectionNamesForUnit_(unit, sections) {
   return uniqueNonEmpty_((sections || []).filter(function(section) {
     if (unit.id && section.unitId) return normalizeKey_(section.unitId) === normalizeKey_(unit.id);
@@ -58,108 +62,124 @@ function bootstrapEligibleUnits_(units, sections) {
 }
 
 function bootstrapBranchWorkTotal_(unitCount) {
-  return (Number(unitCount) || 0) * 4 + 4;
+  return (Number(unitCount) || 0) + (BFORM.MAX_ROTATION_OPTIONS || 5) + 2;
 }
 
 function getBootstrapBranchWork_(progressIndex, unitCount) {
-  if (progressIndex < unitCount) {
-    return { type: 'internal-unit', unitIndex: progressIndex, label: 'building internal unit sections' };
+  if (progressIndex === 0) return { type: 'rotation-router', label: 'building the rotation-unit selector' };
+  if (progressIndex <= unitCount) {
+    return { type: 'rotation-unit', unitIndex: progressIndex - 1, label: 'building filtered unit sections' };
   }
-  if (progressIndex < unitCount * 4) {
-    var externalOffset = progressIndex - unitCount;
-    return {
-      type: 'external-unit',
-      externalOption: Math.floor(externalOffset / unitCount) + 1,
-      unitIndex: externalOffset % unitCount,
-      label: 'building external unit sections'
-    };
+
+  var scheduleOffset = progressIndex - unitCount;
+  if (scheduleOffset <= (BFORM.MAX_ROTATION_OPTIONS || 5)) {
+    return { type: 'rotation-schedule', optionNumber: scheduleOffset, label: 'building rotation schedules' };
   }
-  var finalizeOffset = progressIndex - unitCount * 4;
-  return finalizeOffset === 0
-    ? { type: 'finalize-internal', label: 'connecting internal navigation' }
-    : { type: 'finalize-external', externalOption: finalizeOffset, label: 'connecting external navigation' };
+  return { type: 'finalize-navigation', label: 'connecting form navigation' };
 }
 
 function processBootstrapBranchWork_(form, eligibleUnits, sections, work) {
-  if (work.type === 'internal-unit') {
-    buildBootstrapInternalUnitBranch_(form, eligibleUnits[work.unitIndex], sections);
+  if (work.type === 'rotation-router') {
+    buildBootstrapRotationRouter_(form, eligibleUnits);
     return;
   }
-  if (work.type === 'external-unit') {
-    buildBootstrapExternalUnitBranch_(form, eligibleUnits[work.unitIndex], sections, work.externalOption);
+  if (work.type === 'rotation-unit') {
+    buildBootstrapRotationUnitBranch_(form, eligibleUnits[work.unitIndex], sections);
     return;
   }
-  if (work.type === 'finalize-internal') {
-    finalizeBootstrapInternalNavigation_(form, eligibleUnits);
+  if (work.type === 'rotation-schedule') {
+    buildBootstrapRotationSchedule_(form, work.optionNumber);
     return;
   }
-  finalizeBootstrapExternalNavigation_(form, eligibleUnits, work.externalOption);
+  finalizeBootstrapRotationNavigation_(form, eligibleUnits);
 }
 
-function buildBootstrapInternalUnitBranch_(form, unit, sections) {
-  ensurePage_(form, BFORM.INTERNAL_BRANCH_PAGE_PREFIX + unit.name);
+function buildBootstrapRotationRouter_(form, eligibleUnits) {
+  ensurePage_(form, BFORM.ROTATION_ROUTER_PAGE_TITLE);
+  ensureList_(form, BFORM.TITLES.ROTATION_UNIT, true)
+    .setChoiceValues(eligibleUnits.map(function(unit) { return unit.name; }));
+}
+
+function buildBootstrapRotationUnitBranch_(form, unit, sections) {
+  ensurePage_(form, BFORM.ROTATION_BRANCH_PAGE_PREFIX + unit.name);
   var sectionNames = bootstrapSectionNamesForUnit_(unit, sections);
-  for (var optionNumber = 1; optionNumber <= (BFORM.MAX_INTERNAL_OPTIONS || 3); optionNumber++) {
-    var required = optionNumber === 1;
-    ensureList_(form, bootstrapBranchedOptionTitle_(BFORM.TITLES.INTERNAL_SECTION_PREFIX, optionNumber, unit.name), required)
-      .setChoiceValues(sectionNames);
-    ensureDate_(form, bootstrapBranchedOptionTitle_(BFORM.TITLES.INTERNAL_FROM_PREFIX, optionNumber, unit.name), required);
-    ensureDate_(form, bootstrapBranchedOptionTitle_(BFORM.TITLES.INTERNAL_TO_PREFIX, optionNumber, unit.name), required);
-  }
-}
+  ensureList_(form, bootstrapBranchedOptionTitle_(BFORM.TITLES.ROTATION_SECTION_PREFIX, 1, unit.name), true)
+    .setChoiceValues(sectionNames);
 
-function buildBootstrapExternalUnitBranch_(form, unit, sections, externalOption) {
-  ensurePage_(form, BFORM.EXTERNAL_ROUTER_PAGE_PREFIX + externalOption);
-  var routerItem = ensureList_(form, optionTitle_(BFORM.TITLES.EXTERNAL_UNIT_PREFIX, externalOption), true);
-  routerItem.setChoiceValues([BFORM.NO_EXTERNAL_ROTATION]);
+  var grid = ensureGrid_(form, bootstrapUnitScopedTitle_(BFORM.TITLES.OPTIONAL_ROTATION_GRID, unit.name), false)
+    .setRows([2, 3, 4, 5].map(function(optionNumber) {
+      return optionTitle_(BFORM.TITLES.OPTIONAL_ROTATION_GRID_ROW_PREFIX, optionNumber);
+    }))
+    .setColumns(sectionNames);
   try {
-    routerItem.setHelpText('Select a unit different from the employee current unit, or choose not to add external rotation.');
-  } catch (ignoreHelp) {}
-
-  ensurePage_(form, BFORM.EXTERNAL_BRANCH_PAGE_PREFIX + externalOption + ' - ' + unit.name);
-  ensureList_(form, bootstrapBranchedOptionTitle_(BFORM.TITLES.EXTERNAL_SECTION_PREFIX, externalOption, unit.name), true)
-    .setChoiceValues(bootstrapSectionNamesForUnit_(unit, sections));
-  ensureDate_(form, bootstrapBranchedOptionTitle_(BFORM.TITLES.EXTERNAL_FROM_PREFIX, externalOption, unit.name), true);
-  ensureDate_(form, bootstrapBranchedOptionTitle_(BFORM.TITLES.EXTERNAL_TO_PREFIX, externalOption, unit.name), true);
-  applyNumericValidation_(ensureText_(form, bootstrapBranchedOptionTitle_(BFORM.TITLES.EXTERNAL_HOURS_PREFIX, externalOption, unit.name), true));
+    grid.setHelpText('Select additional sections in number order. Leave unused rows blank. The same section cannot be selected twice in this grid.');
+    grid.setValidation(FormApp.createGridValidation().requireLimitOneResponsePerColumn().build());
+  } catch (ignoreGridValidation) {}
 }
 
-function finalizeBootstrapInternalNavigation_(form, eligibleUnits) {
-  var currentUnitItem = getItem_(form, BFORM.TITLES.CURRENT_UNIT, FormApp.ItemType.LIST);
-  var firstExternalRouter = getItem_(form, BFORM.EXTERNAL_ROUTER_PAGE_PREFIX + '1', FormApp.ItemType.PAGE_BREAK);
-  if (!currentUnitItem || !firstExternalRouter) {
-    throw new Error('The internal or external form routing items are incomplete. Run Step 6 again.');
+function buildBootstrapRotationSchedule_(form, optionNumber) {
+  ensurePage_(form, BFORM.ROTATION_SCHEDULE_PAGE_PREFIX + optionNumber);
+  ensureDate_(form, optionTitle_(BFORM.TITLES.ROTATION_FROM_PREFIX, optionNumber), true);
+  ensureDate_(form, optionTitle_(BFORM.TITLES.ROTATION_TO_PREFIX, optionNumber), true);
+  applyNumericValidation_(ensureText_(form, optionTitle_(BFORM.TITLES.ROTATION_HOURS_PREFIX, optionNumber), true));
+
+  if (optionNumber < (BFORM.MAX_ROTATION_OPTIONS || 5)) {
+    var nextOption = optionNumber + 1;
+    ensureMultipleChoice_(form, optionTitle_(BFORM.TITLES.ROTATION_ADD_MORE_PREFIX, nextOption), true)
+      .setHelpText('Choose Yes only when Rotation Selection ' + nextOption + ' was selected on the section-selection page.')
+      .setChoiceValues([BFORM.TITLES.ROTATION_ADD_MORE_YES, BFORM.TITLES.ROTATION_ADD_MORE_NO]);
   }
-  currentUnitItem = currentUnitItem.asListItem();
-  firstExternalRouter = firstExternalRouter.asPageBreakItem();
-  var choices = eligibleUnits.map(function(unit) {
-    var page = getItem_(form, BFORM.INTERNAL_BRANCH_PAGE_PREFIX + unit.name, FormApp.ItemType.PAGE_BREAK);
-    if (!page) throw new Error('Missing internal rotation page for unit: ' + unit.name);
-    page = page.asPageBreakItem();
-    try { page.setGoToPage(firstExternalRouter); } catch (ignoreNavigation) {}
-    return currentUnitItem.createChoice(unit.name, page);
-  });
-  currentUnitItem.setChoices(choices);
 }
 
-function finalizeBootstrapExternalNavigation_(form, eligibleUnits, externalOption) {
-  var routerItem = getItem_(form, optionTitle_(BFORM.TITLES.EXTERNAL_UNIT_PREFIX, externalOption), FormApp.ItemType.LIST);
-  if (!routerItem) throw new Error('Missing external rotation unit question for option ' + externalOption + '.');
-  routerItem = routerItem.asListItem();
-  var nextRouter = externalOption < (BFORM.MAX_EXTERNAL_OPTIONS || 3)
-    ? getItem_(form, BFORM.EXTERNAL_ROUTER_PAGE_PREFIX + (externalOption + 1), FormApp.ItemType.PAGE_BREAK)
-    : null;
-  if (nextRouter) nextRouter = nextRouter.asPageBreakItem();
-
-  var choices = [routerItem.createChoice(BFORM.NO_EXTERNAL_ROTATION, FormApp.PageNavigationType.SUBMIT)];
-  eligibleUnits.forEach(function(unit) {
-    var page = getItem_(form, BFORM.EXTERNAL_BRANCH_PAGE_PREFIX + externalOption + ' - ' + unit.name, FormApp.ItemType.PAGE_BREAK);
-    if (!page) throw new Error('Missing external rotation page for unit: ' + unit.name + ', option ' + externalOption + '.');
-    page = page.asPageBreakItem();
-    choices.push(routerItem.createChoice(unit.name, page));
-    try { page.setGoToPage(nextRouter || FormApp.PageNavigationType.SUBMIT); } catch (ignoreNavigation) {}
+function bootstrapItemsByTitle_(form, itemType, castMethodName) {
+  var map = {};
+  form.getItems(itemType).forEach(function(item) {
+    var typed = item && typeof item[castMethodName] === 'function' ? item[castMethodName]() : item;
+    if (typed && typed.getTitle) map[typed.getTitle()] = typed;
   });
-  routerItem.setChoices(choices);
+  return map;
+}
+
+function finalizeBootstrapRotationNavigation_(form, eligibleUnits) {
+  var pages = bootstrapItemsByTitle_(form, FormApp.ItemType.PAGE_BREAK, 'asPageBreakItem');
+  var lists = bootstrapItemsByTitle_(form, FormApp.ItemType.LIST, 'asListItem');
+  var multipleChoices = bootstrapItemsByTitle_(form, FormApp.ItemType.MULTIPLE_CHOICE, 'asMultipleChoiceItem');
+  var routerPage = pages[BFORM.ROTATION_ROUTER_PAGE_TITLE];
+  var rotationUnitItem = lists[BFORM.TITLES.ROTATION_UNIT];
+  var firstSchedule = pages[BFORM.ROTATION_SCHEDULE_PAGE_PREFIX + '1'];
+  if (!routerPage || !rotationUnitItem || !firstSchedule) {
+    throw new Error('The rotation routing items are incomplete. Run Step 6 again.');
+  }
+
+  var unitChoices = [];
+  eligibleUnits.forEach(function(unit) {
+    var page = pages[BFORM.ROTATION_BRANCH_PAGE_PREFIX + unit.name];
+    if (!page) throw new Error('Missing rotation section page for unit: ' + unit.name);
+    unitChoices.push(rotationUnitItem.createChoice(unit.name, page));
+    try { page.setGoToPage(firstSchedule); } catch (ignoreUnitNavigation) {}
+  });
+  rotationUnitItem.setChoices(unitChoices);
+
+  var currentUnitItem = lists[BFORM.TITLES.CURRENT_UNIT];
+  if (currentUnitItem) currentUnitItem.setChoiceValues(eligibleUnits.map(function(unit) { return unit.name; }));
+
+  for (var optionNumber = 1; optionNumber <= (BFORM.MAX_ROTATION_OPTIONS || 5); optionNumber++) {
+    var schedulePage = pages[BFORM.ROTATION_SCHEDULE_PAGE_PREFIX + optionNumber];
+    if (!schedulePage) throw new Error('Missing schedule page for rotation selection ' + optionNumber + '.');
+    if (optionNumber === (BFORM.MAX_ROTATION_OPTIONS || 5)) {
+      try { schedulePage.setGoToPage(FormApp.PageNavigationType.SUBMIT); } catch (ignoreFinalNavigation) {}
+      continue;
+    }
+
+    var nextOption = optionNumber + 1;
+    var continuation = multipleChoices[optionTitle_(BFORM.TITLES.ROTATION_ADD_MORE_PREFIX, nextOption)];
+    var nextSchedule = pages[BFORM.ROTATION_SCHEDULE_PAGE_PREFIX + nextOption];
+    if (!continuation || !nextSchedule) throw new Error('Missing continuation routing for rotation selection ' + nextOption + '.');
+    continuation.setChoices([
+      continuation.createChoice(BFORM.TITLES.ROTATION_ADD_MORE_YES, nextSchedule),
+      continuation.createChoice(BFORM.TITLES.ROTATION_ADD_MORE_NO, FormApp.PageNavigationType.SUBMIT)
+    ]);
+  }
 }
 
 function removeExistingBranchItems_(form, options) {
@@ -173,9 +193,13 @@ function removeExistingBranchItems_(form, options) {
     BFORM.TITLES.END_DATE,
     BFORM.TITLES.HOURS,
     BFORM.TITLES.ROTATION_UNIT,
-    BFORM.TITLES.ROTATION_DEPARTMENT
+    BFORM.TITLES.ROTATION_DEPARTMENT,
+    BFORM.TITLES.OPTIONAL_ROTATION_GRID
   ];
   var pagePrefixes = [
+    BFORM.ROTATION_ROUTER_PAGE_TITLE,
+    BFORM.ROTATION_BRANCH_PAGE_PREFIX,
+    BFORM.ROTATION_SCHEDULE_PAGE_PREFIX,
     BFORM.INTERNAL_BRANCH_PAGE_PREFIX,
     BFORM.EXTERNAL_ROUTER_PAGE_PREFIX,
     BFORM.EXTERNAL_BRANCH_PAGE_PREFIX,
@@ -184,10 +208,19 @@ function removeExistingBranchItems_(form, options) {
   ];
   var questionPrefixes = [
     BFORM.SECTION_QUESTION_PREFIX,
+    BFORM.TITLES.OPTIONAL_ROTATION_GRID + ' - ',
     'القسم المطلوب - ',
     'Requested Section - ',
     'القسم المطلوب / Requested Section - '
   ];
+
+  for (var rotationOption = 1; rotationOption <= (BFORM.MAX_ROTATION_OPTIONS || 5); rotationOption++) {
+    exactTitles.push(optionTitle_(BFORM.TITLES.ROTATION_FROM_PREFIX, rotationOption));
+    exactTitles.push(optionTitle_(BFORM.TITLES.ROTATION_TO_PREFIX, rotationOption));
+    exactTitles.push(optionTitle_(BFORM.TITLES.ROTATION_HOURS_PREFIX, rotationOption));
+    questionPrefixes.push(optionTitle_(BFORM.TITLES.ROTATION_SECTION_PREFIX, rotationOption) + ' - ');
+    if (rotationOption > 1) exactTitles.push(optionTitle_(BFORM.TITLES.ROTATION_ADD_MORE_PREFIX, rotationOption));
+  }
   for (var internalOption = 1; internalOption <= (BFORM.MAX_INTERNAL_OPTIONS || 3); internalOption++) {
     exactTitles.push(optionTitle_(BFORM.TITLES.INTERNAL_SECTION_PREFIX, internalOption));
     exactTitles.push(optionTitle_(BFORM.TITLES.INTERNAL_FROM_PREFIX, internalOption));
