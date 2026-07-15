@@ -12,6 +12,9 @@ function bootstrapAll() {
   run04_rebuildMainFormBaseQuestions();
   run05_startMainFormBranching();
   run06_continueMainFormBranching();
+  if (getBootstrapProperty_(BSPROP.BRANCH_COMPLETE, 'false') !== 'true') {
+    return 'Main form branching is still in progress. Run run06_continueMainFormBranching() repeatedly, then continue with Steps 7 through 10.';
+  }
   run07_setupEvaluationForm();
   run08_buildDashboardSummaryAndCharts();
   run09_applyProtections();

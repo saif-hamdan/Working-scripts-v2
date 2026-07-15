@@ -3,7 +3,7 @@ function setupMainForm_(form, dashboard) {
   rebuildMainFormBase_(form, dashboard);
   var units = readUnits_(dashboard);
   var sections = readSections_(dashboard);
-  rebuildBootstrapRotationOptionBranching_(form, units, sections);
+  initializeBootstrapRotationOptionBranching_(form, units, sections);
 }
 
 function setupEvaluationForm_(form) {

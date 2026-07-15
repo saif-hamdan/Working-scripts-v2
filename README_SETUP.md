@@ -28,7 +28,7 @@ Open `BootstrapConfig.gs` before running.
 - To create resources once and reuse them on later runs, leave `FORCE_CREATE_NEW_RESOURCES` as `false`.
 - To intentionally create a fresh set after a previous run, set `FORCE_CREATE_NEW_RESOURCES` to `true` for that run only, then set it back to `false`.
 - `MAIN_FORM_BRANCH_UNITS_PER_RUN` controls how many unit-specific form sections are created per execution.
-- The built-in default owner and admin email is `employeeservices@squ.edu.om`; the built-in dummy data still uses `saif.alkaanuni@gmail.com` for unit head sample data.
+- The built-in default owner and admin email is `employeeservices@squ.edu.om`; the built-in dummy unit-head email is `s.alkaanuni1@squ.edu.om`.
 
 ## Start with completely new resources
 
@@ -52,7 +52,7 @@ Run these functions from Apps Script in order:
 5. `run03_validateReferenceData()`
 6. `run04_rebuildMainFormBaseQuestions()`
 7. `run05_startMainFormBranching()`
-8. `run06_continueMainFormBranching()` to verify that branching is complete.
+8. Run `run06_continueMainFormBranching()` repeatedly until it reports `Complete`. Each execution saves its progress and stays below the Apps Script execution-time limit.
 9. `run07_setupEvaluationForm()`
 10. `run08_buildDashboardSummaryAndCharts()`
 11. `run09_applyProtections()`
@@ -67,7 +67,7 @@ After `run14_repairExistingResourcesFromLatestScript()` finishes, run:
 
 1. `run03_validateReferenceData()`
 2. `run05_startMainFormBranching()`
-3. `run06_continueMainFormBranching()` to verify that branching is complete
+3. Run `run06_continueMainFormBranching()` repeatedly until it reports `Complete`
 4. `run09_applyProtections()`
 5. `run10_finalizeSetupSummary()`
 6. `run13_verifyProductionCompatibility()` repeatedly until it reports `Complete`

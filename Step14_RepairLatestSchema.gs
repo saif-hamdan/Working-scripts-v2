@@ -23,6 +23,7 @@ function run14_repairExistingResourcesFromLatestScript() {
   setBootstrapProperties_({
     [BSPROP.BRANCH_INDEX]: '0',
     [BSPROP.BRANCH_TOTAL]: '0',
+    [BSPROP.BRANCH_PHASE]: '',
     [BSPROP.BRANCH_COMPLETE]: 'false',
     [BSPROP.VALIDATION_STATUS]: '',
     [BSPROP.PRODUCTION_COMPATIBILITY_STATUS]: '',

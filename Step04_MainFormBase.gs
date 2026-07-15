@@ -7,6 +7,7 @@ function run04_rebuildMainFormBaseQuestions() {
   setBootstrapProperties_({
     [BSPROP.BRANCH_INDEX]: '0',
     [BSPROP.BRANCH_TOTAL]: '0',
+    [BSPROP.BRANCH_PHASE]: '',
     [BSPROP.BRANCH_COMPLETE]: 'false'
   });
   writeSetupSummary_(ss, form, tryOpenEvaluationForm_());

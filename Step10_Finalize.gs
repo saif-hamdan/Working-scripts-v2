@@ -65,9 +65,23 @@ function getProductionCompatibilitySteps_() {
     { name: 'setupValidations()', fn: setupValidations },
     { name: 'protectDashboardSheets()', fn: protectDashboardSheets },
     { name: 'refreshDashboard()', fn: refreshDashboard },
-    { name: 'refreshFormChoices()', fn: refreshFormChoices },
+    { name: 'verify completed main-form branching', fn: verifyCompletedMainFormBranching_ },
     { name: 'installTriggers()', fn: installTriggers }
   ];
+}
+
+function verifyCompletedMainFormBranching_() {
+  if (getBootstrapProperty_(BSPROP.BRANCH_COMPLETE, 'false') !== 'true') {
+    throw new Error('Main form branching is incomplete. Run run06_continueMainFormBranching() until it reports Complete.');
+  }
+  var ss = openDashboardFromProperties_();
+  var eligibleUnitCount = bootstrapEligibleUnits_(readUnits_(ss), readSections_(ss)).length;
+  var expectedTotal = bootstrapBranchWorkTotal_(eligibleUnitCount);
+  var progress = Number(getBootstrapProperty_(BSPROP.BRANCH_INDEX, '0')) || 0;
+  var total = Number(getBootstrapProperty_(BSPROP.BRANCH_TOTAL, '0')) || 0;
+  if (!eligibleUnitCount || progress !== expectedTotal || total !== expectedTotal) {
+    throw new Error('Main form branching progress does not match the current unit and section data. Restart with Step 5.');
+  }
 }
 
 function isBootstrapSetupReady_(mainForm, evaluationForm) {
