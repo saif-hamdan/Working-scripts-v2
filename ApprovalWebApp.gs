@@ -260,7 +260,7 @@ function getValidatedWebAppUrlStatus_() {
 }
 
 function normalizeWebAppUrl_(url) {
-  return safeString_(url).replace(/\/+$/, '');
+  return normalizeProductionWebAppUrl_(url);
 }
 
 function buildDecisionQueuedResult_() {

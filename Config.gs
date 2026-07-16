@@ -148,8 +148,8 @@ function readSettingsRows_(sheet) {
 }
 
 function resolveConfiguredWebAppUrl_(sheetValue, scriptPropertyValue, fallback) {
-  var sheetUrl = safeString_(sheetValue);
-  var propertyUrl = safeString_(scriptPropertyValue);
+  var sheetUrl = normalizeProductionWebAppUrl_(sheetValue);
+  var propertyUrl = normalizeProductionWebAppUrl_(scriptPropertyValue);
   if (isConfiguredWebAppUrl_(sheetUrl)) return sheetUrl;
   if (isConfiguredWebAppUrl_(propertyUrl)) return propertyUrl;
   return fallback || '';
@@ -157,7 +157,14 @@ function resolveConfiguredWebAppUrl_(sheetValue, scriptPropertyValue, fallback) 
 
 function isConfiguredWebAppUrl_(value) {
   var url = safeString_(value);
-  return !!url && url !== WEB_APP_URL_PLACEHOLDER;
+  if (!url || url === WEB_APP_URL_PLACEHOLDER) return false;
+  return /\/exec$/i.test(normalizeProductionWebAppUrl_(url));
+}
+
+function normalizeProductionWebAppUrl_(value) {
+  var url = safeString_(value).replace(/\/+$/, '');
+  if (!url || url === WEB_APP_URL_PLACEHOLDER) return '';
+  return url.replace(/\/dev$/i, '/exec');
 }
 
 

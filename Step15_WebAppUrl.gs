@@ -6,9 +6,10 @@ function run15_saveActiveWebAppUrl() {
   } catch (err) {
     throw new Error('Unable to read the active Web App URL. Deploy this Apps Script project as a Web App, then run this function again.');
   }
+  activeUrl = normalizeProductionWebAppUrl_(activeUrl);
 
   if (!isConfiguredWebAppUrl_(activeUrl)) {
-    throw new Error('No active Web App deployment was found. Deploy this Apps Script project as a Web App, then run this function again.');
+    throw new Error('No production Web App deployment URL was found. Deploy this Apps Script project as a Web App, then run this function again.');
   }
 
   var ss = openDashboardFromProperties_();
