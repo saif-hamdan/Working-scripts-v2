@@ -22,7 +22,9 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
     }
   }
 
-  if (data.responseSourceId) {
+  // The source fingerprint is only a fallback for inputs that do not have a
+  // stable response ID. Distinct response rows must remain distinct requests.
+  if (!data.responseId && data.responseSourceId) {
     var existingSourceRecord = findIndexedRequestByResponseSourceId_(data.responseSourceId);
     if (existingSourceRecord) {
       logInfo_('createRequestFromNormalizedData_:sourceIdempotent', existingSourceRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID] || '', 'Request already exists for response source ' + data.responseSourceId + '; skipping duplicate creation.');

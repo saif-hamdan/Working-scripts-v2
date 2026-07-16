@@ -127,7 +127,14 @@ function processUnprocessedFormResponses(options) {
       var responseSourceId = item.responseSourceId;
       try {
         var data = null;
-        var existingRecord = (responseSourceId ? recordsByResponseSourceId[responseSourceId] : null) || recordsByResponseId[responseId];
+        // A queue response ID identifies one exact response-sheet row. When it
+        // exists, a fallback source fingerprint must never override it.
+        var existingRecord = findExistingResponseQueueRequest_(
+          responseId,
+          responseSourceId,
+          recordsByResponseId,
+          recordsByResponseSourceId
+        );
         if (existingRecord) {
           markResponseRowProcessed_(sheet, rowNumber, map, existingRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID] || responseId, '');
           skippedCount++;
@@ -181,6 +188,13 @@ function buildResponseQueueStats_(processed, skipped, failed, stoppedEarly, scan
     scanned: scanned || 0,
     remainingLikely: Boolean(remainingLikely)
   };
+}
+
+function findExistingResponseQueueRequest_(responseId, responseSourceId, recordsByResponseId, recordsByResponseSourceId) {
+  responseId = safeString_(responseId);
+  responseSourceId = safeString_(responseSourceId);
+  if (responseId) return recordsByResponseId[responseId] || null;
+  return responseSourceId ? (recordsByResponseSourceId[responseSourceId] || null) : null;
 }
 
 function formatResponseQueueStats_(stats) {
@@ -311,21 +325,24 @@ function makeResponseSourceIdFromRow_(headers, row, map) {
     return '';
   }
 
+  var rotationUnit = valueFor(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_UNIT);
   var data = {
     timestamp: valueFor(['Timestamp', 'الطابع الزمني']),
     submitterEmail: valueFor(['Email Address', 'البريد الإلكتروني', FORM.TITLES.DIRECT_MANAGER_EMAIL]),
-    employeeEmail: valueFor(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_EMAIL),
-    startDate: parseDateFlexible_(valueFor(FORM_RESPONSE_TITLE_CANDIDATES.START_DATE)),
-    endDate: parseDateFlexible_(valueFor(FORM_RESPONSE_TITLE_CANDIDATES.END_DATE)),
-    rotationUnit: valueFor(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_UNIT),
-    section: ''
+    employeeId: valueFor(FORM_RESPONSE_TITLE_CANDIDATES.EMPLOYEE_ID),
+    startDate: parseDateFlexible_(valueFor(expandUnitScopedTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_FROM, rotationUnit))),
+    endDate: parseDateFlexible_(valueFor(expandUnitScopedTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_TO, rotationUnit))),
+    rotationUnit: rotationUnit,
+    section: valueFor(expandUnitScopedTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_SECTION, rotationUnit))
   };
 
-  for (var k = 0; k < headers.length; k++) {
-    if (isResponseQueueColumnIndex_(k + 1, map)) continue;
-    if (isRotationSectionResponseHeader_(headers[k])) {
-      data.section = row[k];
-      break;
+  if (!safeString_(data.section)) {
+    for (var k = 0; k < headers.length; k++) {
+      if (isResponseQueueColumnIndex_(k + 1, map)) continue;
+      if (isRotationSectionResponseHeader_(headers[k]) && safeString_(row[k])) {
+        data.section = row[k];
+        break;
+      }
     }
   }
 

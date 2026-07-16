@@ -50,8 +50,12 @@ function makeStableSourceKey_(parts) {
 }
 
 function makeFormResponseSourceId_(data) {
+  var sourceTimestamp = data && data.timestamp;
+  if (sourceTimestamp instanceof Date && !isNaN(sourceTimestamp.getTime())) {
+    sourceTimestamp = Utilities.formatDate(sourceTimestamp, SYSTEM.TIME_ZONE, "yyyy-MM-dd'T'HH:mm:ss.SSS");
+  }
   return makeStableSourceKey_([
-    data && data.timestamp,
+    sourceTimestamp,
     data && data.submitterEmail,
     data && data.employeeId,
     data && data.startDate,

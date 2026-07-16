@@ -138,6 +138,8 @@ After deploying the production working script as a Web App, run `run15_saveActiv
 Setup refreshes preserve a real `WEB_APP_URL`; they only write `PASTE_WEB_APP_URL_AFTER_DEPLOYMENT` when no deployment URL has been saved yet.
 If Apps Script reports its editor-only `/dev` testing URL, the setup normalizes it to the production `/exec` URL before saving or generating approval links.
 
+If an older response row was incorrectly marked `PROCESSED` with another response's request ID, run `run16_requeueMismatchedProcessedResponses()` once, then run `processUnprocessedFormResponses()`. The repair runner only requeues processed rows whose employee and rotation details do not match their assigned request record.
+
 ## Notes
 
 - Google Forms cannot dynamically filter section choices based on dates entered in the same response. This toolkit creates unit-based branching only.

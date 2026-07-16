@@ -271,7 +271,9 @@ function appendRequestSourceIndex_(record) {
   var requestId = safeString_(record[H.RECORD.REQUEST_ID] || record[H.REQUEST_SOURCE_INDEX.REQUEST_ID]);
   if (!requestId || (!responseId && !sourceId)) return null;
 
-  var existing = (sourceId ? findIndexedRequestByResponseSourceId_(sourceId) : null) || (responseId ? findIndexedRequestByResponseId_(responseId) : null);
+  var existing = responseId
+    ? findIndexedRequestByResponseId_(responseId)
+    : (sourceId ? findIndexedRequestByResponseSourceId_(sourceId) : null);
   if (existing) return existing;
 
   var sheet = getOrCreateSheet_(SHEETS.REQUEST_SOURCE_INDEX);
