@@ -29,6 +29,24 @@ function getBootstrapProperty_(key, fallback) {
   return value === null || typeof value === 'undefined' ? fallback : value;
 }
 
+function withMainFormBranchLock_(label, options, callback) {
+  options = options || {};
+  if (options.skipLock === true) return callback();
+
+  var lock = LockService.getScriptLock();
+  var waitMs = Math.max(0, Number(options.lockWaitMs) || 25000);
+  if (!lock.tryLock(waitMs)) {
+    var message = label + ' skipped because another system or form-refresh execution is running.';
+    Logger.log(message);
+    return message;
+  }
+  try {
+    return callback();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function finishStep_(step, status, message) {
   setBootstrapProperties_({
     [BSPROP.LAST_STEP]: step,
@@ -282,23 +300,31 @@ function syncAdminReferenceData_(ss) {
     getDataRows_(adminSections, BH.SECTIONS.length).filter(function(row) { return row[2] && row[3]; }),
     unitRows
   );
-
-  bsClearDataBelowHeader_(systemUnits);
-  bsClearDataBelowHeader_(systemSections);
-  if (unitRows.length) systemUnits.getRange(2, 1, unitRows.length, BH.UNITS.length).setValues(unitRows);
-  if (sectionRows.length) systemSections.getRange(2, 1, sectionRows.length, BH.SECTIONS.length).setValues(sectionRows);
-
-  applyBasicSheetFormat_(systemUnits, BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR);
-  applyBasicSheetFormat_(systemSections, BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR);
-  try { systemUnits.hideSheet(); } catch (ignore) {}
-  try { systemSections.hideSheet(); } catch (ignore2) {}
-
   var hash = hashReferenceRows_(unitRows, sectionRows);
+  var previousHash = getBootstrapProperty_(BSPROP.REFERENCE_DATA_HASH, '');
+  var changed = hash !== previousHash;
+  var runtimeDataMissing = (unitRows.length && systemUnits.getLastRow() < 2) ||
+    (sectionRows.length && systemSections.getLastRow() < 2);
+
+  // Scheduled hash checks should be read-only when the reference data did not
+  // change. Rewrite the hidden runtime sheets only for a real change or repair.
+  if (changed || runtimeDataMissing) {
+    bsClearDataBelowHeader_(systemUnits);
+    bsClearDataBelowHeader_(systemSections);
+    if (unitRows.length) systemUnits.getRange(2, 1, unitRows.length, BH.UNITS.length).setValues(unitRows);
+    if (sectionRows.length) systemSections.getRange(2, 1, sectionRows.length, BH.SECTIONS.length).setValues(sectionRows);
+
+    applyBasicSheetFormat_(systemUnits, BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR);
+    applyBasicSheetFormat_(systemSections, BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR);
+    try { systemUnits.hideSheet(); } catch (ignore) {}
+    try { systemSections.hideSheet(); } catch (ignore2) {}
+  }
+
   setBootstrapProperties_({
     [BSPROP.REFERENCE_DATA_HASH]: hash,
     [BSPROP.LAST_REFERENCE_SYNC]: new Date().toISOString()
   });
-  return { unitCount: unitRows.length, sectionCount: sectionRows.length, hash: hash };
+  return { unitCount: unitRows.length, sectionCount: sectionRows.length, hash: hash, changed: changed };
 }
 
 function cascadeInactiveUnitSections_(sectionRows, unitRows) {
@@ -465,6 +491,9 @@ function writeSetupSummary_(ss, mainForm, evaluationForm) {
   var branchTotal = getBootstrapProperty_(BSPROP.BRANCH_TOTAL, '0');
   var branchPhase = getBootstrapProperty_(BSPROP.BRANCH_PHASE, '');
   var branchComplete = getBootstrapProperty_(BSPROP.BRANCH_COMPLETE, 'false');
+  var branchMode = getBootstrapProperty_(BSPROP.BRANCH_MODE, '');
+  var branchTargetHash = getBootstrapProperty_(BSPROP.BRANCH_TARGET_HASH, '');
+  var branchPublishedHash = getBootstrapProperty_(BSPROP.BRANCH_PUBLISHED_HASH, '');
 
   var rows = [
     ['Item', 'Value'],
@@ -481,10 +510,16 @@ function writeSetupSummary_(ss, mainForm, evaluationForm) {
     ['Evaluation Form Edit URL', evaluationForm ? evaluationForm.getEditUrl() : getBootstrapProperty_(BSPROP.EVALUATION_FORM_EDIT_URL, '')],
     ['Evaluation Form Published URL', evaluationForm ? evaluationForm.getPublishedUrl() : getBootstrapProperty_(BSPROP.EVALUATION_FORM_PUBLISHED_URL, '')],
     ['Main form branching phase', branchPhase],
+    ['Main form branching mode', branchMode],
     ['Main form branching progress', branchIndex + ' / ' + branchTotal],
     ['Main form branching complete', branchComplete],
+    ['Main form target hash', branchTargetHash],
+    ['Main form published hash', branchPublishedHash],
+    ['Main form branching error', getBootstrapProperty_(BSPROP.BRANCH_LAST_ERROR, '')],
+    ['Main form repair active', getBootstrapProperty_(BSPROP.BRANCH_REPAIR_ACTIVE, 'false')],
     ['Validation status', getBootstrapProperty_(BSPROP.VALIDATION_STATUS, BSTATUS.NOT_STARTED)],
     ['Reference data hash', getBootstrapProperty_(BSPROP.REFERENCE_DATA_HASH, '')],
+    ['Reference data dirty', getBootstrapProperty_(BSPROP.REFERENCE_DIRTY, 'false')],
     ['Last reference sync', getBootstrapProperty_(BSPROP.LAST_REFERENCE_SYNC, '')],
     ['Production compatibility status', getBootstrapProperty_(BSPROP.PRODUCTION_COMPATIBILITY_STATUS, BSTATUS.NOT_STARTED)],
     ['Next production compatibility step', getBootstrapProperty_(BSPROP.PRODUCTION_COMPATIBILITY_INDEX, '0')],

@@ -76,7 +76,7 @@ Recommended values:
 Recommended `APPROVER_UNIT_MODE` is `CURRENT_UNIT`, meaning the head of the unit the employee belongs to approves. Use `ROTATION_UNIT` only if your policy requires the receiving rotation unit head to approve.
 
 4. In the `استمارة تحديد مسار التدوير الوظيفي للموظفين الجدد / New Employee Job Rotation Path Form` Google Form, use **Responses → Link to Sheets** to create or select the linked response spreadsheet, then set `FORM_RESPONSES_SPREADSHEET_ID` to that spreadsheet ID. This linked response sheet is required: request records are created only when `processUnprocessedFormResponses()` reads the response-sheet queue during sync.
-5. Run `setupAll()` once and authorize permissions.
+5. For a new project, run `setupAll()` once and authorize permissions. For an existing configured project with duplicated or broken rotation questions, upload the latest code and run `run17_repairMainFormBranching()` before any broad setup rebuild, then repeat `run06_continueMainFormBranching()` until it reports `Complete`.
 6. Fill the visible `إدارة الوحدات` and `إدارة الأقسام` sheets with your real unit/section data. The production script syncs these into the hidden runtime `الوحدات` and `الأقسام` sheets.
 7. Deploy the script as a **Web App**:
    - Execute as: **Me**
@@ -88,9 +88,9 @@ Recommended `APPROVER_UNIT_MODE` is `CURRENT_UNIT`, meaning the head of the unit
 
 Native Google Forms cannot refresh a second dropdown live on the same page after the first dropdown is selected. This implementation routes the rotation-unit answer to a unit-specific page containing one filtered Rotation Section dropdown followed by required Rotation Start Date, Rotation End Date, and Required Daily Hours questions. Each submission creates exactly one Records-sheet row and one dashboard record. Submit the form again when another rotation is required for the same employee.
 
-The five-minute trigger continues any staged form rebuild after unit/section reference data changes. Approval and request-status changes refresh the dashboard but do not rebuild the form. Form submissions are not converted into requests by a direct form-submit trigger; the five-minute sync calls `processUnprocessedFormResponses()` to create requests from the linked response-sheet queue. Admins may also run `processResponseQueueOnce()` manually, or use the `معالجة الطلبات غير المعالجة` custom menu item, after a form outage or high-volume submission period; it logs the number of processed, skipped, and failed rows. If `FORM_RESPONSES_SPREADSHEET_ID` is missing, setup and sync log a warning and no submitted form responses can become requests. The approval handler still re-checks conflicts atomically with `LockService`, so even if the form choice was stale, the system blocks late conflicts.
+The five-minute `syncSystem()` trigger compares the current unit/section reference hash with the hash represented by the published form. Unchanged executions make no Google Form changes. When data changes, the live form remains open and keeps its current navigation until all updated pages validate; only then is the new navigation published and obsolete unreachable pages removed. Approval and request-status changes refresh the dashboard but do not rebuild the form. Form submissions are not converted into requests by a direct form-submit trigger; the five-minute sync calls `processUnprocessedFormResponses()` to create requests from the linked response-sheet queue. Admins may also run `processResponseQueueOnce()` manually, or use the `معالجة الطلبات غير المعالجة` custom menu item, after a form outage or high-volume submission period; it logs the number of processed, skipped, and failed rows. If `FORM_RESPONSES_SPREADSHEET_ID` is missing, setup and sync log a warning and no submitted form responses can become requests. The approval handler still re-checks conflicts atomically with `LockService`, so even if the form choice was stale, the system blocks late conflicts.
 
-Do not install the five-minute refresh trigger in the setup/resource project. It belongs only in this production workflow project.
+Use `installTriggers()` to install one `syncSystem()` trigger. Do not create a separate time-driven trigger for `run11_refreshMainFormFromAdminSheets()`; the Step 12 compatibility runner removes legacy copies.
 
 
 ## Troubleshooting stuck queue rows
@@ -165,7 +165,8 @@ When diagnosing any stuck row, capture the row number, queue status, retry/attem
 ## Main functions
 
 - `setupAll()` — run after configuration changes.
-- `refreshFormChoices()` — rebuild the Google Form's single-rotation unit-to-section details pages.
+- `refreshFormChoices()` — checks the reference hashes and rebuilds the Google Form's single-rotation unit-to-section details pages only when needed.
+- `run17_repairMainFormBranching()` — one-time closed repair for duplicated or corrupted rotation pages; preserves the existing form URL and response destination.
 - `refreshDashboard()` — rebuild the clean dashboard sheet.
 - `installTriggers()` — install edit, five-minute sync, and daily evaluation triggers. It intentionally does not install a direct form-submit request-creation trigger.
 - `processUnprocessedFormResponses()` — create requests from unprocessed rows in the linked Google Form response sheet.

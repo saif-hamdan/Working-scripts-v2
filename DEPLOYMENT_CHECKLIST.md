@@ -4,6 +4,8 @@
 - [ ] Create or prepare the `استمارة تحديد مسار التدوير الوظيفي للموظفين الجدد / New Employee Job Rotation Path Form` Google Form.
 - [ ] Create or prepare the `تقييم تجربة التدوير الوظيفي / Job Rotation Experience Evaluation` Google Form.
 - [ ] Add all working script files to one Apps Script project.
+- [ ] For an existing form, run `run17_repairMainFormBranching()` once, then repeat `run06_continueMainFormBranching()` until it reports `Complete`.
+- [ ] Confirm the same form URL reopens and every eligible unit has exactly one Section, Start Date, End Date, and Daily Hours question.
 - [ ] Add Script Properties from `CONFIG_TEMPLATE.json`.
 - [ ] Run `setupAll()` and authorize.
 - [ ] Replace sample unit data in `إدارة الوحدات`.
@@ -21,4 +23,5 @@
 - [ ] Test two overlapping requests in the same section.
 - [ ] Test final status cannot be changed to `منجز` before head approval.
 - [ ] Test evaluation email after rotation end date.
-- [ ] Confirm the five-minute trigger is installed only in this production workflow project, not the setup/resource project.
+- [ ] Run `installTriggers()` and confirm exactly one five-minute `syncSystem` trigger is installed.
+- [ ] Confirm there is no separate time-driven `run11_refreshMainFormFromAdminSheets` trigger.

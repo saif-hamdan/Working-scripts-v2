@@ -19,10 +19,11 @@ function onOpen() {
       .addItem('10 - Finalize setup summary', 'run10_finalizeSetupSummary')
       .addItem('13 - Verify production compatibility', 'run13_verifyProductionCompatibility')
       .addItem('14 - Repair existing resources from latest script', 'run14_repairExistingResourcesFromLatestScript')
+      .addItem('17 - Repair main form branching once', 'run17_repairMainFormBranching')
       .addSeparator()
       .addItem('11 - Refresh main form from admin sheets', 'run11_refreshMainFormFromAdminSheets')
-      .addItem('12 - Create thirty-minute form refresh trigger', 'run12_createFiveMinuteFormRefreshTrigger')
-      .addItem('12 - Delete thirty-minute form refresh trigger', 'run12_deleteFiveMinuteFormRefreshTrigger')
+      .addItem('12 - Use syncSystem for form refresh', 'run12_createFiveMinuteFormRefreshTrigger')
+      .addItem('12 - Delete legacy form refresh trigger', 'run12_deleteFiveMinuteFormRefreshTrigger')
       .addSeparator()
       .addItem('Bootstrap all (small setups only)', 'bootstrapAll');
 
@@ -180,9 +181,22 @@ function refreshDashboardFromSync_(records) {
 }
 
 
-function refreshFormChoicesFromSync_() {
-  refreshFormChoices(true);
+function refreshFormChoicesFromSync_(startedAt, forceCheck) {
+  if (forceCheck !== true && typeof mainFormNeedsRefresh_ === 'function' && !mainFormNeedsRefresh_()) return false;
+  var deadline = startedAt
+    ? startedAt + SYNC_CONFIG.MAX_SINGLE_RUN_MS - 15000
+    : Date.now() + Math.max(60000, SYNC_CONFIG.MAX_SINGLE_RUN_MS - 15000);
+  if (Date.now() >= deadline) {
+    logInfo_('syncSystem', '', 'Form refresh deferred because the sync execution is near its deadline.');
+    return false;
+  }
+  refreshFormChoices({
+    skipReferenceSync: true,
+    skipLock: true,
+    deadline: deadline
+  });
   setSyncLastRefreshAt_(SYNC_CONFIG.LAST_FORM_REFRESH_KEY);
+  return true;
 }
 
 function hasCapacityAffectingQueueChanges_(responseQueueStats, approvalActionQueueStats) {
@@ -195,7 +209,7 @@ function runFullSyncRefresh_(startedAt) {
   if (shouldStopSync_(startedAt)) return false;
   var dashboardRows = refreshDashboardFromSync_(records);
   if (shouldStopSync_(startedAt)) return false;
-  refreshFormChoicesFromSync_();
+  refreshFormChoicesFromSync_(startedAt);
   return true;
 }
 
@@ -240,11 +254,9 @@ function syncSystem() {
     var needsDashboardRefresh = queueChanged || referenceChanged || dashboardRefreshDue;
     // Form choices now depend only on unit/section reference data. Request and
     // approval status changes do not require rebuilding the Google Form.
-    var stagedBranchingInProgress = typeof getBootstrapProperty_ === 'function' &&
-      typeof BSPROP !== 'undefined' &&
-      getBootstrapProperty_(BSPROP.BRANCH_COMPLETE, 'false') !== 'true' &&
-      toNumber_(getBootstrapProperty_(BSPROP.BRANCH_TOTAL, '0'), 0) > 0;
-    var needsFormRefresh = referenceChanged || stagedBranchingInProgress;
+    var stagedBranchingInProgress = typeof mainFormBranchingInProgress_ === 'function' && mainFormBranchingInProgress_();
+    var needsFormRefresh = referenceChanged ||
+      (typeof mainFormNeedsRefresh_ === 'function' && mainFormNeedsRefresh_());
 
     if (needsDashboardRefresh || needsFormRefresh) {
       var records = getRecords_();
@@ -256,8 +268,8 @@ function syncSystem() {
       }
       if (shouldStopSync_(startedAt)) return;
       if (needsFormRefresh) {
-        refreshFormChoicesFromSync_();
-        logInfo_('syncSystem', '', 'Form choice refresh completed; reason: ' + (referenceChanged ? 'reference data changes' : 'staged branching progress') + '.');
+        refreshFormChoicesFromSync_(startedAt, referenceChanged);
+        logInfo_('syncSystem', '', 'Change-driven form refresh checked; reason: ' + (referenceChanged ? 'reference data changes' : (stagedBranchingInProgress ? 'staged branching progress' : 'queued reference edit')) + '.');
       }
     } else {
       logInfo_('syncSystem', '', 'Refresh phases skipped: no queue/reference changes and scheduled intervals have not elapsed.');

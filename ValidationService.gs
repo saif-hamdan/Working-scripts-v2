@@ -232,10 +232,15 @@ function handleAdminReferenceEdit_(e) {
   if (!lock.tryLock(25000)) return;
   try {
     syncReferenceDataFromAdminSheets_({ forceFormat: true });
+    var bootstrapSync = syncAdminReferenceData_(openDashboardFromProperties_());
+    var queued = markMainFormReferenceDataDirty_(bootstrapSync.hash);
     refreshDashboard(true);
-    if (typeof run11_refreshMainFormFromAdminSheets === 'function') run11_refreshMainFormFromAdminSheets();
-    else refreshFormChoices(true);
-    logInfo_('handleAdminReferenceEdit_', '', 'Reference data synced from ' + sheet.getName() + '.');
+    logInfo_(
+      'handleAdminReferenceEdit_',
+      '',
+      'Reference data synced from ' + sheet.getName() + '. ' +
+        (queued ? 'A change-driven form refresh was queued for syncSystem.' : 'The final data matches the published form; no rebuild was queued.')
+    );
   } catch (err) {
     logError_('handleAdminReferenceEdit_', '', err);
     throw err;

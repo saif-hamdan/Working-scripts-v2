@@ -3,6 +3,7 @@ const SYNC_TRIGGER_PROPERTY_KEY = 'SYNC_TRIGGER_ID';
 
 function installTriggers() {
   deleteExistingTriggers();
+  removeFormRefreshTriggers_();
   var cfg = getConfig();
   // Request creation is handled by processUnprocessedFormResponses() from the
   // 5-minute sync flow, so no form-submit trigger is installed.
@@ -20,7 +21,7 @@ function installTriggers() {
 }
 
 function deleteExistingTriggers() {
-  var handlerNames = ['onFormSubmit', 'onEdit', 'sendEvaluationEmails', 'maintenanceCheck', 'scheduledRefreshEmployeeRotationHoursSummary', 'scheduledRefreshEmployeeTrainingHoursSummary'];
+  var handlerNames = ['onFormSubmit', 'onEdit', 'sendEvaluationEmails', 'maintenanceCheck', 'scheduledRefreshEmployeeRotationHoursSummary', 'scheduledRefreshEmployeeTrainingHoursSummary', 'run11_refreshMainFormFromAdminSheets'];
   ScriptApp.getProjectTriggers().forEach(function(trigger) {
     if (handlerNames.indexOf(trigger.getHandlerFunction()) !== -1) {
       ScriptApp.deleteTrigger(trigger);

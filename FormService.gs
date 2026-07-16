@@ -88,11 +88,17 @@ function deleteFormItemIfPresent_(form, title, type) {
   }
 }
 
-function refreshFormChoices(skipReferenceSync) {
+function refreshFormChoices(options) {
+  if (typeof options === 'boolean') options = { skipReferenceSync: options };
+  options = options || {};
   if (typeof run11_refreshMainFormFromAdminSheets === 'function') {
-    return run11_refreshMainFormFromAdminSheets();
+    return run11_refreshMainFormFromAdminSheets({
+      skipLock: options.skipLock === true,
+      deadline: options.deadline,
+      allowCleanInitialization: options.allowCleanInitialization === true
+    });
   }
-  if (skipReferenceSync !== true) syncReferenceDataFromAdminSheets_();
+  if (options.skipReferenceSync !== true) syncReferenceDataFromAdminSheets_();
   var form = openMainForm_();
   var units = getUnits_();
   var sections = getSections_();

@@ -8,7 +8,14 @@ function run04_rebuildMainFormBaseQuestions() {
     [BSPROP.BRANCH_INDEX]: '0',
     [BSPROP.BRANCH_TOTAL]: '0',
     [BSPROP.BRANCH_PHASE]: '',
-    [BSPROP.BRANCH_COMPLETE]: 'false'
+    [BSPROP.BRANCH_COMPLETE]: 'false',
+    [BSPROP.BRANCH_MODE]: '',
+    [BSPROP.BRANCH_TARGET_HASH]: '',
+    [BSPROP.BRANCH_PUBLISHED_HASH]: '',
+    [BSPROP.BRANCH_LAST_ERROR]: '',
+    [BSPROP.BRANCH_REPAIR_ACTIVE]: 'false',
+    [BSPROP.REFERENCE_DIRTY]: 'true',
+    [BSPROP.REFERENCE_DIRTY_AT]: new Date().toISOString()
   });
   writeSetupSummary_(ss, form, tryOpenEvaluationForm_());
   return finishStep_('04 Rebuild Main Form Base Questions', BSTATUS.COMPLETE, 'Main form base questions were rebuilt. Branching is reset.');
@@ -80,7 +87,9 @@ function deleteAllFormItems_(form) {
 }
 
 function clearFormNavigationReferences_(form) {
-  var temporaryChoice = 'إعادة ضبط مؤقتة / Temporary reset';
+  var temporaryChoice = typeof bootstrapTemporaryResetChoice_ === 'function'
+    ? bootstrapTemporaryResetChoice_()
+    : 'إعادة ضبط مؤقتة / Temporary reset';
   var navigationTitles = [BFORM.TITLES.CURRENT_UNIT, BFORM.TITLES.ROTATION_UNIT];
   for (var optionNumber = 1; optionNumber <= (BFORM.MAX_EXTERNAL_OPTIONS || 3); optionNumber++) {
     navigationTitles.push(optionTitle_(BFORM.TITLES.EXTERNAL_UNIT_PREFIX, optionNumber));

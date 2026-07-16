@@ -1,17 +1,16 @@
-const FORM_REFRESH_TRIGGER_EVERY_MINUTES = 30;
-
 function run12_createFiveMinuteFormRefreshTrigger() {
-  removeFormRefreshTriggers_();
-  ScriptApp.newTrigger('run11_refreshMainFormFromAdminSheets')
-    .timeBased()
-    .everyMinutes(FORM_REFRESH_TRIGGER_EVERY_MINUTES)
-    .create();
-  return finishStep_('12 Create Thirty Minute Form Refresh Trigger', BSTATUS.COMPLETE, 'A ' + FORM_REFRESH_TRIGGER_EVERY_MINUTES + '-minute trigger was created for run11_refreshMainFormFromAdminSheets().');
+  var removed = removeFormRefreshTriggers_();
+  var syncResult = repairSyncTriggerIfMissing();
+  return finishStep_(
+    '12 Use syncSystem For Change-Driven Form Refresh',
+    BSTATUS.COMPLETE,
+    'Removed ' + removed + ' legacy Step 11 trigger(s). syncSystem now checks reference hashes every five minutes and rebuilds the form only when needed. Sync trigger result: ' + syncResult + '.'
+  );
 }
 
 function run12_deleteFiveMinuteFormRefreshTrigger() {
   var removed = removeFormRefreshTriggers_();
-  return finishStep_('12 Delete Thirty Minute Form Refresh Trigger', BSTATUS.COMPLETE, 'Removed ' + removed + ' form refresh trigger(s).');
+  return finishStep_('12 Delete Legacy Form Refresh Trigger', BSTATUS.COMPLETE, 'Removed ' + removed + ' legacy Step 11 form refresh trigger(s).');
 }
 
 function removeFormRefreshTriggers_() {

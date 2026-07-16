@@ -25,6 +25,13 @@ function run14_repairExistingResourcesFromLatestScript() {
     [BSPROP.BRANCH_TOTAL]: '0',
     [BSPROP.BRANCH_PHASE]: '',
     [BSPROP.BRANCH_COMPLETE]: 'false',
+    [BSPROP.BRANCH_MODE]: '',
+    [BSPROP.BRANCH_TARGET_HASH]: '',
+    [BSPROP.BRANCH_PUBLISHED_HASH]: '',
+    [BSPROP.BRANCH_LAST_ERROR]: '',
+    [BSPROP.BRANCH_REPAIR_ACTIVE]: 'false',
+    [BSPROP.REFERENCE_DIRTY]: 'true',
+    [BSPROP.REFERENCE_DIRTY_AT]: new Date().toISOString(),
     [BSPROP.VALIDATION_STATUS]: '',
     [BSPROP.PRODUCTION_COMPATIBILITY_STATUS]: '',
     [BSPROP.READY]: 'false'

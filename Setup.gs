@@ -9,7 +9,13 @@ function setupAllSystem() {
     runSetupStep_('setupValidations', function() { setupValidations(); });
     runSetupStep_('protectDashboardSheets', function() { protectDashboardSheets(); });
     runSetupStep_('refreshDashboard', function() { refreshDashboard(true); });
-    runSetupStep_('refreshFormChoices', function() { refreshFormChoices(true); });
+    runSetupStep_('refreshFormChoices', function() {
+      refreshFormChoices({
+        skipReferenceSync: true,
+        skipLock: true,
+        allowCleanInitialization: true
+      });
+    });
     runSetupStep_('installTriggers', function() { installTriggers(); });
     logInfo_('setupAllSystem', '', 'Setup completed successfully.');
   } catch (err) {

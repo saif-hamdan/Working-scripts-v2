@@ -66,7 +66,7 @@ If the latest script adds, removes, renames, or changes spreadsheet columns/form
 After `run14_repairExistingResourcesFromLatestScript()` finishes, run:
 
 1. `run03_validateReferenceData()`
-2. `run05_startMainFormBranching()`
+2. `run17_repairMainFormBranching()`
 3. Run `run06_continueMainFormBranching()` repeatedly until it reports `Complete`
 4. `run09_applyProtections()`
 5. `run10_finalizeSetupSummary()`
@@ -88,11 +88,20 @@ If it looks like nothing was created:
 
 The created spreadsheet and forms are Drive files, not tabs inside the Apps Script editor.
 
-Optional dynamic refresh:
+## One-time safe repair for duplicated or broken form branches
 
-- Run `run11_refreshMainFormFromAdminSheets()` after editing `إدارة الوحدات` or `إدارة الأقسام`.
-- Run `run12_createFiveMinuteFormRefreshTrigger()` if you want this setup project to check those admin sheets every 30 minutes and refresh the form automatically.
-- Run `run12_deleteFiveMinuteFormRefreshTrigger()` to remove that optional trigger.
+After uploading this version over an existing project, run `run17_repairMainFormBranching()` once. It preserves the existing form ID, published URL, linked response destination, and prior response-acceptance state. The form is temporarily closed with a bilingual maintenance message while old rotation pages and duplicated questions are removed.
+
+Then run `run06_continueMainFormBranching()` repeatedly until it reports `Complete`. The scheduled `syncSystem()` execution can also continue the saved repair. The form reopens automatically only after every eligible unit has exactly one details page, one filtered Section dropdown, one Start Date, one End Date, and one Daily Hours question.
+
+Change-driven refresh after repair:
+
+- Admin edits are consolidated. They update the reference hash and queue work; they do not rebuild the form after every edited cell.
+- `syncSystem()` checks every five minutes and touches the Google Form only when the current reference hash differs from the published form hash or a rebuild is unfinished.
+- `run11_refreshMainFormFromAdminSheets()` remains available for a manual check. It reports `No changes` without modifying the form when the hashes match.
+- `run12_createFiveMinuteFormRefreshTrigger()` is now a compatibility runner: it deletes legacy Step 11 triggers and confirms that `syncSystem()` handles refreshes.
+- Do not install a separate time-driven trigger for `run11_refreshMainFormFromAdminSheets()`.
+- `run12_deleteFiveMinuteFormRefreshTrigger()` removes any legacy Step 11 trigger.
 
 ## Fixing a form that has only one question
 
