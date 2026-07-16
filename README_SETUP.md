@@ -133,7 +133,7 @@ OWNER_EMAIL
 ADMIN_EMAILS
 ```
 
-After deploying the production working script as a Web App, run `run15_saveActiveWebAppUrl()` once. It saves the active deployment URL into both Script Properties and the hidden `الإعدادات` settings sheet. Run it again whenever you create a new Web App deployment.
+After deploying the production working script as a Web App, paste the current production `/exec` URL into `WEB_APP_URL` in the hidden `الإعدادات` settings sheet, then run `run15_saveActiveWebAppUrl()` once. The dashboard value is authoritative because Apps Script can report an older URL when multiple deployments exist. The runner mirrors the dashboard URL into Script Properties and updates every duplicate `WEB_APP_URL` settings row. Repeat these steps whenever you create a new Web App deployment.
 
 Setup refreshes preserve a real `WEB_APP_URL`; they only write `PASTE_WEB_APP_URL_AFTER_DEPLOYMENT` when no deployment URL has been saved yet.
 If Apps Script reports its editor-only `/dev` testing URL, the setup normalizes it to the production `/exec` URL before saving or generating approval links.
