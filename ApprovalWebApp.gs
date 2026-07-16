@@ -225,7 +225,7 @@ function processQueuedRejectAction_(token, reason) {
 
 function getValidatedWebAppUrlStatus_() {
   var configuredUrl = safeString_(getConfig().WEB_APP_URL);
-  if (!configuredUrl) {
+  if (!isConfiguredWebAppUrl_(configuredUrl)) {
     return {
       ok: false,
       message: 'WEB_APP_URL is missing. Deploy the Apps Script as a Web App, then save the active deployment URL in Script Properties or the settings sheet.'

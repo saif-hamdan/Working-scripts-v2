@@ -33,16 +33,11 @@ function sendInvalidDatesSubmissionEmail(data, responseId, error) {
     orgEn: cfg.ORGANIZATION_NAME_EN,
     responseId: responseId || '',
     errorMessage: error && error.message ? error.message : safeString_(error),
-    rows: [
+    rows: removeEmptyEmailRows_([
       { ar: 'اسم الموظف', en: 'Employee', value: data.employeeName || '' },
       { ar: 'الرقم الوظيفي للموظف', en: 'Employee ID', value: data.employeeId || '' },
-      { ar: 'تاريخ تعيين الموظف', en: 'Employee Hire Date', value: formatDate_(data.employeeHireDate) },
       { ar: 'المسمى الوظيفي للموظف', en: 'Employee Job Title', value: data.employeeJobTitle || '' },
-      { ar: 'بريد الموظف', en: 'Employee Email', value: data.employeeEmail || '' },
       { ar: 'المسؤول المباشر', en: 'Line Manager', value: data.directManagerName || '' },
-      { ar: 'الرقم الوظيفي للمسؤول المباشر', en: 'Line Manager Employee ID', value: data.directManagerId || '' },
-      { ar: 'بريد المسؤول المباشر', en: 'Line Manager Email', value: data.directManagerEmail || '' },
-      { ar: 'رقم محول المسؤول المباشر', en: 'Line Manager Extension', value: data.directManagerExtension || '' },
       { ar: 'الوحدة الحالية', en: 'Current Unit', value: data.currentUnit || '' },
       { ar: 'القسم الحالي للموظف', en: 'Current Employee Section', value: data.currentDepartment || '' },
       { ar: 'وحدة التدوير', en: 'Rotation Unit', value: data.rotationUnit || '' },
@@ -50,7 +45,7 @@ function sendInvalidDatesSubmissionEmail(data, responseId, error) {
       { ar: 'تاريخ البداية المرسل', en: 'Submitted Start Date', value: formatDate_(data.startDate) },
       { ar: 'تاريخ النهاية المرسل', en: 'Submitted End Date', value: formatDate_(data.endDate) },
       { ar: 'سبب عدم المعالجة', en: 'Processing Error', value: error && error.message ? error.message : safeString_(error) }
-    ]
+    ])
   };
   var html = renderTemplate_('Emails_InvalidDates', templateData);
   return sendEmailSafe_({

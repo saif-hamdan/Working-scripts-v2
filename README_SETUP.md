@@ -133,7 +133,9 @@ OWNER_EMAIL
 ADMIN_EMAILS
 ```
 
-After deploying the production working script as a Web App, paste the deployed URL into the production script setting `WEB_APP_URL`.
+After deploying the production working script as a Web App, run `run15_saveActiveWebAppUrl()` once. It saves the active deployment URL into both Script Properties and the hidden `الإعدادات` settings sheet. Run it again whenever you create a new Web App deployment.
+
+Setup refreshes preserve a real `WEB_APP_URL`; they only write `PASTE_WEB_APP_URL_AFTER_DEPLOYMENT` when no deployment URL has been saved yet.
 
 ## Notes
 

@@ -1,4 +1,4 @@
-/** Configuration loading from Script Properties first, then hidden settings sheet. */
+/** Configuration loading from Script Properties and the hidden settings sheet. */
 function getConfig() {
   var props = PropertiesService.getScriptProperties().getProperties();
   var settings = readSettingsMapSafe_();
@@ -27,7 +27,11 @@ function getConfig() {
     QUEUE_SCAN_WINDOW_ROWS: responseQueueLimits.scanWindowRows,
     ACTION_QUEUE_MAX_RETRIES: Math.max(1, toNumber_(value(SETTINGS_KEYS.ACTION_QUEUE_MAX_RETRIES, '3'), 3)),
     EVALUATION_FORM_URL: value(SETTINGS_KEYS.EVALUATION_FORM_URL, ''),
-    WEB_APP_URL: value(SETTINGS_KEYS.WEB_APP_URL, ''),
+    WEB_APP_URL: resolveConfiguredWebAppUrl_(
+      settings[SETTINGS_KEYS.WEB_APP_URL],
+      props[SETTINGS_KEYS.WEB_APP_URL],
+      ''
+    ),
     OWNER_EMAIL: ownerEmail,
     ADMIN_EMAILS: adminEmails,
     APPROVER_UNIT_MODE: normalizeApproverUnitMode_(value(SETTINGS_KEYS.APPROVER_UNIT_MODE, APPROVER_UNIT_MODE.CURRENT_UNIT)),
@@ -141,6 +145,19 @@ function readSettingsRows_(sheet) {
     if (key) map[key] = safeString_(row[1]);
   });
   return map;
+}
+
+function resolveConfiguredWebAppUrl_(sheetValue, scriptPropertyValue, fallback) {
+  var sheetUrl = safeString_(sheetValue);
+  var propertyUrl = safeString_(scriptPropertyValue);
+  if (isConfiguredWebAppUrl_(sheetUrl)) return sheetUrl;
+  if (isConfiguredWebAppUrl_(propertyUrl)) return propertyUrl;
+  return fallback || '';
+}
+
+function isConfiguredWebAppUrl_(value) {
+  var url = safeString_(value);
+  return !!url && url !== WEB_APP_URL_PLACEHOLDER;
 }
 
 

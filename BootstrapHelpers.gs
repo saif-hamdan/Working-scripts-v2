@@ -339,6 +339,12 @@ function hashReferenceRows_(unitRows, sectionRows) {
 function writeSettings_(ss, mainForm, evaluationForm) {
   var settingsSheetName = (typeof SHEETS !== 'undefined' && SHEETS.SETTINGS) ? SHEETS.SETTINGS : BS.SETTINGS;
   var sheet = ss.getSheetByName(settingsSheetName) || bsEnsureSheet_(ss, settingsSheetName);
+  var currentSettings = readSettingsRows_(sheet);
+  var preservedWebAppUrl = resolveConfiguredWebAppUrl_(
+    currentSettings[SETTINGS_KEYS.WEB_APP_URL],
+    getBootstrapProperty_(SETTINGS_KEYS.WEB_APP_URL, ''),
+    WEB_APP_URL_PLACEHOLDER
+  );
   bsSetHeaders_(sheet, BH.SETTINGS);
 
   var owner = getEffectiveOwnerEmail_();
@@ -354,7 +360,7 @@ function writeSettings_(ss, mainForm, evaluationForm) {
   values[SETTINGS_KEYS.QUEUE_SCAN_WINDOW_ROWS] = String(QUEUE_SCAN_WINDOW_ROWS);
   values[SETTINGS_KEYS.ACTION_QUEUE_MAX_RETRIES] = '3';
   values[SETTINGS_KEYS.EVALUATION_FORM_URL] = evaluationForm ? evaluationForm.getPublishedUrl() : getBootstrapProperty_(BSPROP.EVALUATION_FORM_PUBLISHED_URL, '');
-  values[SETTINGS_KEYS.WEB_APP_URL] = 'PASTE_WEB_APP_URL_AFTER_DEPLOYMENT';
+  values[SETTINGS_KEYS.WEB_APP_URL] = preservedWebAppUrl;
   values[SETTINGS_KEYS.OWNER_EMAIL] = owner;
   values[SETTINGS_KEYS.ADMIN_EMAILS] = admins;
   values[SETTINGS_KEYS.APPROVER_UNIT_MODE] = BOOTSTRAP_CONFIG.APPROVER_UNIT_MODE;

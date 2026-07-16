@@ -11,8 +11,8 @@
 - [ ] Run `setupAll()` again.
 - [ ] Deploy as Web App with **Execute as** set to the script owner or the intended automation account.
 - [ ] Deploy as Web App with access allowed for all unit heads who receive approval/rejection links.
-- [ ] Save the active Web App deployment URL into `WEB_APP_URL`.
-- [ ] After every new Web App deployment, update `WEB_APP_URL` to the new active deployment URL before sending links.
+- [ ] Run `run15_saveActiveWebAppUrl()` to save the active Web App deployment URL into `WEB_APP_URL`.
+- [ ] After every new Web App deployment, run `run15_saveActiveWebAppUrl()` again before sending links.
 - [ ] Run `setupAll()` a final time.
 - [ ] Submit a test request.
 - [ ] Test approve.
