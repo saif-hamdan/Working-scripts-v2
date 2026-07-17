@@ -5,6 +5,36 @@ function run05_startMainFormBranching(options) {
   });
 }
 
+function run18_clearMainFormRotationDescriptions(options) {
+  options = options || {};
+  return withMainFormBranchLock_('18 Clear Main Form Rotation Descriptions', options, function() {
+    var form = openMainFormFromProperties_();
+    var clearedPages = 0;
+    var clearedQuestions = 0;
+    var sectionTitlePrefix = BFORM.TITLES.ROTATION_DEPARTMENT + ' - ';
+
+    form.getItems(FormApp.ItemType.PAGE_BREAK).forEach(function(item) {
+      var page = item.asPageBreakItem();
+      if (safeBootstrapFormItemTitle_(page).indexOf(BFORM.ROTATION_BRANCH_PAGE_PREFIX) !== 0) return;
+      page.setHelpText('');
+      clearedPages++;
+    });
+
+    form.getItems(FormApp.ItemType.LIST).forEach(function(item) {
+      var list = item.asListItem();
+      if (safeBootstrapFormItemTitle_(list).indexOf(sectionTitlePrefix) !== 0) return;
+      list.setHelpText('');
+      clearedQuestions++;
+    });
+
+    return finishStep_(
+      '18 Clear Main Form Rotation Descriptions',
+      BSTATUS.COMPLETE,
+      'Cleared descriptions from ' + clearedPages + ' rotation page(s) and ' + clearedQuestions + ' rotation section question(s).'
+    );
+  });
+}
+
 function startMainFormBranching_(options) {
   options = options || {};
   var ss = openDashboardFromProperties_();
@@ -125,14 +155,14 @@ function buildBootstrapRotationRouter_(form, eligibleUnits) {
 function buildBootstrapRotationUnitBranch_(form, unit, sections) {
   var page = ensurePage_(form, BFORM.ROTATION_BRANCH_PAGE_PREFIX + unit.name);
   try {
-    page.setHelpText('Complete one submission for one rotation section in ' + unit.name + '. Submit a new response if another rotation is needed.');
+    page.setHelpText('');
   } catch (ignorePageHelp) {}
   try { page.setGoToPage(FormApp.PageNavigationType.SUBMIT); } catch (ignoreUnitNavigation) {}
   var sectionNames = bootstrapSectionNamesForUnit_(unit, sections);
   var sectionItem = ensureList_(form, bootstrapUnitScopedTitle_(BFORM.TITLES.ROTATION_DEPARTMENT, unit.name), true)
     .setChoiceValues(sectionNames);
   try {
-    sectionItem.setHelpText('Only sections belonging to ' + unit.name + ' are shown.');
+    sectionItem.setHelpText('');
   } catch (ignoreSectionHelp) {}
   ensureDate_(form, bootstrapUnitScopedTitle_(BFORM.TITLES.START_DATE, unit.name), true);
   ensureDate_(form, bootstrapUnitScopedTitle_(BFORM.TITLES.END_DATE, unit.name), true);
