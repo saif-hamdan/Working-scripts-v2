@@ -50,6 +50,7 @@ function initializeBootstrapRotationOptionBranching_(form, units, sections, opti
     [BSPROP.BRANCH_INDEX]: String(firstWorkIndex),
     [BSPROP.BRANCH_TOTAL]: String(bootstrapBranchWorkTotal_(eligibleUnits.length)),
     [BSPROP.BRANCH_PHASE]: mode === BBRANCH_MODE.LIVE ? 'build' : 'reset-navigation',
+    [BSPROP.BRANCH_PHASE_INDEX]: '0',
     [BSPROP.BRANCH_COMPLETE]: 'false',
     [BSPROP.BRANCH_MODE]: mode,
     [BSPROP.BRANCH_TARGET_HASH]: targetHash,
@@ -126,6 +127,7 @@ function buildBootstrapRotationUnitBranch_(form, unit, sections) {
   try {
     page.setHelpText('Complete one submission for one rotation section in ' + unit.name + '. Submit a new response if another rotation is needed.');
   } catch (ignorePageHelp) {}
+  try { page.setGoToPage(FormApp.PageNavigationType.SUBMIT); } catch (ignoreUnitNavigation) {}
   var sectionNames = bootstrapSectionNamesForUnit_(unit, sections);
   var sectionItem = ensureList_(form, bootstrapUnitScopedTitle_(BFORM.TITLES.ROTATION_DEPARTMENT, unit.name), true)
     .setChoiceValues(sectionNames);
@@ -161,10 +163,24 @@ function bootstrapTemporaryResetChoice_() {
   return 'إعادة ضبط مؤقتة / Temporary reset';
 }
 
-function bootstrapItemsWithTitle_(form, itemType, title) {
-  return form.getItems(itemType).filter(function(item) {
-    return safeBootstrapFormItemTitle_(item) === title;
+function bootstrapFormItemIndex_(form) {
+  var index = Object.create(null);
+  [FormApp.ItemType.PAGE_BREAK, FormApp.ItemType.LIST, FormApp.ItemType.DATE, FormApp.ItemType.TEXT].forEach(function(itemType) {
+    var typeKey = String(itemType);
+    var byTitle = Object.create(null);
+    form.getItems(itemType).forEach(function(item) {
+      var title = safeBootstrapFormItemTitle_(item);
+      if (!byTitle[title]) byTitle[title] = [];
+      byTitle[title].push(item);
+    });
+    index[typeKey] = byTitle;
   });
+  return index;
+}
+
+function bootstrapIndexedItemsWithTitle_(index, itemType, title) {
+  var byTitle = (index || {})[String(itemType)] || {};
+  return byTitle[title] || [];
 }
 
 function bootstrapListChoiceValues_(item) {
@@ -229,9 +245,15 @@ function bootstrapChoiceMismatchDetails_(actual, expected) {
 function validateBootstrapRotationBranching_(form, eligibleUnits, sections, options) {
   options = options || {};
   var issues = [];
+  var itemIndex = options.itemIndex || bootstrapFormItemIndex_(form);
+  var validateGlobals = options.validateGlobals !== false;
+  var unitStart = Math.max(0, Number(options.unitStart) || 0);
+  var unitEnd = typeof options.unitEnd === 'number'
+    ? Math.min(eligibleUnits.length, Math.max(unitStart, options.unitEnd))
+    : eligibleUnits.length;
 
   function requireExactlyOne(itemType, title, label) {
-    var items = bootstrapItemsWithTitle_(form, itemType, title);
+    var items = bootstrapIndexedItemsWithTitle_(itemIndex, itemType, title);
     if (items.length !== 1) issues.push(label + ' expected 1 item but found ' + items.length + ': ' + title);
     return items.length === 1 ? items[0] : null;
   }
@@ -246,13 +268,17 @@ function validateBootstrapRotationBranching_(form, eligibleUnits, sections, opti
     }
   }
 
-  requireExactlyOne(FormApp.ItemType.PAGE_BREAK, BFORM.ROTATION_ROUTER_PAGE_TITLE, 'Rotation router page');
-  var rotationUnitItem = requireExactlyOne(FormApp.ItemType.LIST, BFORM.TITLES.ROTATION_UNIT, 'Rotation unit question');
-  var currentUnitItem = requireExactlyOne(FormApp.ItemType.LIST, BFORM.TITLES.CURRENT_UNIT, 'Current unit question');
-  requireRequired(rotationUnitItem, 'asListItem', 'Rotation unit question');
-  requireRequired(currentUnitItem, 'asListItem', 'Current unit question');
+  var rotationUnitItem = null;
+  var currentUnitItem = null;
+  if (validateGlobals) {
+    requireExactlyOne(FormApp.ItemType.PAGE_BREAK, BFORM.ROTATION_ROUTER_PAGE_TITLE, 'Rotation router page');
+    rotationUnitItem = requireExactlyOne(FormApp.ItemType.LIST, BFORM.TITLES.ROTATION_UNIT, 'Rotation unit question');
+    currentUnitItem = requireExactlyOne(FormApp.ItemType.LIST, BFORM.TITLES.CURRENT_UNIT, 'Current unit question');
+    requireRequired(rotationUnitItem, 'asListItem', 'Rotation unit question');
+    requireRequired(currentUnitItem, 'asListItem', 'Current unit question');
+  }
 
-  eligibleUnits.forEach(function(unit) {
+  eligibleUnits.slice(unitStart, unitEnd).forEach(function(unit) {
     var unitName = unit.name;
     requireExactlyOne(FormApp.ItemType.PAGE_BREAK, BFORM.ROTATION_BRANCH_PAGE_PREFIX + unitName, 'Rotation details page');
     var sectionItem = requireExactlyOne(
@@ -280,7 +306,7 @@ function validateBootstrapRotationBranching_(form, eligibleUnits, sections, opti
     }
   });
 
-  if (options.requirePublishedNavigation === true) {
+  if (validateGlobals && options.requirePublishedNavigation === true) {
     var expectedUnits = eligibleUnits.map(function(unit) { return unit.name; });
     if (rotationUnitItem && !bootstrapChoiceCollectionsEqual_(bootstrapListChoiceValues_(rotationUnitItem), expectedUnits)) {
       var actualRotationUnits = bootstrapListChoiceValues_(rotationUnitItem);
@@ -312,20 +338,35 @@ function formatBootstrapBranchValidationIssues_(issues) {
 }
 
 function finalizeBootstrapRotationNavigation_(form, eligibleUnits) {
+  publishBootstrapRotationPageNavigationChunk_(form, eligibleUnits, 0, eligibleUnits.length);
+  publishBootstrapRotationChoiceNavigation_(form, eligibleUnits);
+}
+
+function publishBootstrapRotationPageNavigationChunk_(form, eligibleUnits, startIndex, endIndex) {
+  var pages = bootstrapItemsByTitle_(form, FormApp.ItemType.PAGE_BREAK, 'asPageBreakItem');
+  var start = Math.max(0, Number(startIndex) || 0);
+  var requestedEnd = typeof endIndex === 'number' ? endIndex : eligibleUnits.length;
+  var end = Math.min(eligibleUnits.length, Math.max(start, requestedEnd));
+  for (var unitIndex = start; unitIndex < end; unitIndex++) {
+    var unit = eligibleUnits[unitIndex];
+    var page = pages[BFORM.ROTATION_BRANCH_PAGE_PREFIX + unit.name];
+    if (!page) throw new Error('Missing rotation details page for unit: ' + unit.name);
+    page.setGoToPage(FormApp.PageNavigationType.SUBMIT);
+  }
+  return end;
+}
+
+function publishBootstrapRotationChoiceNavigation_(form, eligibleUnits) {
   var pages = bootstrapItemsByTitle_(form, FormApp.ItemType.PAGE_BREAK, 'asPageBreakItem');
   var lists = bootstrapItemsByTitle_(form, FormApp.ItemType.LIST, 'asListItem');
   var routerPage = pages[BFORM.ROTATION_ROUTER_PAGE_TITLE];
   var rotationUnitItem = lists[BFORM.TITLES.ROTATION_UNIT];
-  if (!routerPage || !rotationUnitItem) {
-    throw new Error('The rotation routing items are incomplete. Run Step 6 again.');
-  }
+  if (!routerPage || !rotationUnitItem) throw new Error('The rotation routing items are incomplete. Run Step 6 again.');
 
-  var unitChoices = [];
-  eligibleUnits.forEach(function(unit) {
+  var unitChoices = eligibleUnits.map(function(unit) {
     var page = pages[BFORM.ROTATION_BRANCH_PAGE_PREFIX + unit.name];
     if (!page) throw new Error('Missing rotation details page for unit: ' + unit.name);
-    unitChoices.push(rotationUnitItem.createChoice(unit.name, page));
-    try { page.setGoToPage(FormApp.PageNavigationType.SUBMIT); } catch (ignoreUnitNavigation) {}
+    return rotationUnitItem.createChoice(unit.name, page);
   });
   rotationUnitItem.setChoices(unitChoices);
 

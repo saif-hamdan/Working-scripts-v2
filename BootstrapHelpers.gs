@@ -490,6 +490,7 @@ function writeSetupSummary_(ss, mainForm, evaluationForm) {
   var branchIndex = getBootstrapProperty_(BSPROP.BRANCH_INDEX, '0');
   var branchTotal = getBootstrapProperty_(BSPROP.BRANCH_TOTAL, '0');
   var branchPhase = getBootstrapProperty_(BSPROP.BRANCH_PHASE, '');
+  var branchPhaseIndex = getBootstrapProperty_(BSPROP.BRANCH_PHASE_INDEX, '0');
   var branchComplete = getBootstrapProperty_(BSPROP.BRANCH_COMPLETE, 'false');
   var branchMode = getBootstrapProperty_(BSPROP.BRANCH_MODE, '');
   var branchTargetHash = getBootstrapProperty_(BSPROP.BRANCH_TARGET_HASH, '');
@@ -510,6 +511,7 @@ function writeSetupSummary_(ss, mainForm, evaluationForm) {
     ['Evaluation Form Edit URL', evaluationForm ? evaluationForm.getEditUrl() : getBootstrapProperty_(BSPROP.EVALUATION_FORM_EDIT_URL, '')],
     ['Evaluation Form Published URL', evaluationForm ? evaluationForm.getPublishedUrl() : getBootstrapProperty_(BSPROP.EVALUATION_FORM_PUBLISHED_URL, '')],
     ['Main form branching phase', branchPhase],
+    ['Main form branching phase progress', branchPhaseIndex],
     ['Main form branching mode', branchMode],
     ['Main form branching progress', branchIndex + ' / ' + branchTotal],
     ['Main form branching complete', branchComplete],

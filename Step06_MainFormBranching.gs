@@ -53,6 +53,7 @@ function continueMainFormBranching_(options) {
   }
 
   var batchSize = Math.max(1, Number(BOOTSTRAP_CONFIG.MAIN_FORM_BRANCH_UNITS_PER_RUN) || 8);
+  var finalizationBatchSize = Math.max(batchSize, Number(BOOTSTRAP_CONFIG.MAIN_FORM_FINALIZATION_UNITS_PER_RUN) || 24);
   var timeBudget = Math.min(210000, Math.max(60000, Number(BOOTSTRAP_CONFIG.MAIN_FORM_BRANCH_TIME_BUDGET_MS) || 210000));
   var deadline = startedAt + timeBudget;
   var outerDeadline = Number(options.deadline) || 0;
@@ -72,7 +73,10 @@ function continueMainFormBranching_(options) {
       return failMainFormBranching_('A live refresh attempted to reset published navigation. Run run17_repairMainFormBranching().');
     }
     clearFormNavigationReferences_(form);
-    setBootstrapProperties_({ [BSPROP.BRANCH_PHASE]: 'remove-old-items' });
+    setBootstrapProperties_({
+      [BSPROP.BRANCH_PHASE]: 'remove-old-items',
+      [BSPROP.BRANCH_PHASE_INDEX]: '0'
+    });
     return finishBootstrapBranchChunk_(ss, form, 0, expectedTotal, 'Old form navigation was reset for the closed clean repair. Run Step 6 again to remove old branch items.');
   }
 
@@ -96,9 +100,40 @@ function continueMainFormBranching_(options) {
     }
     setBootstrapProperties_({
       [BSPROP.BRANCH_INDEX]: '0',
-      [BSPROP.BRANCH_PHASE]: 'build'
+      [BSPROP.BRANCH_PHASE]: 'build',
+      [BSPROP.BRANCH_PHASE_INDEX]: '0'
     });
     return finishBootstrapBranchChunk_(ss, form, 0, expectedTotal, 'All old and duplicate branch items were removed. Run Step 6 again to build clean branches.');
+  }
+
+  if (phase === 'validate-before-publish') {
+    return continueBootstrapValidationPhase_(
+      ss, form, eligibleUnits, sections, expectedTotal, finalizationBatchSize, false,
+      'publish-page-navigation', deadline, targetHash
+    );
+  }
+
+  if (phase === 'publish-page-navigation') {
+    return continueBootstrapPageNavigationPhase_(ss, form, eligibleUnits, expectedTotal, finalizationBatchSize, deadline);
+  }
+
+  if (phase === 'publish-unit-navigation') {
+    publishBootstrapRotationChoiceNavigation_(form, eligibleUnits);
+    setBootstrapProperties_({
+      [BSPROP.BRANCH_PHASE]: 'validate-after-publish',
+      [BSPROP.BRANCH_PHASE_INDEX]: '0'
+    });
+    return finishBootstrapBranchChunk_(
+      ss, form, expectedTotal - 1, expectedTotal,
+      'Rotation-unit navigation was published. The next Step 6 run will validate the published form in small batches.'
+    );
+  }
+
+  if (phase === 'validate-after-publish') {
+    return continueBootstrapValidationPhase_(
+      ss, form, eligibleUnits, sections, expectedTotal, finalizationBatchSize, true,
+      'cleanup-obsolete', deadline, targetHash
+    );
   }
 
   if (phase === 'cleanup-obsolete') {
@@ -117,32 +152,22 @@ function continueMainFormBranching_(options) {
     var work = getBootstrapBranchWork_(progress, eligibleUnits.length);
     lastWorkLabel = work.label;
     if (work.type === 'finalize-navigation') {
-      var beforePublishIssues = validateBootstrapRotationBranching_(form, eligibleUnits, sections, { requirePublishedNavigation: false });
-      if (beforePublishIssues.length) {
-        return failMainFormBranching_('Main form validation failed before publishing navigation: ' + formatBootstrapBranchValidationIssues_(beforePublishIssues));
-      }
-      finalizeBootstrapRotationNavigation_(form, eligibleUnits);
-      var afterPublishIssues = validateBootstrapRotationBranching_(form, eligibleUnits, sections, { requirePublishedNavigation: true });
-      if (afterPublishIssues.length) {
-        return failMainFormBranching_('Main form validation failed after publishing navigation: ' + formatBootstrapBranchValidationIssues_(afterPublishIssues));
-      }
+      setBootstrapProperties_({
+        [BSPROP.BRANCH_INDEX]: String(progress),
+        [BSPROP.BRANCH_PHASE]: 'validate-before-publish',
+        [BSPROP.BRANCH_PHASE_INDEX]: '0',
+        [BSPROP.BRANCH_COMPLETE]: 'false'
+      });
+      return finishBootstrapBranchChunk_(
+        ss, form, progress, expectedTotal,
+        'All unit pages are built. Final validation will now continue in small resumable batches instead of one long task.'
+      );
     } else {
       processBootstrapBranchWork_(form, eligibleUnits, sections, work);
     }
     progress++;
     completedThisRun++;
     setBootstrapProperties_({ [BSPROP.BRANCH_INDEX]: String(progress) });
-  }
-
-  if (progress >= expectedTotal) {
-    setBootstrapProperties_({
-      [BSPROP.BRANCH_INDEX]: String(progress),
-      [BSPROP.BRANCH_PHASE]: 'cleanup-obsolete',
-      [BSPROP.BRANCH_COMPLETE]: 'false',
-      [BSPROP.BRANCH_PUBLISHED_HASH]: targetHash,
-      [BSPROP.BRANCH_LAST_ERROR]: ''
-    });
-    return finishBootstrapBranchChunk_(ss, form, progress, expectedTotal, 'Validated navigation was published. The next Step 6 or sync run will remove obsolete unreachable items and finish.');
   }
 
   setBootstrapProperties_({
@@ -155,6 +180,81 @@ function continueMainFormBranching_(options) {
     '06 Continue Main Form Branching',
     BSTATUS.IN_PROGRESS,
     'Completed ' + completedThisRun + ' task(s) while ' + lastWorkLabel + '. Progress is ' + progress + ' / ' + expectedTotal + '. Run Step 6 again.'
+  );
+}
+
+function continueBootstrapValidationPhase_(ss, form, eligibleUnits, sections, expectedTotal, batchSize, requirePublishedNavigation, nextPhase, deadline, targetHash) {
+  var phaseIndex = Math.max(0, Number(getBootstrapProperty_(BSPROP.BRANCH_PHASE_INDEX, '0')) || 0);
+  var endIndex = Math.min(eligibleUnits.length, phaseIndex + batchSize);
+  if (Date.now() >= deadline) {
+    return finishBootstrapBranchChunk_(ss, form, expectedTotal - 1, expectedTotal, 'Final validation was deferred because this execution is near its deadline.');
+  }
+
+  var itemIndex = bootstrapFormItemIndex_(form);
+  var issues = validateBootstrapRotationBranching_(form, eligibleUnits, sections, {
+    itemIndex: itemIndex,
+    validateGlobals: phaseIndex === 0,
+    unitStart: phaseIndex,
+    unitEnd: endIndex,
+    requirePublishedNavigation: requirePublishedNavigation
+  });
+  if (issues.length) {
+    return failMainFormBranching_(
+      'Main form validation failed ' + (requirePublishedNavigation ? 'after' : 'before') +
+      ' publishing navigation: ' + formatBootstrapBranchValidationIssues_(issues)
+    );
+  }
+
+  if (endIndex < eligibleUnits.length) {
+    setBootstrapProperties_({ [BSPROP.BRANCH_PHASE_INDEX]: String(endIndex) });
+    return finishBootstrapBranchChunk_(
+      ss, form, expectedTotal - 1, expectedTotal,
+      'Validated finalization units ' + (phaseIndex + 1) + '-' + endIndex + ' of ' + eligibleUnits.length +
+        (requirePublishedNavigation ? ' after navigation publication.' : ' before navigation publication.')
+    );
+  }
+
+  var nextProperties = {
+    [BSPROP.BRANCH_PHASE]: nextPhase,
+    [BSPROP.BRANCH_PHASE_INDEX]: '0',
+    [BSPROP.BRANCH_LAST_ERROR]: ''
+  };
+  if (nextPhase === 'cleanup-obsolete') {
+    nextProperties[BSPROP.BRANCH_INDEX] = String(expectedTotal);
+    nextProperties[BSPROP.BRANCH_PUBLISHED_HASH] = targetHash;
+  }
+  setBootstrapProperties_(nextProperties);
+  return finishBootstrapBranchChunk_(
+    ss, form, nextPhase === 'cleanup-obsolete' ? expectedTotal : expectedTotal - 1, expectedTotal,
+    requirePublishedNavigation
+      ? 'Published navigation passed final batched validation. Obsolete unreachable pages will be removed next.'
+      : 'All unit pages passed batched validation. Page navigation will be published in small batches next.'
+  );
+}
+
+function continueBootstrapPageNavigationPhase_(ss, form, eligibleUnits, expectedTotal, batchSize, deadline) {
+  var phaseIndex = Math.max(0, Number(getBootstrapProperty_(BSPROP.BRANCH_PHASE_INDEX, '0')) || 0);
+  if (Date.now() >= deadline) {
+    return finishBootstrapBranchChunk_(ss, form, expectedTotal - 1, expectedTotal, 'Page navigation publication was deferred because this execution is near its deadline.');
+  }
+  var endIndex = Math.min(eligibleUnits.length, phaseIndex + batchSize);
+  publishBootstrapRotationPageNavigationChunk_(form, eligibleUnits, phaseIndex, endIndex);
+
+  if (endIndex < eligibleUnits.length) {
+    setBootstrapProperties_({ [BSPROP.BRANCH_PHASE_INDEX]: String(endIndex) });
+    return finishBootstrapBranchChunk_(
+      ss, form, expectedTotal - 1, expectedTotal,
+      'Published final page navigation for units ' + (phaseIndex + 1) + '-' + endIndex + ' of ' + eligibleUnits.length + '.'
+    );
+  }
+
+  setBootstrapProperties_({
+    [BSPROP.BRANCH_PHASE]: 'publish-unit-navigation',
+    [BSPROP.BRANCH_PHASE_INDEX]: '0'
+  });
+  return finishBootstrapBranchChunk_(
+    ss, form, expectedTotal - 1, expectedTotal,
+    'All unit pages now submit correctly. The next Step 6 run will publish the rotation-unit dropdown navigation.'
   );
 }
 
@@ -173,7 +273,11 @@ function continueObsoleteBranchCleanup_(ss, form, eligibleUnits, sections, expec
     );
   }
 
-  var issues = validateBootstrapRotationBranching_(form, eligibleUnits, sections, { requirePublishedNavigation: true });
+  var issues = validateBootstrapRotationBranching_(form, eligibleUnits, sections, {
+    requirePublishedNavigation: true,
+    unitStart: 0,
+    unitEnd: 0
+  });
   if (issues.length) {
     return failMainFormBranching_('Final main form validation failed: ' + formatBootstrapBranchValidationIssues_(issues));
   }
@@ -183,6 +287,7 @@ function continueObsoleteBranchCleanup_(ss, form, eligibleUnits, sections, expec
     [BSPROP.BRANCH_INDEX]: String(expectedTotal),
     [BSPROP.BRANCH_TOTAL]: String(expectedTotal),
     [BSPROP.BRANCH_PHASE]: 'complete',
+    [BSPROP.BRANCH_PHASE_INDEX]: '0',
     [BSPROP.BRANCH_COMPLETE]: 'true',
     [BSPROP.BRANCH_MODE]: '',
     [BSPROP.BRANCH_TARGET_HASH]: targetHash,

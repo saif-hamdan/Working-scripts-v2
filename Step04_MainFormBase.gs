@@ -8,6 +8,7 @@ function run04_rebuildMainFormBaseQuestions() {
     [BSPROP.BRANCH_INDEX]: '0',
     [BSPROP.BRANCH_TOTAL]: '0',
     [BSPROP.BRANCH_PHASE]: '',
+    [BSPROP.BRANCH_PHASE_INDEX]: '0',
     [BSPROP.BRANCH_COMPLETE]: 'false',
     [BSPROP.BRANCH_MODE]: '',
     [BSPROP.BRANCH_TARGET_HASH]: '',
