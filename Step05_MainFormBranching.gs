@@ -176,10 +176,54 @@ function bootstrapListChoiceValues_(item) {
   }
 }
 
-function bootstrapStringArraysEqual_(left, right) {
-  left = (left || []).map(safeString_);
-  right = (right || []).map(safeString_);
-  return left.length === right.length && left.every(function(value, index) { return value === right[index]; });
+function bootstrapNormalizeChoiceValue_(value) {
+  return safeString_(value)
+    .replace(/[\u061C\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function bootstrapChoiceCounts_(values) {
+  var counts = Object.create(null);
+  (values || []).forEach(function(value) {
+    var normalized = bootstrapNormalizeChoiceValue_(value);
+    counts[normalized] = (counts[normalized] || 0) + 1;
+  });
+  return counts;
+}
+
+function bootstrapChoiceKeys_(leftCounts, rightCounts) {
+  var keys = Object.create(null);
+  Object.keys(leftCounts || {}).forEach(function(key) { keys[key] = true; });
+  Object.keys(rightCounts || {}).forEach(function(key) { keys[key] = true; });
+  return Object.keys(keys);
+}
+
+function bootstrapChoiceCollectionsEqual_(left, right) {
+  var leftCounts = bootstrapChoiceCounts_(left);
+  var rightCounts = bootstrapChoiceCounts_(right);
+  var keys = bootstrapChoiceKeys_(leftCounts, rightCounts);
+  return keys.every(function(key) { return leftCounts[key] === rightCounts[key]; });
+}
+
+function bootstrapChoiceMismatchDetails_(actual, expected) {
+  var actualCounts = bootstrapChoiceCounts_(actual);
+  var expectedCounts = bootstrapChoiceCounts_(expected);
+  var keys = bootstrapChoiceKeys_(actualCounts, expectedCounts);
+  var missing = [];
+  var unexpected = [];
+
+  keys.forEach(function(key) {
+    var actualCount = actualCounts[key] || 0;
+    var expectedCount = expectedCounts[key] || 0;
+    for (var missingIndex = actualCount; missingIndex < expectedCount; missingIndex++) missing.push(key);
+    for (var extraIndex = expectedCount; extraIndex < actualCount; extraIndex++) unexpected.push(key);
+  });
+
+  var details = [];
+  if (missing.length) details.push('Missing: [' + missing.join(', ') + ']');
+  if (unexpected.length) details.push('Unexpected: [' + unexpected.join(', ') + ']');
+  return details.length ? ' ' + details.join(' ') : '';
 }
 
 function validateBootstrapRotationBranching_(form, eligibleUnits, sections, options) {
@@ -227,19 +271,30 @@ function validateBootstrapRotationBranching_(form, eligibleUnits, sections, opti
     if (sectionItem) {
       var expectedSections = bootstrapSectionNamesForUnit_(unit, sections);
       var actualSections = bootstrapListChoiceValues_(sectionItem);
-      if (!bootstrapStringArraysEqual_(actualSections, expectedSections)) {
-        issues.push('Rotation section choices do not match the reference data for unit: ' + unitName);
+      if (!bootstrapChoiceCollectionsEqual_(actualSections, expectedSections)) {
+        issues.push(
+          'Rotation section choices do not match the reference data for unit: ' + unitName + '.' +
+          bootstrapChoiceMismatchDetails_(actualSections, expectedSections)
+        );
       }
     }
   });
 
   if (options.requirePublishedNavigation === true) {
     var expectedUnits = eligibleUnits.map(function(unit) { return unit.name; });
-    if (rotationUnitItem && !bootstrapStringArraysEqual_(bootstrapListChoiceValues_(rotationUnitItem), expectedUnits)) {
-      issues.push('Published rotation-unit choices do not match the eligible units.');
+    if (rotationUnitItem && !bootstrapChoiceCollectionsEqual_(bootstrapListChoiceValues_(rotationUnitItem), expectedUnits)) {
+      var actualRotationUnits = bootstrapListChoiceValues_(rotationUnitItem);
+      issues.push(
+        'Published rotation-unit choices do not match the eligible units.' +
+        bootstrapChoiceMismatchDetails_(actualRotationUnits, expectedUnits)
+      );
     }
-    if (currentUnitItem && !bootstrapStringArraysEqual_(bootstrapListChoiceValues_(currentUnitItem), expectedUnits)) {
-      issues.push('Published current-unit choices do not match the eligible units.');
+    if (currentUnitItem && !bootstrapChoiceCollectionsEqual_(bootstrapListChoiceValues_(currentUnitItem), expectedUnits)) {
+      var actualCurrentUnits = bootstrapListChoiceValues_(currentUnitItem);
+      issues.push(
+        'Published current-unit choices do not match the eligible units.' +
+        bootstrapChoiceMismatchDetails_(actualCurrentUnits, expectedUnits)
+      );
     }
     var temporaryChoice = bootstrapTemporaryResetChoice_();
     if (rotationUnitItem && bootstrapListChoiceValues_(rotationUnitItem).indexOf(temporaryChoice) !== -1) {
