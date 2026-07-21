@@ -24,6 +24,8 @@ This folder is the production Apps Script project for the Google Forms + Google 
 - Immediate auto-rejection if the employee already has active approved rotation.
 - Late approval conflict blocking.
 - Bilingual Arabic/English centered emails.
+- Final-approval details sent to the employee, line manager, and current-unit head.
+- Per-message bilingual sender name for automated rotation emails; manually sent account email is unaffected.
 - SQU-themed email placeholders for official colors and logo.
 - Locked system columns and controlled final-acceptance status editing.
 - Daily evaluation email after the end date, only for approved rotation and only once.
@@ -45,7 +47,7 @@ EVALUATION_FORM_URL = `تقييم تجربة التدوير الوظيفي / Job
 OWNER_EMAIL = employeeservices@squ.edu.om
 ADMIN_EMAILS = employeeservices@squ.edu.om
 APPROVER_UNIT_MODE = CURRENT_UNIT
-EMAIL_SENDER_NAME = 
+EMAIL_SENDER_NAME = قسم خدمات الموظفين والمتقاعدين | Employee Services
 ORGANIZATION_NAME_AR = قسم خدمات الموظفين والمتقاعدين
 ORGANIZATION_NAME_EN = Employees and Retirees Services Section
 BRAND_PRIMARY_COLOR = official SQU primary color
@@ -54,6 +56,8 @@ BRAND_ACCENT_COLOR = official SQU accent/background color
 BRAND_LOGO_URL = official hosted logo URL
 EVALUATION_ALLOWED_FINAL_STATUSES = معتمد,منجز
 ```
+
+`EMAIL_SENDER_NAME` is passed to `MailApp.sendEmail()` for this project's automated messages, including queued retries. It does not change the Google account or Gmail **Send mail as** display name, so emails sent manually from the same account keep their existing display name.
 
 
 ### Optional response queue throughput settings

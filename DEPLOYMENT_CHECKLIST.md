@@ -7,6 +7,7 @@
 - [ ] For an existing form, run `run17_repairMainFormBranching()` once, then repeat `run06_continueMainFormBranching()` until it reports `Complete`.
 - [ ] Confirm the same form URL reopens and every eligible unit has exactly one Section, Start Date, End Date, and Daily Hours question.
 - [ ] Add Script Properties from `CONFIG_TEMPLATE.json`.
+- [ ] Confirm `EMAIL_SENDER_NAME` is `قسم خدمات الموظفين والمتقاعدين | Employee Services` in Script Properties (or leave it unset to use the built-in default).
 - [ ] Run `setupAll()` and authorize.
 - [ ] Replace sample unit data in `إدارة الوحدات`.
 - [ ] Replace sample section data in `إدارة الأقسام`.
@@ -22,6 +23,7 @@
 - [ ] Test same-employee active-rotation auto-rejection.
 - [ ] Test two overlapping requests in the same section.
 - [ ] Test final status cannot be changed to `منجز` before head approval.
+- [ ] Test final approval and confirm the employee, line manager, and current-unit head receive the rotation details with the bilingual sender name.
 - [ ] Test evaluation email after rotation end date.
 - [ ] Run `installTriggers()` and confirm exactly one five-minute `syncSystem` trigger is installed.
 - [ ] Confirm there is no separate time-driven `run11_refreshMainFormFromAdminSheets` trigger.

@@ -24,7 +24,7 @@ const BOOTSTRAP_CONFIG = {
   BRAND_LOGO_URL: '',
 
   APPROVER_UNIT_MODE: 'CURRENT_UNIT',
-  EMAIL_SENDER_NAME: '',
+  EMAIL_SENDER_NAME: 'قسم خدمات الموظفين والمتقاعدين | Employee Services',
 
   // Staged setup controls.
   FORCE_CREATE_NEW_RESOURCES: false,

@@ -180,15 +180,7 @@ function sendEvaluationEmail(record) {
 function sendEmailSafe_(payload, context) {
   try {
     if (!safeString_(payload.to)) throw new Error('Email recipient is empty.');
-    var message = {
-      to: payload.to,
-      cc: payload.cc || '',
-      bcc: payload.bcc || '',
-      subject: payload.subject,
-      body: payload.body || 'يرجى عرض هذه الرسالة بصيغة HTML. / Please view this message in HTML.',
-      htmlBody: payload.htmlBody
-    };
-    MailApp.sendEmail(message);
+    MailApp.sendEmail(buildEmailMessage_(payload));
     logInfo_('sendEmailSafe_:' + (context && context.kind || ''), context && context.requestId, 'Email sent to: ' + payload.to);
     return true;
   } catch (err) {
@@ -196,6 +188,21 @@ function sendEmailSafe_(payload, context) {
     logError_('sendEmailSafe_:' + (context && context.kind || ''), context && context.requestId, err);
     return false;
   }
+}
+
+function buildEmailMessage_(payload) {
+  payload = payload || {};
+  var message = {
+    to: payload.to || '',
+    cc: payload.cc || '',
+    bcc: payload.bcc || '',
+    subject: payload.subject || '',
+    body: payload.body || 'يرجى عرض هذه الرسالة بصيغة HTML. / Please view this message in HTML.',
+    htmlBody: payload.htmlBody || ''
+  };
+  var senderName = safeString_(payload.name || getConfig().EMAIL_SENDER_NAME);
+  if (senderName) message.name = senderName;
+  return message;
 }
 
 function queueEmailForLater_(payload, context) {
@@ -273,14 +280,13 @@ function processEmailQueue(options) {
     actionableCount++;
     var context = parseJsonSafe_(row[H.QUEUE.CONTEXT_JSON], {});
     try {
-      var message = {
+      var message = buildEmailMessage_({
         to: safeString_(row[H.QUEUE.TO]),
         cc: safeString_(row[H.QUEUE.CC]),
         bcc: safeString_(row[H.QUEUE.BCC]),
         subject: safeString_(row[H.QUEUE.SUBJECT]),
-        body: 'يرجى عرض هذه الرسالة بصيغة HTML. / Please view this message in HTML.',
         htmlBody: safeString_(row[H.QUEUE.HTML])
-      };
+      });
       MailApp.sendEmail(message);
       updateObjectRow_(sheet, row._rowNumber, {
         [H.QUEUE.STATUS]: STATUS.QUEUE_SENT,
