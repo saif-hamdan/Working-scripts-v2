@@ -8,6 +8,8 @@ const SYSTEM = Object.freeze({
   REQUEST_PREFIX: 'TRN'
 });
 
+const EMAIL_SENDER_DISPLAY_NAME = 'قسم خدمات الموظفين والمتقاعدين | Employee Services';
+
 const RESPONSE_QUEUE_BATCH_SIZE = 25;
 const ACTION_QUEUE_BATCH_SIZE = 25;
 const EMAIL_QUEUE_BATCH_SIZE = 50;

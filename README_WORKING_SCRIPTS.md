@@ -47,7 +47,6 @@ EVALUATION_FORM_URL = `تقييم تجربة التدوير الوظيفي / Job
 OWNER_EMAIL = employeeservices@squ.edu.om
 ADMIN_EMAILS = employeeservices@squ.edu.om
 APPROVER_UNIT_MODE = CURRENT_UNIT
-EMAIL_SENDER_NAME = قسم خدمات الموظفين والمتقاعدين | Employee Services
 ORGANIZATION_NAME_AR = قسم خدمات الموظفين والمتقاعدين
 ORGANIZATION_NAME_EN = Employees and Retirees Services Section
 BRAND_PRIMARY_COLOR = official SQU primary color
@@ -57,7 +56,7 @@ BRAND_LOGO_URL = official hosted logo URL
 EVALUATION_ALLOWED_FINAL_STATUSES = معتمد,منجز
 ```
 
-`EMAIL_SENDER_NAME` is passed to `MailApp.sendEmail()` for this project's automated messages, including queued retries. It does not change the Google account or Gmail **Send mail as** display name, so emails sent manually from the same account keep their existing display name.
+The workflow always passes `قسم خدمات الموظفين والمتقاعدين | Employee Services` to `MailApp.sendEmail()` for automated messages, including queued retries. Legacy `EMAIL_SENDER_NAME` properties and hidden settings are ignored, so an old value such as `SQU Training System` cannot override it. This does not change the Google account or Gmail **Send mail as** display name, so emails sent manually from the same account keep their existing display name.
 
 
 ### Optional response queue throughput settings

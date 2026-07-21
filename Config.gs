@@ -35,7 +35,7 @@ function getConfig() {
     OWNER_EMAIL: ownerEmail,
     ADMIN_EMAILS: adminEmails,
     APPROVER_UNIT_MODE: normalizeApproverUnitMode_(value(SETTINGS_KEYS.APPROVER_UNIT_MODE, APPROVER_UNIT_MODE.CURRENT_UNIT)),
-    EMAIL_SENDER_NAME: value(SETTINGS_KEYS.EMAIL_SENDER_NAME, 'قسم خدمات الموظفين والمتقاعدين | Employee Services'),
+    EMAIL_SENDER_NAME: EMAIL_SENDER_DISPLAY_NAME,
     ORGANIZATION_NAME_AR: value(SETTINGS_KEYS.ORGANIZATION_NAME_AR, 'قسم خدمات الموظفين والمتقاعدين'),
     ORGANIZATION_NAME_EN: value(SETTINGS_KEYS.ORGANIZATION_NAME_EN, 'Employees and Retirees Services Section'),
     BRAND: {
@@ -99,7 +99,7 @@ function writeSettingsFromConfig_(ss) {
   defaults[SETTINGS_KEYS.OWNER_EMAIL] = 'employeeservices@squ.edu.om';
   defaults[SETTINGS_KEYS.ADMIN_EMAILS] = 'employeeservices@squ.edu.om';
   defaults[SETTINGS_KEYS.APPROVER_UNIT_MODE] = APPROVER_UNIT_MODE.CURRENT_UNIT;
-  defaults[SETTINGS_KEYS.EMAIL_SENDER_NAME] = 'قسم خدمات الموظفين والمتقاعدين | Employee Services';
+  defaults[SETTINGS_KEYS.EMAIL_SENDER_NAME] = EMAIL_SENDER_DISPLAY_NAME;
   defaults[SETTINGS_KEYS.ORGANIZATION_NAME_AR] = 'قسم خدمات الموظفين والمتقاعدين';
   defaults[SETTINGS_KEYS.ORGANIZATION_NAME_EN] = 'Employees and Retirees Services Section';
   defaults[SETTINGS_KEYS.BRAND_PRIMARY_COLOR] = '#0B4EA2';

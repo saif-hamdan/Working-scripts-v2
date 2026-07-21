@@ -7,7 +7,7 @@
 - [ ] For an existing form, run `run17_repairMainFormBranching()` once, then repeat `run06_continueMainFormBranching()` until it reports `Complete`.
 - [ ] Confirm the same form URL reopens and every eligible unit has exactly one Section, Start Date, End Date, and Daily Hours question.
 - [ ] Add Script Properties from `CONFIG_TEMPLATE.json`.
-- [ ] Confirm `EMAIL_SENDER_NAME` is `قسم خدمات الموظفين والمتقاعدين | Employee Services` in Script Properties (or leave it unset to use the built-in default).
+- [ ] Confirm an automated test email displays `قسم خدمات الموظفين والمتقاعدين | Employee Services`; legacy sender-name properties are ignored.
 - [ ] Run `setupAll()` and authorize.
 - [ ] Replace sample unit data in `إدارة الوحدات`.
 - [ ] Replace sample section data in `إدارة الأقسام`.

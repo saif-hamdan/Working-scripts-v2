@@ -200,7 +200,9 @@ function buildEmailMessage_(payload) {
     body: payload.body || 'يرجى عرض هذه الرسالة بصيغة HTML. / Please view this message in HTML.',
     htmlBody: payload.htmlBody || ''
   };
-  var senderName = safeString_(payload.name || getConfig().EMAIL_SENDER_NAME);
+  // Keep the workflow identity independent of legacy Script Properties or
+  // hidden settings such as "SQU Training System".
+  var senderName = safeString_(payload.name || EMAIL_SENDER_DISPLAY_NAME);
   if (senderName) message.name = senderName;
   return message;
 }
