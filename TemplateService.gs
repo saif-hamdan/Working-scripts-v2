@@ -1,12 +1,14 @@
 /** HTML template data builders. */
 function buildTemplateData_(record, extra) {
   var cfg = getConfig();
+  var previousCompletedHours = getEmployeePreviousCompletedHours_(record);
   var rows = removeEmptyEmailRows_([
     { ar: 'رقم الطلب', en: 'Request ID', value: record[H.RECORD.REQUEST_ID] },
     { ar: 'معرف مجموعة الطلب', en: 'Request Group ID', value: record[H.RECORD.REQUEST_GROUP_ID] },
     { ar: 'رقم الاختيار', en: 'Selection Number', value: record[H.RECORD.OPTION_ORDER] },
     { ar: 'اسم الموظف', en: 'Employee', value: record[H.RECORD.EMPLOYEE_NAME] },
     { ar: 'الرقم الوظيفي للموظف', en: 'Employee ID', value: record[H.RECORD.EMPLOYEE_ID] },
+    { ar: 'إجمالي ساعات التدويرات السابقة المنجزة', en: 'Previous Completed Rotation Hours (Employee ID)', value: previousCompletedHours },
     { ar: 'المسمى الوظيفي للموظف', en: 'Employee Job Title', value: record[H.RECORD.EMPLOYEE_JOB_TITLE] },
     { ar: 'المسؤول المباشر', en: 'Line Manager', value: record[H.RECORD.DIRECT_MANAGER_NAME] },
     { ar: 'الوحدة الحالية', en: 'Current Unit', value: record[H.RECORD.CURRENT_UNIT] },

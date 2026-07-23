@@ -1,4 +1,6 @@
 /** Employee-level rotation hour summary calculations. */
+var EMPLOYEE_ROTATION_HOURS_LOOKUP_CACHE_ = {};
+
 function refreshEmployeeRotationHoursSummary() {
   var rows = calculateEmployeeRotationHoursSummary_(getRecords_());
   renderEmployeeRotationHoursSummary_(rows);
@@ -69,6 +71,7 @@ function calculateEmployeeRotationHoursSummary_(records) {
       row[H.EMPLOYEE_ROTATION_HOURS.EMPLOYEE_ID] = employeeId;
       row[H.EMPLOYEE_ROTATION_HOURS.COMPLETED_HOURS] = 0;
       row[H.EMPLOYEE_ROTATION_HOURS.ONGOING_HOURS] = 0;
+      row[H.EMPLOYEE_ROTATION_HOURS.TOTAL_HOURS] = 0;
       summaryByEmployeeId[key] = row;
     }
 
@@ -78,6 +81,9 @@ function calculateEmployeeRotationHoursSummary_(records) {
     } else {
       summaryByEmployeeId[key][H.EMPLOYEE_ROTATION_HOURS.ONGOING_HOURS] += totalHours;
     }
+    summaryByEmployeeId[key][H.EMPLOYEE_ROTATION_HOURS.TOTAL_HOURS] =
+      summaryByEmployeeId[key][H.EMPLOYEE_ROTATION_HOURS.COMPLETED_HOURS] +
+      summaryByEmployeeId[key][H.EMPLOYEE_ROTATION_HOURS.ONGOING_HOURS];
   });
 
   return Object.keys(summaryByEmployeeId).map(function(key) {
@@ -110,6 +116,45 @@ function calculateRecordRotationHours_(record) {
 
 function calculateInclusiveRotationDays_(startDate, endDate) {
   return calculateWorkingDays_(startDate, endDate);
+}
+
+/**
+ * Finds only rows matching one employee ID and caches the result for this
+ * execution. A three-selection submission therefore performs one lookup, not
+ * one lookup per selection or per email.
+ */
+function getEmployeeRotationHoursSnapshotById_(employeeId) {
+  employeeId = safeString_(employeeId);
+  if (!employeeId) return null;
+  var cacheKey = normalizeKey_(employeeId);
+  if (Object.prototype.hasOwnProperty.call(EMPLOYEE_ROTATION_HOURS_LOOKUP_CACHE_, cacheKey)) {
+    return EMPLOYEE_ROTATION_HOURS_LOOKUP_CACHE_[cacheKey];
+  }
+
+  var recordsSheet = getSheet_(SHEETS.RECORDS);
+  var employeeRecords = recordsSheet
+    ? findObjectsByValue_(recordsSheet, H.RECORD.EMPLOYEE_ID, employeeId, 1000000)
+    : [];
+  var summary = calculateEmployeeRotationHoursSummary_(employeeRecords)[0];
+  var snapshot = {
+    completedHours: summary ? toNumber_(summary[H.EMPLOYEE_ROTATION_HOURS.COMPLETED_HOURS], 0) : 0,
+    ongoingHours: summary ? toNumber_(summary[H.EMPLOYEE_ROTATION_HOURS.ONGOING_HOURS], 0) : 0,
+    totalHours: summary ? toNumber_(summary[H.EMPLOYEE_ROTATION_HOURS.TOTAL_HOURS], 0) : 0
+  };
+  EMPLOYEE_ROTATION_HOURS_LOOKUP_CACHE_[cacheKey] = snapshot;
+  return snapshot;
+}
+
+function getEmployeePreviousCompletedHours_(record) {
+  record = record || {};
+  var employeeId = safeString_(record[H.RECORD.EMPLOYEE_ID]);
+  if (!employeeId) return '';
+  var snapshot = getEmployeeRotationHoursSnapshotById_(employeeId);
+  var previousCompletedHours = snapshot ? snapshot.completedHours : 0;
+  if (isRecordCompletedRotationForHours_(record)) {
+    previousCompletedHours -= calculateRecordRotationHours_(record);
+  }
+  return Math.max(0, previousCompletedHours);
 }
 
 function refreshEmployeeRotationHoursForRecords_(records) {

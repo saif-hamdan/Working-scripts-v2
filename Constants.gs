@@ -170,7 +170,8 @@ const H = Object.freeze({
     EMPLOYEE_NAME: 'اسم الموظف',
     EMPLOYEE_ID: 'الرقم الوظيفي للموظف',
     COMPLETED_HOURS: 'إجمالي ساعات التدوير المنجز',
-    ONGOING_HOURS: 'إجمالي ساعات التدوير الجاري'
+    ONGOING_HOURS: 'إجمالي ساعات التدوير الجاري',
+    TOTAL_HOURS: 'إجمالي ساعات التدوير التراكمية'
   }),
   QUEUE: Object.freeze({
     MESSAGE_ID: 'معرف الرسالة',

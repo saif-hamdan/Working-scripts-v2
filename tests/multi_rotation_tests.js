@@ -71,7 +71,9 @@ function load(file) {
   'RequestService.gs',
   'ConflictService.gs',
   'MultiRotationFormService.gs',
-  'EvaluationPrefillService.gs'
+  'EvaluationPrefillService.gs',
+  'TrainingHoursService.gs',
+  'TemplateService.gs'
 ].forEach(load);
 
 function run(expression) {
@@ -164,6 +166,61 @@ test('working-day rules exclude Friday and Saturday', () => {
   const metrics = run('calculateRotationMetrics_(start, end, 7)');
   assert.strictEqual(metrics.workingDays, 3);
   assert.strictEqual(metrics.totalHours, 21);
+});
+
+test('employee-ID history is cached and exposed in email and dashboard totals', () => {
+  function hoursRecord(requestId, employeeId, totalHours, headStatus, finalStatus) {
+    const record = {};
+    record[H.RECORD.REQUEST_ID] = requestId;
+    record[H.RECORD.EMPLOYEE_NAME] = 'Employee';
+    record[H.RECORD.EMPLOYEE_ID] = employeeId;
+    record[H.RECORD.TOTAL_HOURS] = totalHours;
+    record[H.RECORD.HEAD_STATUS] = headStatus;
+    record[H.RECORD.FINAL_STATUS] = finalStatus;
+    return record;
+  }
+
+  const previousCompleted = hoursRecord('PREVIOUS', '200', 6, STATUS.HEAD_ACCEPTED, STATUS.FINAL_DONE);
+  const currentCompleted = hoursRecord('CURRENT', '200', 21, STATUS.HEAD_ACCEPTED, STATUS.FINAL_DONE);
+  const ongoing = hoursRecord('ONGOING', '200', 42, STATUS.HEAD_ACCEPTED, STATUS.FINAL_APPROVED);
+  context.employeeHourRecords = [previousCompleted, currentCompleted, ongoing];
+  const summary = run('calculateEmployeeRotationHoursSummary_(employeeHourRecords)[0]');
+  assert.strictEqual(summary[H.EMPLOYEE_ROTATION_HOURS.COMPLETED_HOURS], 27);
+  assert.strictEqual(summary[H.EMPLOYEE_ROTATION_HOURS.ONGOING_HOURS], 42);
+  assert.strictEqual(summary[H.EMPLOYEE_ROTATION_HOURS.TOTAL_HOURS], 69);
+
+  context.employeeLookupCount = 0;
+  run(`
+    EMPLOYEE_ROTATION_HOURS_LOOKUP_CACHE_ = {};
+    getSheet_ = function() { return {}; };
+    findObjectsByValue_ = function() {
+      employeeLookupCount++;
+      return employeeHourRecords;
+    };
+    getConfig = function() {
+      return {
+        BRAND: 'SQU',
+        ORGANIZATION_NAME_AR: 'SQU',
+        ORGANIZATION_NAME_EN: 'SQU',
+        EVALUATION_FORM_URL: ''
+      };
+    };
+  `);
+  context.currentCompletedRecord = currentCompleted;
+  assert.strictEqual(run('getEmployeePreviousCompletedHours_(currentCompletedRecord)'), 6);
+
+  const pending = hoursRecord('PENDING', '200', 10, STATUS.HEAD_PENDING, STATUS.FINAL_PENDING);
+  context.pendingHoursRecord = pending;
+  assert.strictEqual(run('getEmployeePreviousCompletedHours_(pendingHoursRecord)'), 27);
+  assert.strictEqual(context.employeeLookupCount, 1);
+
+  run('emailHoursData = buildTemplateData_(pendingHoursRecord, {});');
+  const historyRow = context.emailHoursData.rows.find(
+    (row) => row.en === 'Previous Completed Rotation Hours (Employee ID)'
+  );
+  assert.ok(historyRow);
+  assert.strictEqual(historyRow.value, 27);
+  assert.strictEqual(context.employeeLookupCount, 1);
 });
 
 test('one, two, and three selections validate and calculate aggregate hours', () => {
