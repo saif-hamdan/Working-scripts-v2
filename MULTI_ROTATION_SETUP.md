@@ -34,6 +34,13 @@ must not be pasted into this project.
 Upload this branch to the duplicate Apps Script project only after reviewing
 the diff. Do not deploy it and do not install triggers yet.
 
+Before every `clasp push`, run `clasp status` and confirm that neither
+`tests/check_syntax.js` nor `tests/multi_rotation_tests.js` is listed. The
+repository `.claspignore` excludes these Node-only tests because Apps Script
+does not provide Node's `require()` function. If an earlier push uploaded them,
+the next `clasp push --force` with this ignore file removes them from the
+online project.
+
 1. Open `BootstrapConfig.gs`.
 2. Keep all three `CREATE_NEW_*` values set to `true`.
 3. Keep all `EXISTING_*_ID` values empty.
