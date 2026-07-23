@@ -24,7 +24,11 @@ function run04_rebuildMainFormBaseQuestions() {
 
 function rebuildMainFormBase_(form, dashboard) {
   form.setTitle(BFORM.TITLES.FORM_TITLE);
-  form.setDescription(BFORM.TITLES.FORM_DESCRIPTION);
+  form.setDescription(
+    BFORM.TITLES.FORM_DESCRIPTION +
+    '\n\nيمكن أن يتضمن الطلب الواحد من اختيار واحد إلى ثلاثة اختيارات تدوير وظيفي. ' +
+    '/ One submission may contain between one and three job-rotation selections.'
+  );
   try { form.setCollectEmail(true); } catch (ignore) {}
   try { form.setRequireLogin(true); } catch (ignoreLogin) {}
   try { form.setAllowResponseEdits(false); } catch (ignore2) {}
@@ -46,7 +50,8 @@ function rebuildMainFormBase_(form, dashboard) {
   ensureSectionHeader_(form, BFORM.TITLES.EMPLOYEE_SECTION);
   ensureText_(form, BFORM.TITLES.EMPLOYEE_NAME, true);
   applyNumericValidation_(ensureText_(form, BFORM.TITLES.EMPLOYEE_ID, true));
-  ensureDate_(form, BFORM.TITLES.EMPLOYEE_HIRE_DATE, true);
+  ensureDate_(form, BFORM.TITLES.EMPLOYEE_HIRE_DATE, true)
+    .setHelpText('صيغة التاريخ: يوم/شهر/سنة (DD/MM/YYYY). / Date format: DD/MM/YYYY.');
   ensureText_(form, BFORM.TITLES.EMPLOYEE_JOB_TITLE, true);
   applyEmailValidation_(ensureText_(form, BFORM.TITLES.EMPLOYEE_EMAIL, true));
 
@@ -101,7 +106,7 @@ function clearFormNavigationReferences_(form) {
       try { item.asListItem().setChoiceValues([temporaryChoice]); } catch (ignore) {}
     }
   });
-  for (var rotationOption = 2; rotationOption <= (BFORM.LEGACY_MAX_ROTATION_OPTIONS || 5); rotationOption++) {
+  for (var rotationOption = 1; rotationOption <= (BFORM.LEGACY_MAX_ROTATION_OPTIONS || 5); rotationOption++) {
     var continuation = getItem_(form, optionTitle_(BFORM.TITLES.ROTATION_ADD_MORE_PREFIX, rotationOption), FormApp.ItemType.MULTIPLE_CHOICE);
     if (continuation) {
       try { continuation.asMultipleChoiceItem().setChoiceValues([temporaryChoice]); } catch (ignoreContinuation) {}

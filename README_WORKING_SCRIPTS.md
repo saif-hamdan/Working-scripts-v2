@@ -1,6 +1,6 @@
 # SQU Job Rotation System — Working Apps Script Package
 
-This folder is the production Apps Script project for the Google Forms + Google Sheets job-rotation approval workflow.
+This branch is the isolated duplicate Apps Script project for the Google Forms + Google Sheets job-rotation approval workflow. See `MULTI_ROTATION_SETUP.md` before creating resources.
 
 ## What it implements
 
@@ -17,7 +17,8 @@ This folder is the production Apps Script project for the Google Forms + Google 
   - `الإعدادات`
   - `سجل النظام`
   - `طابور البريد`
-- Unit → section Google Form branching, so the form does not show 500+ sections at once.
+- One parent Form submission with one to three sequential rotation selections.
+- Every rotation dropdown displays all active choices as `Unit Name — Section Name`.
 - Approval/rejection web app links with secure tokens; approval emails are sent only to the unit head.
 - Required rejection reason page.
 - Conflict checking on submission and again on approval.
@@ -41,9 +42,10 @@ This folder is the production Apps Script project for the Google Forms + Google 
 DASHBOARD_SPREADSHEET_ID = your `SQU Job Rotation Dashboard` spreadsheet ID
 MAIN_FORM_ID = your `استمارة تحديد مسار التدوير الوظيفي للموظفين الجدد / New Employee Job Rotation Path Form` Google Form ID
 FORM_RESPONSES_SPREADSHEET_ID = required linked Google Form responses spreadsheet ID
-RESPONSE_QUEUE_BATCH_SIZE = 25
+RESPONSE_QUEUE_BATCH_SIZE = 1
 QUEUE_SCAN_WINDOW_ROWS = 500
 EVALUATION_FORM_URL = `تقييم تجربة التدوير الوظيفي / Job Rotation Experience Evaluation` Google Form published URL
+EVALUATION_FORM_ID = `تقييم تجربة التدوير الوظيفي / Job Rotation Experience Evaluation` Google Form ID
 OWNER_EMAIL = employeeservices@squ.edu.om
 ADMIN_EMAILS = employeeservices@squ.edu.om
 APPROVER_UNIT_MODE = CURRENT_UNIT
@@ -61,7 +63,7 @@ The workflow always passes `قسم خدمات الموظفين والمتقاع�
 
 ### Optional response queue throughput settings
 
-`RESPONSE_QUEUE_BATCH_SIZE` and `QUEUE_SCAN_WINDOW_ROWS` are optional. Leave them blank or omit them to use the built-in defaults: batch size `25` and scan window `500` rows. The script ignores unsafe or invalid values and falls back to the built-in defaults instead.
+`RESPONSE_QUEUE_BATCH_SIZE` and `QUEUE_SCAN_WINDOW_ROWS` are optional. Leave them blank or omit them to use the built-in defaults: batch size `1` parent submission and scan window `500` rows. The script ignores unsafe or invalid values and falls back to the built-in defaults instead.
 
 Validation limits:
 
@@ -72,8 +74,8 @@ Recommended values:
 
 | Volume | `RESPONSE_QUEUE_BATCH_SIZE` | `QUEUE_SCAN_WINDOW_ROWS` | When to use |
 |---|---:|---:|---|
-| Small | `10` | `250` | Occasional submissions and low retry backlog. |
-| Medium | `25` | `500` | Default for normal daily operation. |
+| Initial safe setting | `1` | `500` | One parent submission per five-minute run while performance is monitored. |
+| Medium | `25` | `500` | Use only after measured execution-time review. |
 | High-volume | `75` | `1500` | Short bursts or larger intake periods; keep Apps Script execution time and quotas under review. |
 
 Recommended `APPROVER_UNIT_MODE` is `CURRENT_UNIT`, meaning the head of the unit the employee belongs to approves. Use `ROTATION_UNIT` only if your policy requires the receiving rotation unit head to approve.
@@ -89,7 +91,7 @@ Recommended `APPROVER_UNIT_MODE` is `CURRENT_UNIT`, meaning the head of the unit
 
 ## Important notes
 
-Native Google Forms cannot refresh a second dropdown live on the same page after the first dropdown is selected. This implementation routes the rotation-unit answer to a unit-specific page containing one filtered Rotation Section dropdown followed by required Rotation Start Date, Rotation End Date, and Required Daily Hours questions. Each submission creates exactly one Records-sheet row and one dashboard record. Submit the form again when another rotation is required for the same employee.
+Native Google Forms cannot authoritatively compare two date answers or count working days. This implementation uses up to three sequential rotation pages and validates dates, Sunday–Thursday working days, duplicates, and overlaps again in the response queue. Each visited selection creates one independent Records-sheet row linked by a request-group ID; empty and unvisited selections create no records.
 
 The five-minute `syncSystem()` trigger compares the current unit/section reference hash with the hash represented by the published form. Unchanged executions make no Google Form changes. When data changes, the live form remains open and keeps its current navigation until all updated pages validate; only then is the new navigation published and obsolete unreachable pages removed. Approval and request-status changes refresh the dashboard but do not rebuild the form. Form submissions are not converted into requests by a direct form-submit trigger; the five-minute sync calls `processUnprocessedFormResponses()` to create requests from the linked response-sheet queue. Admins may also run `processResponseQueueOnce()` manually, or use the `معالجة الطلبات غير المعالجة` custom menu item, after a form outage or high-volume submission period; it logs the number of processed, skipped, and failed rows. If `FORM_RESPONSES_SPREADSHEET_ID` is missing, setup and sync log a warning and no submitted form responses can become requests. The approval handler still re-checks conflicts atomically with `LockService`, so even if the form choice was stale, the system blocks late conflicts.
 
@@ -109,6 +111,9 @@ The linked Form responses sheet is the source queue for creating dashboard reque
 | `Processing Status` | Current queue state for the response row. |
 | `Processed At` | Timestamp when the row was successfully converted or matched to an existing request. |
 | `Dashboard Request ID` | Request ID created in `سجل الطلبات`, or the existing request found for the same response. |
+| `Request Group ID` | Shared parent ID for every record created from the response. |
+| `Selection Count` | Number of visited rotation selections in the parent response. |
+| `Next Selection Number` | Saved checkpoint used to resume partial parent processing safely. |
 | `Processing Error` | Last error message, if processing failed. |
 | `Retry Count` | Number of failed processing attempts. |
 | `Last Attempt At` | Timestamp of the latest processing attempt. |
@@ -117,11 +122,11 @@ Response queue statuses:
 
 | Status | Meaning | Admin action |
 |---|---|---|
-| Blank / `NEW` | Not processed yet; blank is normal for newly submitted rows before the queue processor touches them. | Run `processResponseQueueOnce()` for an immediate pass, or wait for `syncSystem()`. |
+| Blank / `PENDING` | Not processed yet; blank is normal for newly submitted rows before the queue processor touches them. | Run `processResponseQueueOnce()` for an immediate pass, or wait for `syncSystem()`. |
 | `PROCESSING` | The row is currently being attempted or was interrupted during an attempt. | Check Apps Script Executions for an interrupted run; run `processResponseQueueOnce()` again if no execution is active. |
 | `PROCESSED` | The response row has been converted to a dashboard request or matched to an existing request. | No action. Use `Dashboard Request ID` to trace it in `سجل الطلبات`. |
-| `ERROR` | A retryable failure occurred and the row can be attempted again until the retry limit is reached. | Read `Processing Error`, fix the configuration/data issue, then run `processResponseQueueOnce()` or `syncSystem()`. |
-| `ERROR_REQUIRES_REVIEW` | The row reached the retry limit or contains data that cannot be safely auto-corrected, such as invalid date order. | Review the original response values and `Processing Error`; correct the source data or create/resolve the request manually, then leave an audit note in `سجل النظام` or the admin records. Do not simply clear the status unless you intentionally want the row retried. |
+| `RETRYABLE_ERROR` | A retryable failure occurred, or a parent was safely checkpointed for the next run. | Read `Processing Error`, fix any configuration issue, then wait for or run the next queue pass. |
+| `MANUAL_REVIEW` | The row reached the retry limit or failed authoritative bilingual submission validation. | Review the original response values and `Processing Error`; correct or resolve it manually and document the action. |
 
 For response rows requiring review, admins should compare the submitted row with the required form fields, verify unit/section names against `إدارة الوحدات` and `إدارة الأقسام`, and check whether a request already exists in `سجل الطلبات` using `Dashboard Request ID`, employee email, dates, and section. After the underlying issue is fixed, run `processResponseQueueOnce()` to process only the response queue, or run `syncSystem()` to process all queues and refresh dependent dashboard/form data.
 
@@ -168,7 +173,7 @@ When diagnosing any stuck row, capture the row number, queue status, retry/attem
 ## Main functions
 
 - `setupAll()` — run after configuration changes.
-- `refreshFormChoices()` — checks the reference hashes and rebuilds the Google Form's single-rotation unit-to-section details pages only when needed.
+- `refreshFormChoices()` — checks reference hashes and updates the three all-section rotation dropdowns only when needed.
 - `run17_repairMainFormBranching()` — one-time closed repair for duplicated or corrupted rotation pages; preserves the existing form URL and response destination.
 - `refreshDashboard()` — rebuild the clean dashboard sheet.
 - `installTriggers()` — install edit, five-minute sync, and daily evaluation triggers. It intentionally does not install a direct form-submit request-creation trigger.

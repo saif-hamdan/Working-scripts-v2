@@ -38,10 +38,7 @@ function refreshMainFormFromAdminSheets_(options) {
   if (!publishedHash) {
     var existingForm = openMainFormFromProperties_();
     var existingSections = readSections_(ss);
-    var existingUnits = bootstrapEligibleUnits_(readUnits_(ss), existingSections);
-    var adoptionIssues = validateBootstrapRotationBranching_(existingForm, existingUnits, existingSections, {
-      requirePublishedNavigation: true
-    });
+    var adoptionIssues = validateMultiRotationForm_(existingForm, existingSections);
     if (adoptionIssues.length) {
       if (options.allowCleanInitialization === true && mainFormIsUnusedForCleanInitialization_(existingForm)) {
         initializeBootstrapRotationOptionBranching_(existingForm, readUnits_(ss), existingSections, {

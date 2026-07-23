@@ -7,6 +7,8 @@ function run06_continueMainFormBranching(options) {
 
 function continueMainFormBranching_(options) {
   options = options || {};
+  return continueMultiRotationFormBuild_(options);
+  /* Legacy unit-page continuation retained below for rollback reference. */
   var startedAt = Date.now();
   var ss = openDashboardFromProperties_();
   var form = openMainFormFromProperties_();

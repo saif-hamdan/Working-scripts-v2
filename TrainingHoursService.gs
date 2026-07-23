@@ -99,15 +99,46 @@ function isRecordOngoingRotationForHours_(record) {
 }
 
 function calculateRecordRotationHours_(record) {
+  var storedTotal = toNumber_(record[H.RECORD.TOTAL_HOURS], 0);
+  if (storedTotal > 0) return storedTotal;
   var dailyHours = toNumber_(record[H.RECORD.HOURS], 0);
   if (dailyHours <= 0) return 0;
-  var days = calculateInclusiveRotationDays_(record[H.RECORD.START_DATE], record[H.RECORD.END_DATE]);
+  var days = toNumber_(record[H.RECORD.WORKING_DAYS], 0) ||
+    calculateWorkingDays_(record[H.RECORD.START_DATE], record[H.RECORD.END_DATE]);
   return dailyHours * days;
 }
 
 function calculateInclusiveRotationDays_(startDate, endDate) {
-  var start = dateOnly_(startDate);
-  var end = dateOnly_(endDate);
-  if (!start || !end || end.getTime() < start.getTime()) return 0;
-  return Math.floor((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+  return calculateWorkingDays_(startDate, endDate);
+}
+
+function refreshEmployeeRotationHoursForRecords_(records) {
+  records = records || [];
+  if (!records.length) return [];
+  var recordsSheet = getSheet_(SHEETS.RECORDS);
+  var summarySheet = ensureSheet_(openDashboardSpreadsheet_(), SHEETS.EMPLOYEE_ROTATION_HOURS);
+  setSheetHeaders_(summarySheet, EMPLOYEE_ROTATION_HOURS_HEADERS);
+  var employeeLookup = {};
+  var updatedRows = [];
+
+  records.forEach(function(record) {
+    var employeeId = safeString_(record[H.RECORD.EMPLOYEE_ID]);
+    var employeeName = safeString_(record[H.RECORD.EMPLOYEE_NAME]);
+    var key = employeeId || normalizeKey_(employeeName);
+    if (!key || employeeLookup[key]) return;
+    employeeLookup[key] = true;
+    var employeeRecords = recordsSheet && employeeId
+      ? findObjectsByValue_(recordsSheet, H.RECORD.EMPLOYEE_ID, employeeId, 2000)
+      : (recordsSheet ? findObjectsByValue_(recordsSheet, H.RECORD.EMPLOYEE_NAME, employeeName, 2000) : []);
+    var summary = calculateEmployeeRotationHoursSummary_(employeeRecords)[0];
+    if (!summary) return;
+    var existingRow = employeeId
+      ? findRowByValue_(summarySheet, H.EMPLOYEE_ROTATION_HOURS.EMPLOYEE_ID, employeeId)
+      : findRowByValue_(summarySheet, H.EMPLOYEE_ROTATION_HOURS.EMPLOYEE_NAME, employeeName);
+    if (existingRow) updateObjectRow_(summarySheet, existingRow, summary);
+    else appendObjectRow_(summarySheet, EMPLOYEE_ROTATION_HOURS_HEADERS, summary);
+    updatedRows.push(summary);
+  });
+  applyCleanTableFormatting_(summarySheet, EMPLOYEE_ROTATION_HOURS_HEADERS.length);
+  return updatedRows;
 }

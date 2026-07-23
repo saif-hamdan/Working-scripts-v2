@@ -4,6 +4,10 @@ Use this Apps Script project to create or repair the Google Forms and dashboard 
 
 This toolkit is intentionally separate from the production workflow code. It prepares resources, headers, reference sheets, dashboard summaries, protections, and IDs.
 
+For the isolated duplicate and the exact fresh-resource sequence, use
+`MULTI_ROTATION_SETUP.md`. The duplicated design supports one to three
+rotation selections per parent Form response.
+
 No CSV files are required. Apps Script creates the Google Sheet tabs directly, and the dummy unit/section rows live in `DummyData.gs`.
 
 ## What this toolkit creates/prepares
@@ -27,7 +31,7 @@ Open `BootstrapConfig.gs` before running.
 - To repair existing resources, set the relevant `CREATE_NEW_*` value to `false` and paste the existing ID.
 - To create resources once and reuse them on later runs, leave `FORCE_CREATE_NEW_RESOURCES` as `false`.
 - To intentionally create a fresh set after a previous run, set `FORCE_CREATE_NEW_RESOURCES` to `true` for that run only, then set it back to `false`.
-- `MAIN_FORM_BRANCH_UNITS_PER_RUN` controls how many unit-specific form sections are created per execution.
+- The three rotation pages are checkpointed one page per Step 06 execution.
 - The built-in default owner and admin email is `employeeservices@squ.edu.om`; the built-in dummy unit-head email is `s.alkaanuni1@squ.edu.om`.
 
 ## Start with completely new resources
@@ -52,7 +56,7 @@ Run these functions from Apps Script in order:
 5. `run03_validateReferenceData()`
 6. `run04_rebuildMainFormBaseQuestions()`
 7. `run05_startMainFormBranching()`
-8. Run `run06_continueMainFormBranching()` repeatedly until it reports `Complete`. Each execution saves its progress and stays below the Apps Script execution-time limit.
+8. Run `run06_continueMainFormBranching()` three times until it reports `Complete`. Each execution saves one selection-page checkpoint and stays below the Apps Script execution-time limit.
 9. `run07_setupEvaluationForm()`
 10. `run08_buildDashboardSummaryAndCharts()`
 11. `run09_applyProtections()`
@@ -90,9 +94,9 @@ The created spreadsheet and forms are Drive files, not tabs inside the Apps Scri
 
 ## One-time safe repair for duplicated or broken form branches
 
-After uploading this version over an existing project, run `run17_repairMainFormBranching()` once. It preserves the existing form ID, published URL, linked response destination, and prior response-acceptance state. The form is temporarily closed with a bilingual maintenance message while old rotation pages and duplicated questions are removed.
+After uploading this version over an existing duplicated project, run `run17_repairMainFormBranching()` once. It preserves the existing duplicate form ID, published URL, linked response destination, and prior response-acceptance state. The form is temporarily closed with a bilingual maintenance message while old rotation pages and duplicated questions are removed.
 
-Then run `run06_continueMainFormBranching()` repeatedly until it reports `Complete`. The scheduled `syncSystem()` execution can also continue the saved repair. The form reopens automatically only after every eligible unit has exactly one details page, one filtered Section dropdown, one Start Date, one End Date, and one Daily Hours question.
+Then run `run06_continueMainFormBranching()` until it reports `Complete`. The scheduled `syncSystem()` execution can also continue the saved repair. The form reopens automatically only after all three selection pages exist, every page contains its Section dropdown, Start Date, End Date, and Daily Hours question, and navigation has passed validation.
 
 Change-driven refresh after repair:
 
@@ -111,7 +115,7 @@ Use the same run order above. The key repair steps are:
 - `run05_startMainFormBranching()`
 - `run06_continueMainFormBranching()`
 
-These rebuild the base questions first, create one unit-specific rotation-details page per eligible unit, and then verify that branching is complete.
+These rebuild the base questions first, create three sequential rotation-selection pages, and then verify that branching is complete.
 
 ## How the form gets section choices
 
@@ -122,11 +126,11 @@ The form does not read CSV files. Admins edit the visible Google Sheet tabs:
 
 The setup script syncs those admin tabs into hidden system tabs:
 
-- `الوحدات` provides the current-unit and rotation-unit dropdown choices.
-- `الأقسام` provides the unit-to-section mapping.
-- The selected rotation unit routes to one clear details page containing only sections belonging to that unit.
-- Rotation Section, Rotation Start Date, Rotation End Date, and Required Daily Hours are all required on that same page.
-- Each form submission creates exactly one Records-sheet row and one dashboard record. Submit a new response when the same employee needs another rotation.
+- `الوحدات` provides the current-unit dropdown choices.
+- `الأقسام` provides active unit-to-section pairs.
+- Each of the three rotation pages uses one list containing every active pair displayed as `Unit Name — Section Name`.
+- Rotation Section, Rotation Start Date, Rotation End Date, and Required Daily Hours are required on every visited rotation page.
+- One parent submission creates one independent Records-sheet row per visited selection, all linked by a request-group ID.
 
 To remove a unit or section from the form without deleting it, set its `نشط` value to `لا` in the admin sheet and run `run11_refreshMainFormFromAdminSheets()`.
 

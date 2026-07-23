@@ -3,14 +3,14 @@
  * All dashboard-facing headers are Arabic. Internal/system fields are also Arabic.
  */
 const SYSTEM = Object.freeze({
-  VERSION: '1.0.0',
+  VERSION: '2.0.0',
   TIME_ZONE: 'Asia/Muscat',
   REQUEST_PREFIX: 'TRN'
 });
 
 const EMAIL_SENDER_DISPLAY_NAME = 'قسم خدمات الموظفين والمتقاعدين | Employee Services';
 
-const RESPONSE_QUEUE_BATCH_SIZE = 25;
+const RESPONSE_QUEUE_BATCH_SIZE = 1;
 const ACTION_QUEUE_BATCH_SIZE = 25;
 const EMAIL_QUEUE_BATCH_SIZE = 50;
 const QUEUE_SCAN_WINDOW_ROWS = 500;
@@ -20,6 +20,8 @@ const RESPONSE_QUEUE_MAX_SCAN_WINDOW_ROWS = 2000;
 const RESPONSE_QUEUE_SCAN_CURSOR_KEY = 'RESPONSE_QUEUE_NEXT_SCAN_ROW';
 const EMAIL_QUEUE_SCAN_CURSOR_KEY = 'EMAIL_QUEUE_NEXT_SCAN_ROW';
 const ACTION_QUEUE_SCAN_CURSOR_KEY = 'ACTION_QUEUE_NEXT_SCAN_ROW';
+const PENDING_APPROVAL_SCAN_CURSOR_KEY = 'PENDING_APPROVAL_NEXT_SCAN_ROW';
+const PENDING_APPROVAL_EMAIL_BATCH_SIZE = 10;
 const WEB_APP_URL_PLACEHOLDER = 'PASTE_WEB_APP_URL_AFTER_DEPLOYMENT';
 
 const SYNC_CONFIG = Object.freeze({
@@ -28,6 +30,7 @@ const SYNC_CONFIG = Object.freeze({
   ACTIVE_END_HOUR: 22,
   LOCK_WAIT_MS: 3000,
   MAX_SINGLE_RUN_MS: 5.5 * 60 * 1000,
+  PARENT_SELECTION_STOP_MS: 4.5 * 60 * 1000,
   DAILY_RUNTIME_BUDGET_MS: 5.5 * 60 * 60 * 1000,
   TRIGGER_EVERY_MINUTES: 5,
   RUNTIME_KEY_PREFIX: 'SYNC_RUNTIME_MS_',
@@ -62,7 +65,8 @@ const H = Object.freeze({
     ACTIVE_TRAINEES: 'الأرقام الوظيفية للموظفين في التدوير النشط',
     ALL_TRAINEES: 'جميع من أتموا التدوير في القسم',
     LAST_ROTATION: 'آخر تاريخ تدوير',
-    STATUS: 'حالة القسم'
+    STATUS: 'حالة القسم',
+    TOTAL_HOURS: 'إجمالي ساعات التدوير'
   }),
   RECORD: Object.freeze({
     REQUEST_ID: 'رقم الطلب',
@@ -84,9 +88,14 @@ const H = Object.freeze({
     ROTATION_UNIT: 'وحدة التدوير',
     SECTION: 'قسم التدوير',
     OPTION_ORDER: 'رقم الخيار',
+    REQUEST_GROUP_ID: 'معرف مجموعة الطلب',
+    SELECTION_KEY: 'مفتاح الاختيار',
     START_DATE: 'من تاريخ',
     END_DATE: 'إلى تاريخ',
     HOURS: 'عدد الساعات اليومية المطلوبة',
+    WORKING_DAYS: 'عدد أيام العمل',
+    TOTAL_HOURS: 'إجمالي ساعات التدوير',
+    SUBMISSION_TOTAL_HOURS: 'إجمالي ساعات الطلب',
     TYPE: 'نوع الطلب',
     HEAD_STATUS: 'حالة موافقة رئيس الوحدة',
     FINAL_STATUS: 'حالة الاعتماد النهائي',
@@ -151,6 +160,9 @@ const H = Object.freeze({
   REQUEST_SOURCE_INDEX: Object.freeze({
     FORM_RESPONSE_ID: 'FORM_RESPONSE_ID',
     FORM_RESPONSE_SOURCE_ID: 'FORM_RESPONSE_SOURCE_ID',
+    REQUEST_GROUP_ID: 'REQUEST_GROUP_ID',
+    SELECTION_NUMBER: 'SELECTION_NUMBER',
+    SELECTION_KEY: 'SELECTION_KEY',
     REQUEST_ID: 'REQUEST_ID',
     CREATED_AT: 'CREATED_AT'
   }),
@@ -252,6 +264,7 @@ const SETTINGS_KEYS = Object.freeze({
   RESPONSE_QUEUE_BATCH_SIZE: 'RESPONSE_QUEUE_BATCH_SIZE',
   QUEUE_SCAN_WINDOW_ROWS: 'QUEUE_SCAN_WINDOW_ROWS',
   ACTION_QUEUE_MAX_RETRIES: 'ACTION_QUEUE_MAX_RETRIES',
+  EVALUATION_FORM_ID: 'EVALUATION_FORM_ID',
   EVALUATION_FORM_URL: 'EVALUATION_FORM_URL',
   WEB_APP_URL: 'WEB_APP_URL',
   OWNER_EMAIL: 'OWNER_EMAIL',
@@ -282,7 +295,7 @@ const FORM = Object.freeze({
   INTERNAL_BRANCH_PAGE_PREFIX: 'التدوير الداخلي حسب الوحدة / Internal Rotation by Unit - ',
   EXTERNAL_ROUTER_PAGE_PREFIX: 'اختيار وحدة التدوير الخارجي / Select External Rotation Unit - ',
   EXTERNAL_BRANCH_PAGE_PREFIX: 'تفاصيل التدوير الخارجي / External Rotation Details - ',
-  MAX_ROTATION_OPTIONS: 1,
+  MAX_ROTATION_OPTIONS: 3,
   MAX_INTERNAL_OPTIONS: 3,
   MAX_EXTERNAL_OPTIONS: 3,
   NO_AVAILABLE_SECTIONS: 'لا توجد أقسام متاحة حالياً',
@@ -305,13 +318,14 @@ const FORM = Object.freeze({
     CURRENT_UNIT: 'الوحدة الحالية للموظف / Current Employee Unit',
     CURRENT_DEPARTMENT: 'القسم الحالي للموظف / Current Employee Section',
     ROTATION_SECTION: 'بيانات التدوير الوظيفي / Job Rotation Details',
+    ROTATION_PAGE_PREFIX: 'اختيار التدوير {n} / Rotation Selection {n}',
     ROTATION_SECTION_PREFIX: 'اختيار التدوير {n}: القسم / Rotation Selection {n}: Section',
     OPTIONAL_ROTATION_GRID: 'اختيارات التدوير الإضافية / Additional Rotation Selections',
     OPTIONAL_ROTATION_GRID_ROW_PREFIX: 'اختيار التدوير {n} / Rotation Selection {n}',
     ROTATION_FROM_PREFIX: 'اختيار التدوير {n}: من تاريخ / Rotation Selection {n}: From',
     ROTATION_TO_PREFIX: 'اختيار التدوير {n}: إلى تاريخ / Rotation Selection {n}: To',
     ROTATION_HOURS_PREFIX: 'اختيار التدوير {n}: الساعات اليومية / Rotation Selection {n}: Daily Hours',
-    ROTATION_ADD_MORE_PREFIX: 'هل تريد إضافة قسم تدوير آخر (الاختيار {n})؟ / Do you want to add another rotation section (Selection {n})?',
+    ROTATION_ADD_MORE_PREFIX: 'هل ترغب في إضافة تدوير آخر؟ / Do you want to add another rotation? ({n})',
     ROTATION_ADD_MORE_YES: 'نعم / Yes',
     ROTATION_ADD_MORE_NO: 'لا، إنهاء الطلب / No, finish the request',
     PHASE_ONE_INTERNAL: 'المرحلة الأولى: التدوير داخل الوحدة / Phase One: Rotation Inside the Current Unit',
@@ -331,6 +345,21 @@ const FORM = Object.freeze({
     ROTATION_DEPARTMENT: 'قسم التدوير / Rotation Section',
     NOTES: 'ملاحظات إضافية / Additional Notes'
   })
+});
+
+const EVALUATION_FIELDS = Object.freeze({
+  REQUEST_ID: 'رقم الطلب / Request ID',
+  EMPLOYEE_NAME: 'اسم الموظف / Employee Name',
+  JOB_TITLE: 'المسمى الوظيفي / Job Title',
+  ROTATION_SECTION: 'قسم التدوير / Rotation Section',
+  PARTICIPATION_DURATION: 'مدة المشاركة / Participation Duration'
+});
+
+const GOOGLE_FORM_LIMITS = Object.freeze({
+  MAX_CONTENT_ITEMS: 300,
+  MAX_SECTIONS: 75,
+  MAX_TOTAL_CHOICES: 2000,
+  WARNING_RATIO: 0.9
 });
 
 const FORM_RESPONSE_TITLE_CANDIDATES = Object.freeze({

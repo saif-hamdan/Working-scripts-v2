@@ -27,31 +27,34 @@ function sendSubmissionConfirmationEmail(record) {
 function sendInvalidDatesSubmissionEmail(data, responseId, error) {
   data = data || {};
   var cfg = getConfig();
+  var validationRows = [
+    { ar: 'اسم الموظف', en: 'Employee', value: data.employeeName || '' },
+    { ar: 'الرقم الوظيفي للموظف', en: 'Employee ID', value: data.employeeId || '' },
+    { ar: 'المسمى الوظيفي للموظف', en: 'Employee Job Title', value: data.employeeJobTitle || '' },
+    { ar: 'المسؤول المباشر', en: 'Line Manager', value: data.directManagerName || '' },
+    { ar: 'الوحدة الحالية', en: 'Current Unit', value: data.currentUnit || '' },
+    { ar: 'القسم الحالي للموظف', en: 'Current Employee Section', value: data.currentDepartment || '' }
+  ];
+  normalizeRotationOptionsFromSubmission_(data).forEach(function(option, index) {
+    var number = index + 1;
+    validationRows.push({ ar: 'اختيار التدوير ' + number, en: 'Rotation Selection ' + number, value: [option.rotationUnit, option.section].filter(Boolean).join(' — ') });
+    validationRows.push({ ar: 'الفترة ' + number, en: 'Date Range ' + number, value: formatDate_(option.startDate) + ' — ' + formatDate_(option.endDate) });
+    validationRows.push({ ar: 'الساعات اليومية ' + number, en: 'Daily Hours ' + number, value: option.hours });
+  });
+  validationRows.push({ ar: 'سبب عدم المعالجة', en: 'Processing Error', value: error && error.message ? error.message : safeString_(error) });
   var templateData = {
     brand: cfg.BRAND,
     orgAr: cfg.ORGANIZATION_NAME_AR,
     orgEn: cfg.ORGANIZATION_NAME_EN,
     responseId: responseId || '',
     errorMessage: error && error.message ? error.message : safeString_(error),
-    rows: removeEmptyEmailRows_([
-      { ar: 'اسم الموظف', en: 'Employee', value: data.employeeName || '' },
-      { ar: 'الرقم الوظيفي للموظف', en: 'Employee ID', value: data.employeeId || '' },
-      { ar: 'المسمى الوظيفي للموظف', en: 'Employee Job Title', value: data.employeeJobTitle || '' },
-      { ar: 'المسؤول المباشر', en: 'Line Manager', value: data.directManagerName || '' },
-      { ar: 'الوحدة الحالية', en: 'Current Unit', value: data.currentUnit || '' },
-      { ar: 'القسم الحالي للموظف', en: 'Current Employee Section', value: data.currentDepartment || '' },
-      { ar: 'وحدة التدوير', en: 'Rotation Unit', value: data.rotationUnit || '' },
-      { ar: 'قسم التدوير', en: 'Rotation Section', value: data.section || '' },
-      { ar: 'تاريخ البداية المرسل', en: 'Submitted Start Date', value: formatDate_(data.startDate) },
-      { ar: 'تاريخ النهاية المرسل', en: 'Submitted End Date', value: formatDate_(data.endDate) },
-      { ar: 'سبب عدم المعالجة', en: 'Processing Error', value: error && error.message ? error.message : safeString_(error) }
-    ])
+    rows: removeEmptyEmailRows_(validationRows)
   };
   var html = renderTemplate_('Emails_InvalidDates', templateData);
   return sendEmailSafe_({
     to: uniqueNonEmpty_([data.directManagerEmail, data.submitterEmail]).join(','),
     cc: uniqueNonEmpty_([data.employeeEmail]).join(','),
-    subject: 'تم استلام طلب التدوير الوظيفي / Job Rotation Request Submitted - التواريخ غير صحيحة / Incorrect Dates',
+    subject: 'تعذر معالجة طلب التدوير الوظيفي / Job Rotation Submission Requires Review',
     htmlBody: html
   }, { kind: 'invalid_dates_submission', requestId: responseId || '' });
 }
@@ -167,14 +170,22 @@ function queueConflictNotification(record, conflict, source) {
 }
 
 function sendEvaluationEmail(record) {
-  var cfg = getConfig();
-  var data = buildTemplateData_(record, { evaluationUrl: cfg.EVALUATION_FORM_URL });
+  var evaluationUrl = buildEvaluationPrefilledUrl_(record);
+  var data = buildTemplateData_(record, { evaluationUrl: evaluationUrl });
   var html = renderTemplate_('Emails_Evaluation', data);
-  return sendEmailSafe_({
+  var context = { kind: 'evaluation', requestId: record[H.RECORD.REQUEST_ID] };
+  var sent = sendEmailSafe_({
     to: safeString_(record[H.RECORD.EMPLOYEE_EMAIL]),
     subject: 'تقييم تجربة التدوير الوظيفي / Job Rotation Experience Evaluation - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
-  }, { kind: 'evaluation', requestId: record[H.RECORD.REQUEST_ID] });
+  }, context);
+  return sent || isEmailContextQueued_(context);
+}
+
+function isEmailContextQueued_(context) {
+  var sheet = getOrCreateSheet_(SHEETS.EMAIL_QUEUE);
+  setSheetHeaders_(sheet, QUEUE_HEADERS);
+  return Boolean(findObjectByValue_(sheet, H.QUEUE.CONTEXT_JSON, objectToJson_(context || {})));
 }
 
 function sendEmailSafe_(payload, context) {

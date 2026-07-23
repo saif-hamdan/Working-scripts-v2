@@ -9,7 +9,11 @@ function setupFormStructure(options) {
   options = options || {};
   var form = openMainForm_();
   form.setTitle(FORM.TITLES.FORM_TITLE);
-  form.setDescription(FORM.TITLES.FORM_DESCRIPTION);
+  form.setDescription(
+    FORM.TITLES.FORM_DESCRIPTION +
+    '\n\nيمكن أن يتضمن الطلب الواحد من اختيار واحد إلى ثلاثة اختيارات تدوير وظيفي. ' +
+    '/ One submission may contain between one and three job-rotation selections.'
+  );
   try { form.setCollectEmail(true); } catch (ignore) {}
   try { form.setRequireLogin(true); } catch (ignoreLogin) {}
 
@@ -33,7 +37,8 @@ function setupFormStructure(options) {
   ensureSectionHeaderItem_(form, FORM.TITLES.EMPLOYEE_SECTION);
   ensureTextItem_(form, FORM.TITLES.EMPLOYEE_NAME, true);
   applyNumericValidation_(ensureTextItem_(form, FORM.TITLES.EMPLOYEE_ID, true));
-  ensureDateItem_(form, FORM.TITLES.EMPLOYEE_HIRE_DATE, true);
+  ensureDateItem_(form, FORM.TITLES.EMPLOYEE_HIRE_DATE, true)
+    .setHelpText('صيغة التاريخ: يوم/شهر/سنة (DD/MM/YYYY). / Date format: DD/MM/YYYY.');
   ensureTextItem_(form, FORM.TITLES.EMPLOYEE_JOB_TITLE, true);
   applyEmailValidationToFormItem_(ensureTextItem_(form, FORM.TITLES.EMPLOYEE_EMAIL, true));
 

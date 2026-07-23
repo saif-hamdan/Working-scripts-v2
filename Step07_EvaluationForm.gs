@@ -24,10 +24,11 @@ function rebuildEvaluationForm_(form) {
 
   addEvaluationSection_(form, 'نموذج استبانة تقييم تجربة التدوير الوظيفي للموظفين الجدد (التغذية الراجعة) / New Employee Job Rotation Experience Evaluation Form (Feedback)');
   addEvaluationSection_(form, 'أولاً: بيانات الموظف / First: Employee Information');
-  ensureText_(form, 'أسم الموظف (اختياري) / Employee name (optional)', false);
-  ensureText_(form, 'المسمى الوظيفي / Job title', false);
-  ensureText_(form, 'الوحدة/القسم / Unit/Section', false);
-  ensureText_(form, 'مدة المشاركة في البرنامج / Program participation duration', false);
+  ensureText_(form, EVALUATION_FIELDS.REQUEST_ID, false);
+  ensureText_(form, EVALUATION_FIELDS.EMPLOYEE_NAME, false);
+  ensureText_(form, EVALUATION_FIELDS.JOB_TITLE, false);
+  ensureText_(form, EVALUATION_FIELDS.ROTATION_SECTION, false);
+  ensureText_(form, EVALUATION_FIELDS.PARTICIPATION_DURATION, false);
 
   addEvaluationSection_(form, 'ثانياً: تقييم البرنامج / Second: Program Evaluation');
   addEvaluationSection_(form, 'مقياس التقييم / Rating scale: (1 = ضعيف جداً / Very Poor | 2 = ضعيف / Poor | 3 = متوسط / Average | 4 = جيد / Good | 5 = ممتاز / Excellent)');

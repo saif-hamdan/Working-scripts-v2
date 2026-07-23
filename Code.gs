@@ -249,9 +249,13 @@ function syncSystem() {
 
     var nowMs = Date.now();
     var queueChanged = hasSyncQueueChanges_(responseQueueStats, approvalActionQueueStats, emailQueueStats);
+    var approvalRecordsChanged = toNumber_(approvalActionQueueStats && approvalActionQueueStats.processed, 0) > 0;
     var referenceChanged = Boolean(referenceSyncStats && referenceSyncStats.changed);
     var dashboardRefreshDue = shouldRunScheduledDashboardRefresh_(nowMs);
-    var needsDashboardRefresh = queueChanged || referenceChanged || dashboardRefreshDue;
+    // Newly created response records update only their affected dashboard rows.
+    // A full records scan remains scheduled, and is also used after approvals or
+    // reference-data changes that can affect many rows.
+    var needsDashboardRefresh = approvalRecordsChanged || referenceChanged || dashboardRefreshDue;
     // Form choices now depend only on unit/section reference data. Request and
     // approval status changes do not require rebuilding the Google Form.
     var stagedBranchingInProgress = typeof mainFormBranchingInProgress_ === 'function' && mainFormBranchingInProgress_();
@@ -264,7 +268,7 @@ function syncSystem() {
       if (shouldStopSync_(startedAt)) return;
       if (needsDashboardRefresh) {
         dashboardRows = refreshDashboardFromSync_(records);
-        logInfo_('syncSystem', '', 'Dashboard refresh completed; reason: ' + (queueChanged ? 'queue changes' : (referenceChanged ? 'reference data changes' : 'scheduled interval')) + '.');
+        logInfo_('syncSystem', '', 'Dashboard refresh completed; reason: ' + (approvalRecordsChanged ? 'approval changes' : (referenceChanged ? 'reference data changes' : 'scheduled interval')) + '.');
       }
       if (shouldStopSync_(startedAt)) return;
       if (needsFormRefresh) {

@@ -385,6 +385,7 @@ function writeSettings_(ss, mainForm, evaluationForm) {
   values[SETTINGS_KEYS.RESPONSE_QUEUE_BATCH_SIZE] = String(RESPONSE_QUEUE_BATCH_SIZE);
   values[SETTINGS_KEYS.QUEUE_SCAN_WINDOW_ROWS] = String(QUEUE_SCAN_WINDOW_ROWS);
   values[SETTINGS_KEYS.ACTION_QUEUE_MAX_RETRIES] = '3';
+  values[SETTINGS_KEYS.EVALUATION_FORM_ID] = evaluationForm ? evaluationForm.getId() : getBootstrapProperty_(BSPROP.EVALUATION_FORM_ID, '');
   values[SETTINGS_KEYS.EVALUATION_FORM_URL] = evaluationForm ? evaluationForm.getPublishedUrl() : getBootstrapProperty_(BSPROP.EVALUATION_FORM_PUBLISHED_URL, '');
   values[SETTINGS_KEYS.WEB_APP_URL] = preservedWebAppUrl;
   values[SETTINGS_KEYS.OWNER_EMAIL] = owner;

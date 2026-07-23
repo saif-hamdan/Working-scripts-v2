@@ -17,6 +17,13 @@ function sendEvaluationEmails() {
         if (cfg.EVALUATION_ALLOWED_FINAL_STATUSES.indexOf(safeString_(record[H.RECORD.FINAL_STATUS])) === -1) return;
         var end = dateOnly_(record[H.RECORD.END_DATE]);
         if (!end || end.getTime() >= today.getTime()) return; // Send on the day after the end date or later.
+        var evaluationLink = buildEvaluationPrefilledUrl_(record);
+        if (evaluationLink && evaluationLink !== safeString_(record[H.RECORD.EVALUATION_LINK])) {
+          record[H.RECORD.EVALUATION_LINK] = evaluationLink;
+          updateRequestByRow_(record._rowNumber, {
+            [H.RECORD.EVALUATION_LINK]: evaluationLink
+          });
+        }
         var sent = sendEvaluationEmail(record);
         if (sent) {
           updateRequestByRow_(record._rowNumber, {

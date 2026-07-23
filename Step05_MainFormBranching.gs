@@ -40,7 +40,7 @@ function startMainFormBranching_(options) {
   var ss = openDashboardFromProperties_();
   var form = openMainFormFromProperties_();
   var sync = syncAdminReferenceData_(ss);
-  var eligibleUnits = initializeBootstrapRotationOptionBranching_(form, readUnits_(ss), readSections_(ss), {
+  var selections = initializeMultiRotationFormBuild_(form, readUnits_(ss), readSections_(ss), {
     mode: BBRANCH_MODE.CLEAN,
     targetHash: sync.hash,
     preservePublishedHash: options.preservePublishedHash === true
@@ -50,49 +50,20 @@ function startMainFormBranching_(options) {
   return finishStep_(
     '05 Start Main Form Branching',
     BSTATUS.IN_PROGRESS,
-    'Single-rotation branching was initialized for ' + eligibleUnits.length + ' unit(s). Each unit will have one page with Section, Start Date, End Date, and Daily Hours. Run run06_continueMainFormBranching() repeatedly until it reports Complete.'
+    'Three sequential rotation-selection pages were initialized. Run run06_continueMainFormBranching() ' +
+      selections.length + ' time(s), or until it reports Complete.'
   );
 }
 
 function refreshMainFormRotationOptionChoices_(form, dashboard) {
-  return initializeBootstrapRotationOptionBranching_(form, readUnits_(dashboard), readSections_(dashboard), {
+  return initializeMultiRotationFormBuild_(form, readUnits_(dashboard), readSections_(dashboard), {
     mode: BBRANCH_MODE.LIVE,
     targetHash: getBootstrapProperty_(BSPROP.REFERENCE_DATA_HASH, '')
   });
 }
 
 function initializeBootstrapRotationOptionBranching_(form, units, sections, options) {
-  options = options || {};
-  var mode = options.mode === BBRANCH_MODE.LIVE ? BBRANCH_MODE.LIVE : BBRANCH_MODE.CLEAN;
-  var eligibleUnits = bootstrapEligibleUnits_(units, sections);
-  var currentUnitItem = getItem_(form, BFORM.TITLES.CURRENT_UNIT, FormApp.ItemType.LIST);
-  if (!currentUnitItem) {
-    throw new Error('Current Employee Unit question is missing. Run run04_rebuildMainFormBaseQuestions() first.');
-  }
-  if (!eligibleUnits.length) {
-    if (mode === BBRANCH_MODE.CLEAN) currentUnitItem.asListItem().setChoiceValues([BFORM.NO_UNITS]);
-    throw new Error('No active units with active sections were found. Check the unit and section sheets, then run Step 3 again.');
-  }
-
-  var targetHash = safeString_(options.targetHash || getBootstrapProperty_(BSPROP.REFERENCE_DATA_HASH, ''));
-  var firstWorkIndex = mode === BBRANCH_MODE.LIVE ? 1 : 0;
-  setBootstrapProperties_({
-    [BSPROP.BRANCH_INDEX]: String(firstWorkIndex),
-    [BSPROP.BRANCH_TOTAL]: String(bootstrapBranchWorkTotal_(eligibleUnits.length)),
-    [BSPROP.BRANCH_PHASE]: mode === BBRANCH_MODE.LIVE ? 'build' : 'reset-navigation',
-    [BSPROP.BRANCH_PHASE_INDEX]: '0',
-    [BSPROP.BRANCH_COMPLETE]: 'false',
-    [BSPROP.BRANCH_MODE]: mode,
-    [BSPROP.BRANCH_TARGET_HASH]: targetHash,
-    [BSPROP.BRANCH_LAST_ERROR]: '',
-    [BSPROP.REFERENCE_DIRTY]: 'false',
-    [BSPROP.PRODUCTION_COMPATIBILITY_STATUS]: '',
-    [BSPROP.READY]: 'false'
-  });
-  if (mode === BBRANCH_MODE.CLEAN && options.preservePublishedHash !== true) {
-    setBootstrapProperties_({ [BSPROP.BRANCH_PUBLISHED_HASH]: '' });
-  }
-  return eligibleUnits;
+  return initializeMultiRotationFormBuild_(form, units, sections, options);
 }
 
 function initializeLiveMainFormRefresh_(form, units, sections, targetHash) {
@@ -123,7 +94,7 @@ function bootstrapEligibleUnits_(units, sections) {
 }
 
 function bootstrapBranchWorkTotal_(unitCount) {
-  return (Number(unitCount) || 0) + 2;
+  return FORM.MAX_ROTATION_OPTIONS || 3;
 }
 
 function getBootstrapBranchWork_(progressIndex, unitCount) {
@@ -273,6 +244,8 @@ function bootstrapChoiceMismatchDetails_(actual, expected) {
 }
 
 function validateBootstrapRotationBranching_(form, eligibleUnits, sections, options) {
+  return validateMultiRotationForm_(form, sections);
+  /* Legacy unit-page validation retained below for rollback reference. */
   options = options || {};
   var issues = [];
   var itemIndex = options.itemIndex || bootstrapFormItemIndex_(form);
@@ -439,11 +412,13 @@ function getBootstrapBranchCleanupSpec_() {
   ];
 
   for (var rotationOption = 1; rotationOption <= (BFORM.LEGACY_MAX_ROTATION_OPTIONS || 5); rotationOption++) {
+    exactTitles.push(optionTitle_(BFORM.TITLES.ROTATION_PAGE_PREFIX, rotationOption));
+    exactTitles.push(optionTitle_(BFORM.TITLES.ROTATION_SECTION_PREFIX, rotationOption));
     exactTitles.push(optionTitle_(BFORM.TITLES.ROTATION_FROM_PREFIX, rotationOption));
     exactTitles.push(optionTitle_(BFORM.TITLES.ROTATION_TO_PREFIX, rotationOption));
     exactTitles.push(optionTitle_(BFORM.TITLES.ROTATION_HOURS_PREFIX, rotationOption));
+    exactTitles.push(optionTitle_(BFORM.TITLES.ROTATION_ADD_MORE_PREFIX, rotationOption));
     questionPrefixes.push(optionTitle_(BFORM.TITLES.ROTATION_SECTION_PREFIX, rotationOption) + ' - ');
-    if (rotationOption > 1) exactTitles.push(optionTitle_(BFORM.TITLES.ROTATION_ADD_MORE_PREFIX, rotationOption));
   }
   for (var internalOption = 1; internalOption <= (BFORM.MAX_INTERNAL_OPTIONS || 3); internalOption++) {
     exactTitles.push(optionTitle_(BFORM.TITLES.INTERNAL_SECTION_PREFIX, internalOption));

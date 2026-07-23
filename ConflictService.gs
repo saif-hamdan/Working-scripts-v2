@@ -1,6 +1,6 @@
 /** Conflict checking: same rotation unit + rotation section + overlapping date range + already accepted/active. */
-function findConflicts(criteria) {
-  var records = getRecords_();
+function findConflicts(criteria, records) {
+  records = records || getRecords_();
   var rotationKey = normalizeKey_(criteria.rotationUnit);
   var sectionKey = normalizeKey_(criteria.section);
   var section = findSectionByUnitAndName_(criteria.rotationUnit, criteria.section);
@@ -29,12 +29,12 @@ function findCapacityConflictForDates_(startDate, endDate, overlappingRecords, c
   return null;
 }
 
-function findActiveRotationByEmployee_(employeeId, employeeName, excludeRequestId) {
+function findActiveRotationByEmployee_(employeeId, employeeName, excludeRequestId, records) {
   var employeeIdKey = normalizeKey_(employeeId);
   var nameKey = normalizeKey_(employeeName);
   if (!employeeIdKey && !nameKey) return null;
 
-  var matches = getRecords_().filter(function(record) {
+  var matches = (records || getRecords_()).filter(function(record) {
     if (safeString_(record[H.RECORD.REQUEST_ID]) === safeString_(excludeRequestId)) return false;
     if (!isRecordActiveOrApproved_(record)) return false;
     if (!isTodayWithinRange_(record[H.RECORD.START_DATE], record[H.RECORD.END_DATE])) return false;
