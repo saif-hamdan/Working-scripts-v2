@@ -55,6 +55,9 @@ the diff. Do not deploy it and do not install triggers yet.
     build selections 1 and 2; the third builds selection 3, connects Yes/No
     navigation, and must report `Complete`.
 15. Run `run07_setupEvaluationForm()`.
+    This creates required, automatically prefilled identity and rotation-detail
+    fields for request/group IDs, selection number, employee ID/name/title,
+    unit, section, dates, daily hours, working days, and total hours.
 16. Run `run08_buildDashboardSummaryAndCharts()`.
 17. Run `run09_applyProtections()`.
 18. Run `run10_finalizeSetupSummary()`.
@@ -95,3 +98,10 @@ At the initial batch size, expected response throughput is one parent
 submission every five-minute `syncSystem` execution. Each parent may contain
 one to three independent rotation records. `RESPONSE_QUEUE_BATCH_SIZE` remains
 configurable for later monitored tuning.
+
+Each rotation record also has its own evaluation due date and sent flag. The
+daily 06:00 evaluation trigger sends one separate prefilled email on the
+calendar day after that individual rotation ends. For three rotations ending
+on different dates, the employee receives three separate evaluation emails on
+their respective due dates. A missed trigger run is caught up on the next run,
+and a successfully sent or queued evaluation is not created again.

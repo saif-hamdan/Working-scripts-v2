@@ -169,14 +169,19 @@ function queueConflictNotification(record, conflict, source) {
   return queueEmailForLater_(buildConflictNotificationPayload_(record, conflict, source), { kind: 'conflict', requestId: record[H.RECORD.REQUEST_ID] });
 }
 
-function sendEvaluationEmail(record) {
-  var evaluationUrl = buildEvaluationPrefilledUrl_(record);
+function sendEvaluationEmail(record, evaluationUrl) {
+  evaluationUrl = safeString_(evaluationUrl) ||
+    safeString_(record[H.RECORD.EVALUATION_LINK]) ||
+    buildEvaluationPrefilledUrl_(record);
   var data = buildTemplateData_(record, { evaluationUrl: evaluationUrl });
   var html = renderTemplate_('Emails_Evaluation', data);
   var context = { kind: 'evaluation', requestId: record[H.RECORD.REQUEST_ID] };
+  var rotationNumber = safeString_(record[H.RECORD.OPTION_ORDER]);
+  var rotationSuffix = rotationNumber ? ' - التدوير ' + rotationNumber + ' / Rotation ' + rotationNumber : '';
   var sent = sendEmailSafe_({
     to: safeString_(record[H.RECORD.EMPLOYEE_EMAIL]),
-    subject: 'تقييم تجربة التدوير الوظيفي / Job Rotation Experience Evaluation - ' + record[H.RECORD.REQUEST_ID],
+    subject: 'تقييم تجربة التدوير الوظيفي / Job Rotation Experience Evaluation - ' +
+      record[H.RECORD.REQUEST_ID] + rotationSuffix,
     htmlBody: html
   }, context);
   return sent || isEmailContextQueued_(context);

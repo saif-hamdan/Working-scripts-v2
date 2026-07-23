@@ -24,11 +24,22 @@ function rebuildEvaluationForm_(form) {
 
   addEvaluationSection_(form, 'نموذج استبانة تقييم تجربة التدوير الوظيفي للموظفين الجدد (التغذية الراجعة) / New Employee Job Rotation Experience Evaluation Form (Feedback)');
   addEvaluationSection_(form, 'أولاً: بيانات الموظف / First: Employee Information');
-  ensureText_(form, EVALUATION_FIELDS.REQUEST_ID, false);
-  ensureText_(form, EVALUATION_FIELDS.EMPLOYEE_NAME, false);
-  ensureText_(form, EVALUATION_FIELDS.JOB_TITLE, false);
-  ensureText_(form, EVALUATION_FIELDS.ROTATION_SECTION, false);
-  ensureText_(form, EVALUATION_FIELDS.PARTICIPATION_DURATION, false);
+  ensureText_(form, EVALUATION_FIELDS.REQUEST_ID, true);
+  ensureText_(form, EVALUATION_FIELDS.REQUEST_GROUP_ID, true);
+  ensureText_(form, EVALUATION_FIELDS.SELECTION_NUMBER, true);
+  ensureText_(form, EVALUATION_FIELDS.EMPLOYEE_NAME, true);
+  ensureText_(form, EVALUATION_FIELDS.EMPLOYEE_ID, true);
+  ensureText_(form, EVALUATION_FIELDS.JOB_TITLE, true);
+
+  addEvaluationSection_(form, 'تفاصيل التدوير المحدد (تعبأ تلقائياً) / Selected Rotation Details (Automatically Prefilled)');
+  ensureText_(form, EVALUATION_FIELDS.ROTATION_UNIT, true);
+  ensureText_(form, EVALUATION_FIELDS.ROTATION_SECTION, true);
+  ensureText_(form, EVALUATION_FIELDS.START_DATE, true);
+  ensureText_(form, EVALUATION_FIELDS.END_DATE, true);
+  ensureText_(form, EVALUATION_FIELDS.DAILY_HOURS, true);
+  ensureText_(form, EVALUATION_FIELDS.WORKING_DAYS, true);
+  ensureText_(form, EVALUATION_FIELDS.TOTAL_HOURS, true);
+  ensureText_(form, EVALUATION_FIELDS.PARTICIPATION_DURATION, true);
 
   addEvaluationSection_(form, 'ثانياً: تقييم البرنامج / Second: Program Evaluation');
   addEvaluationSection_(form, 'مقياس التقييم / Rating scale: (1 = ضعيف جداً / Very Poor | 2 = ضعيف / Poor | 3 = متوسط / Average | 4 = جيد / Good | 5 = ممتاز / Excellent)');

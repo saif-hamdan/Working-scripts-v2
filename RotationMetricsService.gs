@@ -66,7 +66,9 @@ function calculateRotationMetrics_(startDate, endDate, dailyHours) {
 }
 
 function formatParticipationDuration_(record) {
+  var workingDays = toNumber_(record[H.RECORD.WORKING_DAYS], 0) ||
+    calculateWorkingDays_(record[H.RECORD.START_DATE], record[H.RECORD.END_DATE]);
   return formatDate_(record[H.RECORD.START_DATE]) + ' – ' +
     formatDate_(record[H.RECORD.END_DATE]) + ' (' +
-    safeString_(record[H.RECORD.WORKING_DAYS]) + ' working days / أيام عمل)';
+    workingDays + ' working days / أيام عمل)';
 }

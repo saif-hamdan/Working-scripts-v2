@@ -254,6 +254,7 @@ const ACTIVE_FINAL_STATUSES = Object.freeze([
 
 const APPROVED_EVALUATION_FINAL_STATUSES = Object.freeze([
   STATUS.FINAL_APPROVED,
+  STATUS.FINAL_IN_PROGRESS,
   STATUS.FINAL_DONE
 ]);
 
@@ -350,9 +351,18 @@ const FORM = Object.freeze({
 
 const EVALUATION_FIELDS = Object.freeze({
   REQUEST_ID: 'رقم الطلب / Request ID',
+  REQUEST_GROUP_ID: 'معرف مجموعة الطلب / Request Group ID',
+  SELECTION_NUMBER: 'رقم اختيار التدوير / Rotation Selection Number',
   EMPLOYEE_NAME: 'اسم الموظف / Employee Name',
+  EMPLOYEE_ID: 'الرقم الوظيفي / Employee ID',
   JOB_TITLE: 'المسمى الوظيفي / Job Title',
+  ROTATION_UNIT: 'وحدة التدوير / Rotation Unit',
   ROTATION_SECTION: 'قسم التدوير / Rotation Section',
+  START_DATE: 'تاريخ بداية التدوير / Rotation Start Date',
+  END_DATE: 'تاريخ نهاية التدوير / Rotation End Date',
+  DAILY_HOURS: 'عدد ساعات التدوير اليومية / Daily Rotation Hours',
+  WORKING_DAYS: 'عدد أيام العمل / Working Days',
+  TOTAL_HOURS: 'إجمالي ساعات التدوير / Rotation Total Hours',
   PARTICIPATION_DURATION: 'مدة المشاركة / Participation Duration'
 });
 

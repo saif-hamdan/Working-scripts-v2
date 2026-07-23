@@ -73,7 +73,9 @@ function load(file) {
   'MultiRotationFormService.gs',
   'EvaluationPrefillService.gs',
   'TrainingHoursService.gs',
-  'TemplateService.gs'
+  'TemplateService.gs',
+  'EmailService.gs',
+  'EvaluationService.gs'
 ].forEach(load);
 
 function run(expression) {
@@ -353,8 +355,10 @@ test('existing conflict detection still blocks an overlapping accepted record', 
   );
 });
 
-test('evaluation URL prefills the actual section and matching record fields', () => {
+test('evaluation URL prefills every employee and individual-rotation detail with one cached form read', () => {
   context.prefillAnswers = {};
+  context.prefillFormOpenCount = 0;
+  context.prefillItemReadCount = 0;
   context.prefillItems = Object.values(EVALUATION_FIELDS).map((title) => ({
     getTitle() { return title; },
     asTextItem() {
@@ -365,34 +369,141 @@ test('evaluation URL prefills the actual section and matching record fields', ()
       };
     }
   }));
-  context.FormApp.openById = () => ({
-    getItems() { return context.prefillItems; },
-    createResponse() {
-      return {
-        withItemResponse(itemResponse) {
-          context.prefillAnswers[itemResponse.title] = itemResponse.value;
-          return this;
-        },
-        toPrefilledUrl() {
-          return 'https://docs.google.com/forms/prefilled';
-        }
-      };
-    }
-  });
-  run('getConfig = function() { return { EVALUATION_FORM_ID: "evaluation-id", EVALUATION_FORM_URL: "fallback" }; }; logError_ = function() {};');
+  context.FormApp.openById = () => {
+    context.prefillFormOpenCount += 1;
+    return {
+      getItems() {
+        context.prefillItemReadCount += 1;
+        return context.prefillItems;
+      },
+      createResponse() {
+        return {
+          withItemResponse(itemResponse) {
+            context.prefillAnswers[itemResponse.title] = itemResponse.value;
+            return this;
+          },
+          toPrefilledUrl() {
+            return 'https://docs.google.com/forms/prefilled';
+          }
+        };
+      }
+    };
+  };
+  run('EVALUATION_PREFILL_FORM_CACHE_ = null; getConfig = function() { return { EVALUATION_FORM_ID: "evaluation-id", EVALUATION_FORM_URL: "fallback" }; }; logError_ = function() {};');
   const record = {};
   record[H.RECORD.REQUEST_ID] = 'REQ-1';
+  record[H.RECORD.REQUEST_GROUP_ID] = 'GROUP-1';
+  record[H.RECORD.OPTION_ORDER] = 2;
   record[H.RECORD.EMPLOYEE_NAME] = 'Employee';
+  record[H.RECORD.EMPLOYEE_ID] = '200';
   record[H.RECORD.EMPLOYEE_JOB_TITLE] = 'Analyst';
   record[H.RECORD.ROTATION_UNIT] = 'Unit A';
   record[H.RECORD.SECTION] = 'Section 1';
   record[H.RECORD.START_DATE] = new Date('2026-07-05T00:00:00');
   record[H.RECORD.END_DATE] = new Date('2026-07-07T00:00:00');
+  record[H.RECORD.HOURS] = 7;
   record[H.RECORD.WORKING_DAYS] = 3;
+  record[H.RECORD.TOTAL_HOURS] = 21;
   context.evaluationRecord = record;
   assert.match(run('buildEvaluationPrefilledUrl_(evaluationRecord)'), /prefilled/);
-  assert.strictEqual(context.prefillAnswers[EVALUATION_FIELDS.ROTATION_SECTION], 'Unit A — Section 1');
   assert.strictEqual(context.prefillAnswers[EVALUATION_FIELDS.REQUEST_ID], 'REQ-1');
+  assert.strictEqual(context.prefillAnswers[EVALUATION_FIELDS.REQUEST_GROUP_ID], 'GROUP-1');
+  assert.strictEqual(context.prefillAnswers[EVALUATION_FIELDS.SELECTION_NUMBER], '2');
+  assert.strictEqual(context.prefillAnswers[EVALUATION_FIELDS.EMPLOYEE_NAME], 'Employee');
+  assert.strictEqual(context.prefillAnswers[EVALUATION_FIELDS.EMPLOYEE_ID], '200');
+  assert.strictEqual(context.prefillAnswers[EVALUATION_FIELDS.JOB_TITLE], 'Analyst');
+  assert.strictEqual(context.prefillAnswers[EVALUATION_FIELDS.ROTATION_UNIT], 'Unit A');
+  assert.strictEqual(context.prefillAnswers[EVALUATION_FIELDS.ROTATION_SECTION], 'Section 1');
+  assert.strictEqual(context.prefillAnswers[EVALUATION_FIELDS.START_DATE], '05/07/2026');
+  assert.strictEqual(context.prefillAnswers[EVALUATION_FIELDS.END_DATE], '07/07/2026');
+  assert.strictEqual(context.prefillAnswers[EVALUATION_FIELDS.DAILY_HOURS], '7');
+  assert.strictEqual(context.prefillAnswers[EVALUATION_FIELDS.WORKING_DAYS], '3');
+  assert.strictEqual(context.prefillAnswers[EVALUATION_FIELDS.TOTAL_HOURS], '21');
+  assert.match(context.prefillAnswers[EVALUATION_FIELDS.PARTICIPATION_DURATION], /05\/07\/2026.*07\/07\/2026.*3 working days/);
+
+  assert.match(run('buildEvaluationPrefilledUrl_(evaluationRecord)'), /prefilled/);
+  assert.strictEqual(context.prefillFormOpenCount, 1);
+  assert.strictEqual(context.prefillItemReadCount, 1);
+
+  const evaluationFormSource = fs.readFileSync(path.join(root, 'Step07_EvaluationForm.gs'), 'utf8');
+  Object.keys(EVALUATION_FIELDS).forEach((key) => {
+    assert.ok(evaluationFormSource.includes(`EVALUATION_FIELDS.${key}`), `Step 07 is missing ${key}`);
+  });
+});
+
+test('three rotations receive separate evaluations on the day after each individual end date', () => {
+  function scheduledRotation(rowNumber, requestId, endDate) {
+    const record = { _rowNumber: rowNumber };
+    record[H.RECORD.REQUEST_ID] = requestId;
+    record[H.RECORD.EMPLOYEE_ID] = '200';
+    record[H.RECORD.OPTION_ORDER] = rowNumber - 1;
+    record[H.RECORD.END_DATE] = new Date(endDate);
+    record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_ACCEPTED;
+    record[H.RECORD.FINAL_STATUS] = STATUS.FINAL_APPROVED;
+    record[H.RECORD.EVALUATION_SENT] = STATUS.NO;
+    record[H.RECORD.EVALUATION_LINK] = '';
+    return record;
+  }
+
+  context.evalScheduleRecords = [
+    scheduledRotation(2, 'REQ-1', '2026-07-01T00:00:00'),
+    scheduledRotation(3, 'REQ-2', '2026-07-02T00:00:00'),
+    scheduledRotation(4, 'REQ-3', '2026-07-03T00:00:00')
+  ];
+  context.evalScheduleSent = [];
+  context.evalLinkBuildCount = 0;
+  run(`
+    LockService = {
+      getScriptLock: function() {
+        return { tryLock: function() { return true; }, releaseLock: function() {} };
+      }
+    };
+    getConfig = function() {
+      return {
+        EVALUATION_FORM_URL: 'https://docs.google.com/forms/evaluation',
+        EVALUATION_ALLOWED_FINAL_STATUSES: [
+          STATUS.FINAL_APPROVED,
+          STATUS.FINAL_IN_PROGRESS,
+          STATUS.FINAL_DONE
+        ]
+      };
+    };
+    getRecords_ = function() { return evalScheduleRecords; };
+    buildEvaluationPrefilledUrl_ = function(record) {
+      evalLinkBuildCount++;
+      return 'https://docs.google.com/forms/prefilled/' + record[H.RECORD.REQUEST_ID];
+    };
+    sendEvaluationEmail = function(record, evaluationUrl) {
+      evalScheduleSent.push([record[H.RECORD.REQUEST_ID], evaluationUrl]);
+      return true;
+    };
+    updateRequestByRow_ = function(rowNumber, patch) {
+      var record = evalScheduleRecords[rowNumber - 2];
+      Object.keys(patch).forEach(function(key) { record[key] = patch[key]; });
+    };
+    logInfo_ = function() {};
+    logError_ = function() {};
+  `);
+
+  assert.strictEqual(
+    run('isEvaluationDueForRecord_(evalScheduleRecords[0], getConfig(), new Date("2026-07-01T00:00:00"))'),
+    false
+  );
+  run('sendEvaluationEmails(new Date("2026-07-02T00:00:00"))');
+  run('sendEvaluationEmails(new Date("2026-07-03T00:00:00"))');
+  run('sendEvaluationEmails(new Date("2026-07-04T00:00:00"))');
+
+  const sent = Array.from(context.evalScheduleSent, (entry) => Array.from(entry));
+  assert.deepStrictEqual(sent.map((entry) => entry[0]), ['REQ-1', 'REQ-2', 'REQ-3']);
+  assert.deepStrictEqual(sent.map((entry) => entry[1]), [
+    'https://docs.google.com/forms/prefilled/REQ-1',
+    'https://docs.google.com/forms/prefilled/REQ-2',
+    'https://docs.google.com/forms/prefilled/REQ-3'
+  ]);
+  assert.strictEqual(context.evalLinkBuildCount, 3);
+  context.evalScheduleRecords.forEach((scheduledRecord) => {
+    assert.strictEqual(scheduledRecord[H.RECORD.EVALUATION_SENT], STATUS.YES);
+  });
 });
 
 test('dates render DD/MM/YYYY and sender/final recipients remain forced', () => {
