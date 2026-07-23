@@ -76,17 +76,12 @@ function formatMultiRotationFootprint_(footprint) {
 function initializeMultiRotationFormBuild_(form, units, sections, options) {
   options = options || {};
   var footprint = assertMultiRotationFormFootprint_(calculateMultiRotationFormFootprint_(units, sections));
-  var unitNames = uniqueNonEmpty_((units || []).map(function(unit) { return unit.name; }));
-  var currentUnitItem = getItem_(form, FORM.TITLES.CURRENT_UNIT, FormApp.ItemType.LIST);
-  if (!currentUnitItem) {
-    throw new Error('Current Employee Unit question is missing. Run Step 4 first.');
-  }
-  currentUnitItem.asListItem().setChoiceValues(unitNames.length ? unitNames : [BFORM.NO_UNITS]);
 
   var mode = options.mode === BBRANCH_MODE.LIVE ? BBRANCH_MODE.LIVE : BBRANCH_MODE.CLEAN;
   if (mode === BBRANCH_MODE.CLEAN) {
     removeExistingBranchItems_(form);
   }
+  setMultiRotationCurrentUnitChoices_(form, units);
   var targetHash = safeString_(options.targetHash || getBootstrapProperty_(BSPROP.REFERENCE_DATA_HASH, ''));
   setBootstrapProperties_({
     [BSPROP.BRANCH_INDEX]: '0',
@@ -106,6 +101,16 @@ function initializeMultiRotationFormBuild_(form, units, sections, options) {
   }
   logInfo_('initializeMultiRotationFormBuild_', '', formatMultiRotationFootprint_(footprint));
   return [1, 2, 3].slice(0, footprint.selectionCount);
+}
+
+function setMultiRotationCurrentUnitChoices_(form, units) {
+  var currentUnitItem = getItem_(form, FORM.TITLES.CURRENT_UNIT, FormApp.ItemType.LIST);
+  if (!currentUnitItem) {
+    throw new Error('Current Employee Unit question is missing. Run Step 4 first.');
+  }
+  var unitNames = uniqueNonEmpty_((units || []).map(function(unit) { return unit.name; }));
+  currentUnitItem.asListItem().setChoiceValues(unitNames.length ? unitNames : [BFORM.NO_UNITS]);
+  return unitNames;
 }
 
 function ensureMultiRotationSelectionPage_(form, selectionNumber, choiceValues) {
@@ -200,6 +205,17 @@ function publishMultiRotationNavigation_(form) {
 function validateMultiRotationForm_(form, sections) {
   var issues = [];
   var expectedChoices = multiRotationSectionChoiceValues_(sections);
+  var currentUnitItem = getItem_(form, FORM.TITLES.CURRENT_UNIT, FormApp.ItemType.LIST);
+  if (!currentUnitItem) {
+    issues.push('Current Employee Unit question is missing.');
+  } else {
+    var currentUnitChoices = currentUnitItem.asListItem().getChoices().map(function(choice) {
+      return choice.getValue();
+    });
+    if (currentUnitChoices.indexOf(bootstrapTemporaryResetChoice_()) !== -1) {
+      issues.push('Current Employee Unit still contains the temporary reset choice.');
+    }
+  }
   for (var i = 1; i <= (FORM.MAX_ROTATION_OPTIONS || 3); i++) {
     var pageTitle = optionTitle_(FORM.TITLES.ROTATION_PAGE_PREFIX, i);
     var page = getItem_(form, pageTitle, FormApp.ItemType.PAGE_BREAK);
@@ -253,6 +269,7 @@ function continueMultiRotationFormBuild_(options) {
   var units = readUnits_(ss);
   var sections = readSections_(ss);
   var footprint = assertMultiRotationFormFootprint_(calculateMultiRotationFormFootprint_(units, sections));
+  setMultiRotationCurrentUnitChoices_(form, units);
   var total = footprint.selectionCount;
   var storedTotal = Number(getBootstrapProperty_(BSPROP.BRANCH_TOTAL, '0')) || 0;
   if (storedTotal !== total) {

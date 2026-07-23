@@ -146,6 +146,23 @@ test('form navigation is limited to selections 1 through 3', () => {
   assert.match(source, /pages\[pages\.length - 1\]\.setGoToPage\(FormApp\.PageNavigationType\.SUBMIT\)/);
 });
 
+test('current-unit choices are restored after clean branching reset', () => {
+  const source = fs.readFileSync(path.join(root, 'MultiRotationFormService.gs'), 'utf8');
+  const initializeStart = source.indexOf('function initializeMultiRotationFormBuild_');
+  const initializeEnd = source.indexOf('function setMultiRotationCurrentUnitChoices_', initializeStart);
+  const initializeSource = source.slice(initializeStart, initializeEnd);
+  assert.ok(
+    initializeSource.indexOf('removeExistingBranchItems_(form)') <
+      initializeSource.indexOf('setMultiRotationCurrentUnitChoices_(form, units)'),
+    'Current-unit choices must be restored after cleanup replaces navigation choices.'
+  );
+  assert.match(
+    source,
+    /function continueMultiRotationFormBuild_[\s\S]*setMultiRotationCurrentUnitChoices_\(form, units\)/
+  );
+  assert.match(source, /Current Employee Unit still contains the temporary reset choice/);
+});
+
 test('request-group IDs remain distinct for rows in the same response spreadsheet', () => {
   context.groupSourceA = 'same-spreadsheet-id:same-sheet-id:42';
   context.groupSourceB = 'same-spreadsheet-id:same-sheet-id:43';
