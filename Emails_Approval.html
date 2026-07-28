@@ -13,8 +13,8 @@
         <div class="title-en">Job Rotation Approval Request</div>
       </div>
       <div class="content">
-        <div class="intro-ar">يرجى مراجعة جميع اختيارات التدوير في هذا الطلب. سيُطبّق قرار واحد على جميع الاختيارات أدناه.</div>
-        <div class="intro-en">Please review all rotation selections in this submission. One decision will apply to every selection listed below.</div>
+        <div class="intro-ar">يرجى مراجعة جميع اختيارات التدوير في هذا الطلب واتخاذ قرار مستقل لكل اختيار.</div>
+        <div class="intro-en">Please review all rotation selections in this submission and decide on each selection separately.</div>
 
 <table class="details">
   <tr><th>البيان / Field</th><th>القيمة / Value</th></tr>
@@ -38,12 +38,17 @@
                 </tr>
               <? } ?>
             </table>
+            <div class="buttons">
+              <a class="btn btn-approve" href="<?= request.approveUrl ?>">موافقة / Approve</a>
+              <a class="btn btn-reject" href="<?= request.rejectUrl ?>">رفض / Reject</a>
+            </div>
           <? } ?>
+        <? } else { ?>
+          <div class="buttons">
+            <a class="btn btn-approve" href="<?= data.approveUrl ?>">موافقة / Approve</a>
+            <a class="btn btn-reject" href="<?= data.rejectUrl ?>">رفض / Reject</a>
+          </div>
         <? } ?>
-        <div class="buttons">
-          <a class="btn btn-approve" href="<?= data.approveUrl ?>">موافقة / Approve</a>
-          <a class="btn btn-reject" href="<?= data.rejectUrl ?>">رفض / Reject</a>
-        </div>
       </div>
       <div class="footer">
         <div dir="rtl">رسالة آلية من <?= data.orgAr ?>. يرجى عدم الرد.</div>

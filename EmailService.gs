@@ -35,9 +35,10 @@ function buildApprovalGroupContext_(records) {
 
 function buildGroupedApprovalPayload_(records, recipient) {
   var data = buildGroupedRequestTemplateData_(records, {});
-  var groupToken = safeString_(records[0][H.RECORD.TOKEN]);
-  data.approveUrl = makeWebAppUrl_('approveGroup', groupToken);
-  data.rejectUrl = makeWebAppUrl_('rejectGroup', groupToken);
+  data.requests.forEach(function(request) {
+    request.approveUrl = makeWebAppUrl_('approve', request.record[H.RECORD.TOKEN]);
+    request.rejectUrl = makeWebAppUrl_('reject', request.record[H.RECORD.TOKEN]);
+  });
   var groupId = safeString_(records[0][H.RECORD.REQUEST_GROUP_ID]);
   return {
     to: safeString_(recipient),

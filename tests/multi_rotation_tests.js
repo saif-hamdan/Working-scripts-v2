@@ -724,10 +724,15 @@ test('one submission sends one grouped approval email to the unit head', () => {
     ['REQ-1', 'REQ-2', 'REQ-3']
   );
   assert.strictEqual(context.groupedTemplateData.requests.length, 3);
-  assert.match(context.groupedTemplateData.approveUrl, /approveGroup\/TOKEN-1/);
-  assert.match(context.groupedTemplateData.rejectUrl, /rejectGroup\/TOKEN-1/);
-  assert.strictEqual(context.groupedTemplateData.requests[0].approveUrl, undefined);
-  assert.strictEqual(context.groupedTemplateData.requests[0].rejectUrl, undefined);
+  context.groupedTemplateData.requests.forEach((request, index) => {
+    assert.match(request.approveUrl, new RegExp(`approve/TOKEN-${index + 1}`));
+    assert.match(request.rejectUrl, new RegExp(`reject/TOKEN-${index + 1}`));
+  });
+  assert.strictEqual(context.groupedTemplateData.approveUrl, '');
+  assert.strictEqual(context.groupedTemplateData.rejectUrl, '');
+  const approvalTemplateSource = fs.readFileSync(path.join(root, 'Emails_Approval.html'), 'utf8');
+  assert.match(approvalTemplateSource, /href="<\?= request\.approveUrl \?>"/);
+  assert.match(approvalTemplateSource, /href="<\?= request\.rejectUrl \?>"/);
   assert.strictEqual(context.groupedUpdates.length, 3);
 });
 
@@ -823,6 +828,72 @@ test('one unit-head group approval updates all three rotations but leaves final 
   });
 });
 
+test('one rotation approval button updates only its own rotation', () => {
+  context.individualDecisionRecords = context.groupedApprovalRecords.map((record) => Object.assign({}, record));
+  context.individualDecisionUpdates = [];
+  run(`
+    getRequestByToken_ = function(token) {
+      return individualDecisionRecords.filter(function(record) {
+        return record[H.RECORD.TOKEN] === token;
+      })[0] || null;
+    };
+    findConflicts = function() { return null; };
+    updateRequestByRow_ = function(rowNumber, updates) {
+      individualDecisionUpdates.push({ rowNumber: rowNumber, updates: updates });
+    };
+    queueConflictNotification = function() {
+      throw new Error('No conflict notification was expected.');
+    };
+    now_ = function() { return new Date('2026-07-28T08:10:00'); };
+    processQueuedApproveAction_('TOKEN-2');
+  `);
+
+  assert.strictEqual(context.individualDecisionUpdates.length, 1);
+  assert.strictEqual(context.individualDecisionUpdates[0].rowNumber, 3);
+  assert.strictEqual(
+    context.individualDecisionUpdates[0].updates[H.RECORD.HEAD_STATUS],
+    STATUS.HEAD_ACCEPTED
+  );
+  assert.strictEqual(
+    context.individualDecisionUpdates[0].updates[H.RECORD.FINAL_STATUS],
+    STATUS.FINAL_PENDING
+  );
+});
+
+test('one rotation rejection button updates only its own rotation', () => {
+  context.individualDecisionRecords = context.groupedApprovalRecords.map((record) => Object.assign({}, record));
+  context.individualDecisionUpdates = [];
+  context.individualRejectedNotifications = [];
+  run(`
+    getRequestByToken_ = function(token) {
+      return individualDecisionRecords.filter(function(record) {
+        return record[H.RECORD.TOKEN] === token;
+      })[0] || null;
+    };
+    updateRequestByRow_ = function(rowNumber, updates) {
+      individualDecisionUpdates.push({ rowNumber: rowNumber, updates: updates });
+    };
+    sendRejectedNotification = function(record) {
+      individualRejectedNotifications.push(record);
+      return true;
+    };
+    now_ = function() { return new Date('2026-07-28T08:12:00'); };
+    processQueuedRejectAction_('TOKEN-1', 'Not approved for this rotation');
+  `);
+
+  assert.strictEqual(context.individualDecisionUpdates.length, 1);
+  assert.strictEqual(context.individualDecisionUpdates[0].rowNumber, 2);
+  assert.strictEqual(
+    context.individualDecisionUpdates[0].updates[H.RECORD.HEAD_STATUS],
+    STATUS.HEAD_REJECTED
+  );
+  assert.strictEqual(
+    context.individualDecisionUpdates[0].updates[H.RECORD.FINAL_STATUS],
+    STATUS.FINAL_REJECTED
+  );
+  assert.strictEqual(context.individualRejectedNotifications.length, 1);
+});
+
 test('unit-head group action refuses an unexpected fourth rotation', () => {
   const unexpectedFourth = Object.assign({}, context.groupedApprovalRecords[0]);
   unexpectedFourth._rowNumber = 5;
@@ -882,21 +953,13 @@ test('one unit-head group rejection updates all three rotations and queues email
   });
 });
 
-test('group approval stays bounded while dashboard final approval remains per row', () => {
+test('legacy group actions stay bounded while dashboard final approval remains per row', () => {
   const approvalSource = fs.readFileSync(path.join(root, 'ApprovalWebApp.gs'), 'utf8');
   const queueSource = fs.readFileSync(path.join(root, 'ApprovalActionQueueService.gs'), 'utf8');
   const dashboardValidationSource = fs.readFileSync(path.join(root, 'ValidationService.gs'), 'utf8');
   assert.match(approvalSource, /FORM\.MAX_ROTATION_OPTIONS \|\| 3/);
   assert.match(approvalSource, /var conflictCandidates = getRecords_\(\)/);
   assert.match(approvalSource, /queueRejectedNotification\(record\)/);
-  assert.match(
-    approvalSource,
-    /function handleApprove_\(token\)[\s\S]*REQUEST_GROUP_ID[\s\S]*return handleApproveGroup_\(token\)/
-  );
-  assert.match(
-    approvalSource,
-    /function showRejectPage_\(token\)[\s\S]*REQUEST_GROUP_ID[\s\S]*return showRejectGroupPage_\(token\)/
-  );
   assert.match(queueSource, /shouldStopSync_\(options\.startedAt\)/);
   assert.match(dashboardValidationSource, /function applyFinalStatusChange_\(rowNumber/);
   assert.match(dashboardValidationSource, /updateObjectRow_\(sheet, rowNumber,/);

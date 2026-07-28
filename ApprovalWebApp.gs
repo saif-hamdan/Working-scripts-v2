@@ -40,9 +40,6 @@ function handleApprove_(token) {
   if (!record) {
     return renderMessagePage_('رابط غير صالح', 'Invalid link', 'لم يتم العثور على الطلب. / Request was not found.', false);
   }
-  if (safeString_(record[H.RECORD.REQUEST_GROUP_ID])) {
-    return handleApproveGroup_(token);
-  }
   if (!isRequestAwaitingUnitHeadDecision_(record)) {
     return renderAlreadyProcessedPage_(record);
   }
@@ -202,11 +199,6 @@ function processQueuedApproveAction_(token) {
   try {
     var record = getRequestByToken_(token);
     if (!record) throw new Error('Request was not found for approval token.');
-    if (safeString_(record[H.RECORD.REQUEST_GROUP_ID])) {
-      processQueuedApproveGroupAction_(token);
-      return;
-    }
-
     requestId = safeString_(record[H.RECORD.REQUEST_ID]);
     if (safeString_(record[H.RECORD.HEAD_STATUS]) !== STATUS.HEAD_PENDING || safeString_(record[H.RECORD.FINAL_STATUS]) !== STATUS.FINAL_PENDING) {
       logInfo_('processQueuedApproveAction_', requestId, 'Queued approval skipped because the request was already processed. Current final status: ' + safeString_(record[H.RECORD.FINAL_STATUS]));
@@ -255,9 +247,6 @@ function showRejectPage_(token) {
   throwIfMissing_(token, 'Missing rejection token.');
   var record = getRequestByToken_(token);
   if (!record) return renderMessagePage_('رابط غير صالح', 'Invalid link', 'لم يتم العثور على الطلب. / Request was not found.', false);
-  if (safeString_(record[H.RECORD.REQUEST_GROUP_ID])) {
-    return showRejectGroupPage_(token);
-  }
   if (!isRequestAwaitingUnitHeadDecision_(record)) return renderAlreadyProcessedPage_(record);
   var actionUrlStatus = getValidatedWebAppUrlStatus_();
   if (!actionUrlStatus.ok) {
@@ -372,9 +361,6 @@ function rejectRequest_(token, reason) {
       success: false
     };
   }
-  if (safeString_(record[H.RECORD.REQUEST_GROUP_ID])) {
-    return rejectGroupRequest_(token, reason);
-  }
   if (!isRequestAwaitingUnitHeadDecision_(record)) {
     return buildAlreadyProcessedResult_(record);
   }
@@ -411,10 +397,6 @@ function processQueuedRejectAction_(token, reason) {
   try {
     var record = getRequestByToken_(token);
     if (!record) throw new Error('Request was not found for rejection token.');
-    if (safeString_(record[H.RECORD.REQUEST_GROUP_ID])) {
-      processQueuedRejectGroupAction_(token, reason);
-      return;
-    }
     requestId = safeString_(record[H.RECORD.REQUEST_ID]);
     if (safeString_(record[H.RECORD.HEAD_STATUS]) !== STATUS.HEAD_PENDING || safeString_(record[H.RECORD.FINAL_STATUS]) !== STATUS.FINAL_PENDING) {
       logInfo_('processQueuedRejectAction_', requestId, 'Queued rejection skipped because the request was already processed. Current final status: ' + safeString_(record[H.RECORD.FINAL_STATUS]));

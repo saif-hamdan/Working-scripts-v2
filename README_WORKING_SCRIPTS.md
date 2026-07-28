@@ -19,7 +19,7 @@ This branch is the isolated duplicate Apps Script project for the Google Forms +
   - `طابور البريد`
 - One parent Form submission with one to three sequential rotation selections.
 - Every rotation dropdown displays all active choices as `Unit Name — Section Name`.
-- One grouped unit-head approval email per submission, with one **Approve** and one **Reject** action for its one-to-three rotations.
+- One grouped unit-head approval email per submission, with a separate **Approve** and **Reject** pair for each of its one-to-three rotations.
 - Final dashboard approval remains independent for each rotation row, even when the unit head approved the submission as one group.
 - Required rejection reason page.
 - Conflict checking on submission and again on approval.

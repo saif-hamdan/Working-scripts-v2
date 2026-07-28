@@ -23,9 +23,9 @@
 - [ ] After every new Web App deployment, run `run15_saveActiveWebAppUrl()` again before sending links.
 - [ ] Save the new Web App `/exec` URL before enabling any approval links.
 - [ ] Submit controlled tests containing 1, 2, and 3 rotations.
-- [ ] Submit three rotations and confirm the unit head receives one email with only **Approve** and **Reject**.
-- [ ] Test **Approve** and confirm all three rows receive unit-head approval while each row remains separately pending for final dashboard approval.
-- [ ] Test **Reject** with one reason and confirm it is applied to all rotations in the submission.
+- [ ] Submit three rotations and confirm the unit head receives one email with a separate **Approve** and **Reject** pair under every rotation.
+- [ ] Test one rotation’s **Approve** button and confirm only that row receives unit-head approval and remains pending for final dashboard approval.
+- [ ] Test one rotation’s **Reject** button with a reason and confirm only that rotation is rejected.
 - [ ] Test same-employee active-rotation auto-rejection.
 - [ ] Test two overlapping requests in the same section.
 - [ ] Test final status cannot be changed to `منجز` before head approval.
