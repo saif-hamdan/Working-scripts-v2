@@ -184,13 +184,15 @@ function getMultiRotationItemOccurrence_(form, title, type, occurrenceIndex) {
 function ensureMultiRotationDateOccurrence_(form, title, occurrenceIndex, required) {
   var item = getMultiRotationItemOccurrence_(form, title, FormApp.ItemType.DATE, occurrenceIndex);
   if (!item) item = form.addDateItem().setTitle(title);
-  return item.asDateItem().setRequired(Boolean(required));
+  item = asTypedFormItem_(item, 'asDateItem');
+  return item.setRequired(Boolean(required));
 }
 
 function ensureMultiRotationTextOccurrence_(form, title, occurrenceIndex, required) {
   var item = getMultiRotationItemOccurrence_(form, title, FormApp.ItemType.TEXT, occurrenceIndex);
   if (!item) item = form.addTextItem().setTitle(title);
-  return item.asTextItem().setRequired(Boolean(required));
+  item = asTypedFormItem_(item, 'asTextItem');
+  return item.setRequired(Boolean(required));
 }
 
 function applyDailyHoursValidation_(textItem) {
@@ -264,7 +266,7 @@ function validateMultiRotationForm_(form, sections) {
       var item = getMultiRotationItemOccurrence_(form, spec.title, spec.type, spec.occurrenceIndex);
       if (!item) {
         issues.push('Missing required question: ' + spec.title);
-      } else if (!item[spec.cast]().isRequired()) {
+      } else if (!asTypedFormItem_(item, spec.cast).isRequired()) {
         issues.push('Question is not required: ' + spec.title);
       }
     });

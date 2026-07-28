@@ -70,6 +70,7 @@ function load(file) {
   'RotationMetricsService.gs',
   'RequestService.gs',
   'ConflictService.gs',
+  'FormService.gs',
   'MultiRotationFormService.gs',
   'EvaluationPrefillService.gs',
   'TrainingHoursService.gs',
@@ -175,6 +176,43 @@ test('requested form wording and repeated labels are exact', () => {
   const evaluationSource = fs.readFileSync(path.join(root, 'Step07_EvaluationForm.gs'), 'utf8');
   assert.match(evaluationSource, /تقييم تجربة التدوير المعرفي/);
   assert.match(evaluationSource, /New Employee Knowledge Rotation Experience Evaluation Form/);
+});
+
+test('newly created repeated date and hours items do not require a second cast', () => {
+  context.newTypedDateItem = {
+    title: '',
+    required: false,
+    setTitle(value) { this.title = value; return this; },
+    setRequired(value) { this.required = value; return this; }
+  };
+  context.newTypedTextItem = {
+    title: '',
+    required: false,
+    setTitle(value) { this.title = value; return this; },
+    setRequired(value) { this.required = value; return this; }
+  };
+  context.emptyRepeatedItemForm = {
+    getItems() { return []; },
+    addDateItem() { return context.newTypedDateItem; },
+    addTextItem() { return context.newTypedTextItem; }
+  };
+
+  assert.doesNotThrow(() => run(`
+    createdRepeatedDateItem = ensureMultiRotationDateOccurrence_(
+      emptyRepeatedItemForm,
+      FORM.TITLES.ROTATION_FROM_PREFIX,
+      0,
+      true
+    );
+    createdRepeatedTextItem = ensureMultiRotationTextOccurrence_(
+      emptyRepeatedItemForm,
+      FORM.TITLES.ROTATION_HOURS_PREFIX,
+      0,
+      true
+    );
+  `));
+  assert.strictEqual(context.createdRepeatedDateItem.required, true);
+  assert.strictEqual(context.createdRepeatedTextItem.required, true);
 });
 
 test('current-unit choices are restored after clean branching reset', () => {
