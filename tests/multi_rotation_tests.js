@@ -977,6 +977,28 @@ test('dates render DD/MM/YYYY and sender/final recipients remain forced', () => 
   assert.match(emailSource, /EMAIL_SENDER_DISPLAY_NAME/);
 });
 
+test('all email subjects and bodies use Knowledge Rotation terminology', () => {
+  const emailFiles = fs.readdirSync(root)
+    .filter((file) => /^Emails_.*\.html$/i.test(file))
+    .concat(['EmailService.gs']);
+  emailFiles.forEach((file) => {
+    const source = fs.readFileSync(path.join(root, file), 'utf8');
+    assert.doesNotMatch(
+      source,
+      /التدوير الوظيفي|تدوير وظيفي|job rotation/i,
+      `${file} still contains old Job Rotation terminology`
+    );
+  });
+
+  const requestSource = fs.readFileSync(path.join(root, 'RequestService.gs'), 'utf8');
+  const activeReasonStart = requestSource.indexOf('function buildActiveEmployeeRejectionReason_');
+  const activeReasonEnd = requestSource.indexOf('\n}', activeReasonStart);
+  const activeReasonSource = requestSource.slice(activeReasonStart, activeReasonEnd);
+  assert.doesNotMatch(activeReasonSource, /تدوير وظيفي|job rotation/i);
+  assert.match(activeReasonSource, /تدوير معرفي/);
+  assert.match(activeReasonSource, /knowledge rotation/i);
+});
+
 let passed = 0;
 for (const current of tests) {
   try {

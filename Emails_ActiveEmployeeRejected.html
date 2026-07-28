@@ -9,12 +9,12 @@
     <div class="card">
       <div class="header" style="background:<?= data.brand.primaryColor ?>;">
         <? if (data.brand.logoUrl) { ?><img class="logo" src="<?= data.brand.logoUrl ?>" alt="Employees and Retirees Services Section / قسم خدمات الموظفين والمتقاعدين Logo"><? } ?>
-        <div class="title-ar">تم رفض طلب التدوير الوظيفي</div>
-        <div class="title-en">Job Rotation Request Rejected</div>
+        <div class="title-ar">تم رفض طلب التدوير المعرفي</div>
+        <div class="title-en">Knowledge Rotation Request Rejected</div>
       </div>
       <div class="content">
-        <div class="intro-ar">تم رفض طلب التدوير الوظيفي لأن لدى الموظف تدوير وظيفي معتمد ونشط حالياً.</div>
-        <div class="intro-en">The job rotation request was rejected because the employee currently has an active approved job rotation.</div>
+        <div class="intro-ar">تم رفض طلب التدوير المعرفي لأن لدى الموظف تدوير معرفي معتمد ونشط حالياً.</div>
+        <div class="intro-en">The knowledge rotation request was rejected because the employee currently has an active approved knowledge rotation.</div>
 
         <table class="details">
           <tr><th>البيان / Field</th><th>القيمة / Value</th></tr>
@@ -32,12 +32,12 @@
         </div>
 
         <div class="note" dir="rtl">
-          <strong>تفاصيل تدوير وظيفي نشط / active job rotation details:</strong><br>
+          <strong>تفاصيل تدوير معرفي نشط / active knowledge rotation details:</strong><br>
           <pre style="white-space:pre-wrap; text-align:center; font-family:Arial,Tahoma,sans-serif;"><?= data.activeRotationDetails ?></pre>
         </div>
         <div class="note">
-          <strong>تدوير وظيفي نشط / active job rotation:</strong><br>
-          A new job rotation request can be submitted after the active job rotation ends.
+          <strong>تدوير معرفي نشط / active knowledge rotation:</strong><br>
+          A new knowledge rotation request can be submitted after the active knowledge rotation ends.
         </div>
       </div>
       <div class="footer">

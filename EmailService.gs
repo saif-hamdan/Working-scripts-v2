@@ -6,7 +6,7 @@ function sendApprovalEmail(record) {
   var html = renderTemplate_('Emails_Approval', data);
   return sendEmailSafe_({
     to: safeString_(record[H.RECORD.APPROVER_EMAIL]),
-    subject: 'طلب موافقة على التدوير الوظيفي / Job Rotation Approval Request - ' + record[H.RECORD.REQUEST_ID],
+    subject: 'طلب موافقة على التدوير المعرفي / Knowledge Rotation Approval Request - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   }, { kind: 'approval', requestId: record[H.RECORD.REQUEST_ID] });
 }
@@ -42,7 +42,7 @@ function buildGroupedApprovalPayload_(records, recipient) {
   var groupId = safeString_(records[0][H.RECORD.REQUEST_GROUP_ID]);
   return {
     to: safeString_(recipient),
-    subject: 'طلبات موافقة التدوير الوظيفي / Job Rotation Approval Requests - ' +
+    subject: 'طلبات موافقة التدوير المعرفي / Knowledge Rotation Approval Requests - ' +
       groupId + ' (' + records.length + ')',
     htmlBody: renderTemplate_('Emails_Approval', data)
   };
@@ -89,7 +89,7 @@ function sendSubmissionConfirmationEmail(record) {
   return sendEmailSafe_({
     to: safeString_(record[H.RECORD.DIRECT_MANAGER_EMAIL]),
     cc: uniqueNonEmpty_([record[H.RECORD.EMPLOYEE_EMAIL]]).join(','),
-    subject: 'تم استلام طلب التدوير الوظيفي / Job Rotation Request Submitted - ' + record[H.RECORD.REQUEST_ID],
+    subject: 'تم استلام طلب التدوير المعرفي / Knowledge Rotation Request Submitted - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   }, { kind: 'submitted', requestId: record[H.RECORD.REQUEST_ID] });
 }
@@ -105,7 +105,7 @@ function sendGroupedSubmissionConfirmationEmail_(records) {
   return sendEmailSafe_({
     to: safeString_(first[H.RECORD.DIRECT_MANAGER_EMAIL]),
     cc: uniqueNonEmpty_([first[H.RECORD.EMPLOYEE_EMAIL]]).join(','),
-    subject: 'تم استلام طلبات التدوير الوظيفي / Job Rotation Requests Submitted - ' +
+    subject: 'تم استلام طلبات التدوير المعرفي / Knowledge Rotation Requests Submitted - ' +
       safeString_(first[H.RECORD.REQUEST_GROUP_ID]) + ' (' + records.length + ')',
     htmlBody: html
   }, {
@@ -146,7 +146,7 @@ function sendInvalidDatesSubmissionEmail(data, responseId, error) {
   return sendEmailSafe_({
     to: SUBMISSION_REVIEW_EMAIL_TO,
     cc: SUBMISSION_REVIEW_EMAIL_CC,
-    subject: 'تعذر معالجة طلب التدوير الوظيفي / Job Rotation Submission Requires Review',
+    subject: 'تعذر معالجة طلب التدوير المعرفي / Knowledge Rotation Submission Requires Review',
     htmlBody: html
   }, { kind: 'invalid_dates_submission', requestId: responseId || '' });
 }
@@ -157,7 +157,7 @@ function buildApprovedNotificationPayload_(record) {
   return {
     to: uniqueNonEmpty_([record[H.RECORD.DIRECT_MANAGER_EMAIL], record[H.RECORD.EMPLOYEE_EMAIL]]).join(','),
     cc: uniqueNonEmpty_([record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL], record[H.RECORD.APPROVER_EMAIL]]).join(','),
-    subject: 'طلب تدوير وظيفي / Job Rotation Request - موافقة رئيس الوحدة بانتظار الاعتماد النهائي / Unit Head Approved Pending Final Approval - ' + record[H.RECORD.REQUEST_ID],
+    subject: 'طلب تدوير معرفي / Knowledge Rotation Request - موافقة رئيس الوحدة بانتظار الاعتماد النهائي / Unit Head Approved Pending Final Approval - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   };
 }
@@ -176,7 +176,7 @@ function buildRejectedNotificationPayload_(record) {
   return {
     to: uniqueNonEmpty_([record[H.RECORD.DIRECT_MANAGER_EMAIL], record[H.RECORD.EMPLOYEE_EMAIL]]).join(','),
     cc: uniqueNonEmpty_([record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL], record[H.RECORD.APPROVER_EMAIL]]).join(','),
-    subject: 'تم رفض طلب التدوير الوظيفي / Job Rotation Request Rejected - ' + record[H.RECORD.REQUEST_ID],
+    subject: 'تم رفض طلب التدوير المعرفي / Knowledge Rotation Request Rejected - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   };
 }
@@ -198,7 +198,7 @@ function buildFinalApprovedNotificationPayload_(record) {
       record[H.RECORD.DIRECT_MANAGER_EMAIL],
       record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]
     ]).join(','),
-    subject: 'تم الاعتماد النهائي لطلب التدوير الوظيفي / Job Rotation Request Finally Approved - ' + record[H.RECORD.REQUEST_ID],
+    subject: 'تم الاعتماد النهائي لطلب التدوير المعرفي / Knowledge Rotation Request Finally Approved - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   };
 }
@@ -216,7 +216,7 @@ function buildFinalRejectedNotificationPayload_(record) {
       record[H.RECORD.DIRECT_MANAGER_EMAIL],
       record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]
     ]).join(','),
-    subject: 'تم رفض طلب التدوير الوظيفي / Job Rotation Request Rejected - ' + record[H.RECORD.REQUEST_ID],
+    subject: 'تم رفض طلب التدوير المعرفي / Knowledge Rotation Request Rejected - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   };
 }
@@ -234,7 +234,7 @@ function sendActiveEmployeeRejectedNotification(record, activeRotation) {
   return sendEmailSafe_({
     to: uniqueNonEmpty_([record[H.RECORD.EMPLOYEE_EMAIL], record[H.RECORD.DIRECT_MANAGER_EMAIL]]).join(','),
     cc: uniqueNonEmpty_([record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]]).join(','),
-    subject: 'تم رفض طلب التدوير الوظيفي / Job Rotation Request Rejected - تدوير وظيفي نشط / active job rotation - ' + record[H.RECORD.REQUEST_ID],
+    subject: 'تم رفض طلب التدوير المعرفي / Knowledge Rotation Request Rejected - تدوير معرفي نشط / active knowledge rotation - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   }, { kind: 'active_employee_rejected', requestId: record[H.RECORD.REQUEST_ID] });
 }
@@ -248,7 +248,7 @@ function buildConflictNotificationPayload_(record, conflict, source) {
   var html = renderTemplate_('Emails_Conflict', data);
   return {
     to: uniqueNonEmpty_([record[H.RECORD.APPROVER_EMAIL], record[H.RECORD.EMPLOYEE_EMAIL], record[H.RECORD.DIRECT_MANAGER_EMAIL], record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]]).join(','),
-    subject: 'طلب تدوير وظيفي / Job Rotation Request - تعارض / Conflict - ' + record[H.RECORD.REQUEST_ID],
+    subject: 'طلب تدوير معرفي / Knowledge Rotation Request - تعارض / Conflict - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   };
 }

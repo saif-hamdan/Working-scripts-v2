@@ -722,8 +722,8 @@ function normalizeRotationOptionsFromSubmission_(data) {
 
 function buildActiveEmployeeRejectionReason_(activeRotation) {
   return [
-    'تم رفض الطلب تلقائياً لأن الموظف لديه تدوير وظيفي معتمد ونشط حالياً.',
-    'The request was automatically rejected because the employee currently has an active approved job rotation.',
+    'تم رفض الطلب تلقائياً لأن الموظف لديه تدوير معرفي معتمد ونشط حالياً.',
+    'The request was automatically rejected because the employee currently has an active approved knowledge rotation.',
     'رقم الطلب النشط / Active request ID: ' + safeString_(activeRotation[H.RECORD.REQUEST_ID])
   ].join('\n');
 }
