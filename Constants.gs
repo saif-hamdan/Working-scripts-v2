@@ -9,6 +9,8 @@ const SYSTEM = Object.freeze({
 });
 
 const EMAIL_SENDER_DISPLAY_NAME = 'Employee Services';
+const SUBMISSION_REVIEW_EMAIL_TO = 'employeeservices@squ.edu.om';
+const SUBMISSION_REVIEW_EMAIL_CC = 'm.alaamri1@squ.edu.om';
 
 const RESPONSE_QUEUE_BATCH_SIZE = 1;
 const ACTION_QUEUE_BATCH_SIZE = 25;

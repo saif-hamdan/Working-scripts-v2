@@ -731,6 +731,38 @@ test('one submission sends one grouped approval email to the unit head', () => {
   assert.strictEqual(context.groupedUpdates.length, 3);
 });
 
+test('submission validation errors go to Employee Services instead of the unit head', () => {
+  context.submissionReviewPayload = null;
+  run(`
+    getConfig = function() {
+      return {
+        BRAND: { primaryColor: '#0B4EA2', logoUrl: '' },
+        ORGANIZATION_NAME_AR: 'Employee Services',
+        ORGANIZATION_NAME_EN: 'Employee Services'
+      };
+    };
+    normalizeRotationOptionsFromSubmission_ = function() { return []; };
+    renderTemplate_ = function() { return '<html>review</html>'; };
+    sendEmailSafe_ = function(payload) {
+      submissionReviewPayload = payload;
+      return true;
+    };
+    sendInvalidDatesSubmissionEmail({
+      directManagerEmail: 'manager@example.com',
+      submitterEmail: 'submitter@example.com',
+      employeeEmail: 'employee@example.com',
+      approverEmail: 'unit-head@example.com'
+    }, 'RESPONSE-1', new Error('Validation failed'));
+  `);
+
+  assert.strictEqual(context.submissionReviewPayload.to, 'employeeservices@squ.edu.om');
+  assert.strictEqual(context.submissionReviewPayload.cc, 'm.alaamri1@squ.edu.om');
+  assert.doesNotMatch(
+    `${context.submissionReviewPayload.to},${context.submissionReviewPayload.cc}`,
+    /manager@example\.com|submitter@example\.com|employee@example\.com|unit-head@example\.com/
+  );
+});
+
 test('one unit-head group approval updates all three rotations but leaves final decisions pending', () => {
   context.groupDecisionRecords = context.groupedApprovalRecords.map((record) => Object.assign({}, record));
   context.groupDecisionUpdates = [];

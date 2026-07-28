@@ -143,8 +143,8 @@ function sendInvalidDatesSubmissionEmail(data, responseId, error) {
   };
   var html = renderTemplate_('Emails_InvalidDates', templateData);
   return sendEmailSafe_({
-    to: uniqueNonEmpty_([data.directManagerEmail, data.submitterEmail]).join(','),
-    cc: uniqueNonEmpty_([data.employeeEmail]).join(','),
+    to: SUBMISSION_REVIEW_EMAIL_TO,
+    cc: SUBMISSION_REVIEW_EMAIL_CC,
     subject: 'تعذر معالجة طلب التدوير الوظيفي / Job Rotation Submission Requires Review',
     htmlBody: html
   }, { kind: 'invalid_dates_submission', requestId: responseId || '' });

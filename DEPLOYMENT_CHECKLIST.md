@@ -12,6 +12,7 @@
 - [ ] Confirm the footprint reported by Step 05 stays below configured Forms limits.
 - [ ] Add Script Properties from `CONFIG_TEMPLATE.json`.
 - [ ] Confirm an automated test email displays `Employee Services`; legacy sender-name properties are ignored.
+- [ ] Confirm submission-validation error emails go only to `employeeservices@squ.edu.om`, with `m.alaamri1@squ.edu.om` in CC.
 - [ ] Do not run `setupAll()` for the fresh staged setup; follow `MULTI_ROTATION_SETUP.md`.
 - [ ] Replace sample unit data in `إدارة الوحدات`.
 - [ ] Replace sample section data in `إدارة الأقسام`.
