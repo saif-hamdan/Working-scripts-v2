@@ -120,7 +120,7 @@ function sendInvalidDatesSubmissionEmail(data, responseId, error) {
   data = data || {};
   var cfg = getConfig();
   var validationRows = [
-    { ar: 'اسم الموظف', en: 'Employee', value: data.employeeName || '' },
+    { ar: 'اسم الموظف', en: 'Employee Name', value: data.employeeName || '' },
     { ar: 'الرقم الوظيفي للموظف', en: 'Employee ID', value: data.employeeId || '' },
     { ar: 'المسمى الوظيفي للموظف', en: 'Employee Job Title', value: data.employeeJobTitle || '' },
     { ar: 'المسؤول المباشر', en: 'Line Manager', value: data.directManagerName || '' },
@@ -131,7 +131,11 @@ function sendInvalidDatesSubmissionEmail(data, responseId, error) {
     var number = index + 1;
     validationRows.push({ ar: 'اختيار التدوير ' + number, en: 'Rotation Selection ' + number, value: [option.rotationUnit, option.section].filter(Boolean).join(' — ') });
     validationRows.push({ ar: 'الفترة ' + number, en: 'Date Range ' + number, value: formatDate_(option.startDate) + ' — ' + formatDate_(option.endDate) });
-    validationRows.push({ ar: 'الساعات اليومية ' + number, en: 'Daily Hours ' + number, value: option.hours });
+    validationRows.push({
+      ar: 'عدد ساعات التدوير اليومية المطلوبة ' + number,
+      en: 'Required Daily Rotation Hours ' + number,
+      value: option.hours
+    });
   });
   validationRows.push({ ar: 'سبب عدم المعالجة', en: 'Processing Error', value: error && error.message ? error.message : safeString_(error) });
   var templateData = {

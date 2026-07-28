@@ -52,16 +52,15 @@ function renderEmployeeRotationHoursSummary_(rows) {
   applyCleanTableFormatting_(sheet, EMPLOYEE_ROTATION_HOURS_HEADERS.length);
 }
 
-function calculateEmployeeRotationHoursSummary_(records) {
+function calculateEmployeeRotationHoursSummary_(records, referenceDate) {
   var summaryByEmployeeId = {};
   (records || []).forEach(function(record) {
     var employeeId = safeString_(record[H.RECORD.EMPLOYEE_ID]);
     var employeeName = safeString_(record[H.RECORD.EMPLOYEE_NAME]);
     if (!employeeId && !employeeName) return;
 
-    var finalStatus = safeString_(record[H.RECORD.FINAL_STATUS]);
-    var isCompleted = isRecordCompletedRotationForHours_(record);
-    var isOngoing = isRecordOngoingRotationForHours_(record);
+    var isCompleted = isRecordCompletedRotationForHours_(record, referenceDate);
+    var isOngoing = isRecordOngoingRotationForHours_(record, referenceDate);
     if (!isCompleted && !isOngoing) return;
 
     var key = employeeId || normalizeKey_(employeeName);
@@ -76,7 +75,7 @@ function calculateEmployeeRotationHoursSummary_(records) {
     }
 
     var totalHours = calculateRecordRotationHours_(record);
-    if (finalStatus === STATUS.FINAL_DONE) {
+    if (isCompleted) {
       summaryByEmployeeId[key][H.EMPLOYEE_ROTATION_HOURS.COMPLETED_HOURS] += totalHours;
     } else {
       summaryByEmployeeId[key][H.EMPLOYEE_ROTATION_HOURS.ONGOING_HOURS] += totalHours;
@@ -93,15 +92,30 @@ function calculateEmployeeRotationHoursSummary_(records) {
   });
 }
 
-function isRecordCompletedRotationForHours_(record) {
-  return safeString_(record[H.RECORD.HEAD_STATUS]) === STATUS.HEAD_ACCEPTED &&
-    safeString_(record[H.RECORD.FINAL_STATUS]) === STATUS.FINAL_DONE;
-}
-
-function isRecordOngoingRotationForHours_(record) {
+function isRecordApprovedForHours_(record) {
   var finalStatus = safeString_(record[H.RECORD.FINAL_STATUS]);
   return safeString_(record[H.RECORD.HEAD_STATUS]) === STATUS.HEAD_ACCEPTED &&
-    (finalStatus === STATUS.FINAL_APPROVED || finalStatus === STATUS.FINAL_IN_PROGRESS);
+    APPROVED_EVALUATION_FINAL_STATUSES.indexOf(finalStatus) !== -1;
+}
+
+function hasRotationEndedForHours_(record, referenceDate) {
+  var endDate = dateOnly_(record[H.RECORD.END_DATE]);
+  var today = dateOnly_(referenceDate || now_());
+  return !!endDate && !!today && endDate.getTime() < today.getTime();
+}
+
+function isRecordCompletedRotationForHours_(record, referenceDate) {
+  return isRecordApprovedForHours_(record) &&
+    hasRotationEndedForHours_(record, referenceDate);
+}
+
+function isRecordOngoingRotationForHours_(record, referenceDate) {
+  var endDate = dateOnly_(record[H.RECORD.END_DATE]);
+  var today = dateOnly_(referenceDate || now_());
+  return isRecordApprovedForHours_(record) &&
+    !!endDate &&
+    !!today &&
+    endDate.getTime() >= today.getTime();
 }
 
 function calculateRecordRotationHours_(record) {
@@ -145,16 +159,17 @@ function getEmployeeRotationHoursSnapshotById_(employeeId) {
   return snapshot;
 }
 
-function getEmployeePreviousCompletedHours_(record) {
+function getEmployeeTotalCompletedHours_(record) {
   record = record || {};
   var employeeId = safeString_(record[H.RECORD.EMPLOYEE_ID]);
   if (!employeeId) return '';
   var snapshot = getEmployeeRotationHoursSnapshotById_(employeeId);
-  var previousCompletedHours = snapshot ? snapshot.completedHours : 0;
-  if (isRecordCompletedRotationForHours_(record)) {
-    previousCompletedHours -= calculateRecordRotationHours_(record);
-  }
-  return Math.max(0, previousCompletedHours);
+  return Math.max(0, snapshot ? snapshot.completedHours : 0);
+}
+
+/** Backward-compatible alias for older callers. */
+function getEmployeePreviousCompletedHours_(record) {
+  return getEmployeeTotalCompletedHours_(record);
 }
 
 function refreshEmployeeRotationHoursForRecords_(records) {

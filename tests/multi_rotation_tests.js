@@ -256,30 +256,58 @@ test('working-day rules exclude Friday and Saturday', () => {
   assert.strictEqual(metrics.totalHours, 21);
 });
 
-test('employee-ID history is cached and exposed in email and dashboard totals', () => {
-  function hoursRecord(requestId, employeeId, totalHours, headStatus, finalStatus) {
+test('employee-ID completed hours count only approved rotations whose end date has passed', () => {
+  function hoursRecord(requestId, employeeId, totalHours, headStatus, finalStatus, endDate) {
     const record = {};
     record[H.RECORD.REQUEST_ID] = requestId;
     record[H.RECORD.EMPLOYEE_NAME] = 'Employee';
     record[H.RECORD.EMPLOYEE_ID] = employeeId;
+    record[H.RECORD.HOURS] = 2;
+    record[H.RECORD.WORKING_DAYS] = 3;
     record[H.RECORD.TOTAL_HOURS] = totalHours;
+    record[H.RECORD.SUBMISSION_TOTAL_HOURS] = totalHours;
     record[H.RECORD.HEAD_STATUS] = headStatus;
     record[H.RECORD.FINAL_STATUS] = finalStatus;
+    record[H.RECORD.END_DATE] = new Date(endDate);
     return record;
   }
 
-  const previousCompleted = hoursRecord('PREVIOUS', '200', 6, STATUS.HEAD_ACCEPTED, STATUS.FINAL_DONE);
-  const currentCompleted = hoursRecord('CURRENT', '200', 21, STATUS.HEAD_ACCEPTED, STATUS.FINAL_DONE);
-  const ongoing = hoursRecord('ONGOING', '200', 42, STATUS.HEAD_ACCEPTED, STATUS.FINAL_APPROVED);
-  context.employeeHourRecords = [previousCompleted, currentCompleted, ongoing];
-  const summary = run('calculateEmployeeRotationHoursSummary_(employeeHourRecords)[0]');
-  assert.strictEqual(summary[H.EMPLOYEE_ROTATION_HOURS.COMPLETED_HOURS], 27);
+  const previousCompleted = hoursRecord(
+    'PREVIOUS', '200', 6, STATUS.HEAD_ACCEPTED, STATUS.FINAL_DONE, '2026-07-01T00:00:00'
+  );
+  const currentCompleted = hoursRecord(
+    'CURRENT', '200', 21, STATUS.HEAD_ACCEPTED, STATUS.FINAL_DONE, '2026-07-20T00:00:00'
+  );
+  const approvedAndEnded = hoursRecord(
+    'APPROVED-ENDED', '200', 9, STATUS.HEAD_ACCEPTED, STATUS.FINAL_APPROVED, '2026-07-27T00:00:00'
+  );
+  const ongoing = hoursRecord(
+    'ONGOING', '200', 42, STATUS.HEAD_ACCEPTED, STATUS.FINAL_APPROVED, '2026-08-10T00:00:00'
+  );
+  const unapprovedAndEnded = hoursRecord(
+    'UNAPPROVED', '200', 100, STATUS.HEAD_PENDING, STATUS.FINAL_PENDING, '2026-07-10T00:00:00'
+  );
+  const headOnlyApprovedAndEnded = hoursRecord(
+    'HEAD-ONLY', '200', 200, STATUS.HEAD_ACCEPTED, STATUS.FINAL_PENDING, '2026-07-10T00:00:00'
+  );
+  context.hoursReferenceDate = new Date('2026-07-28T09:00:00');
+  context.employeeHourRecords = [
+    previousCompleted,
+    currentCompleted,
+    approvedAndEnded,
+    ongoing,
+    unapprovedAndEnded,
+    headOnlyApprovedAndEnded
+  ];
+  const summary = run('calculateEmployeeRotationHoursSummary_(employeeHourRecords, hoursReferenceDate)[0]');
+  assert.strictEqual(summary[H.EMPLOYEE_ROTATION_HOURS.COMPLETED_HOURS], 36);
   assert.strictEqual(summary[H.EMPLOYEE_ROTATION_HOURS.ONGOING_HOURS], 42);
-  assert.strictEqual(summary[H.EMPLOYEE_ROTATION_HOURS.TOTAL_HOURS], 69);
+  assert.strictEqual(summary[H.EMPLOYEE_ROTATION_HOURS.TOTAL_HOURS], 78);
 
   context.employeeLookupCount = 0;
   run(`
     EMPLOYEE_ROTATION_HOURS_LOOKUP_CACHE_ = {};
+    now_ = function() { return hoursReferenceDate; };
     getSheet_ = function() { return {}; };
     findObjectsByValue_ = function() {
       employeeLookupCount++;
@@ -295,19 +323,40 @@ test('employee-ID history is cached and exposed in email and dashboard totals', 
     };
   `);
   context.currentCompletedRecord = currentCompleted;
-  assert.strictEqual(run('getEmployeePreviousCompletedHours_(currentCompletedRecord)'), 6);
+  assert.strictEqual(run('getEmployeeTotalCompletedHours_(currentCompletedRecord)'), 36);
+  assert.strictEqual(run('getEmployeePreviousCompletedHours_(currentCompletedRecord)'), 36);
 
-  const pending = hoursRecord('PENDING', '200', 10, STATUS.HEAD_PENDING, STATUS.FINAL_PENDING);
+  const pending = hoursRecord(
+    'PENDING', '200', 10, STATUS.HEAD_PENDING, STATUS.FINAL_PENDING, '2026-07-15T00:00:00'
+  );
   context.pendingHoursRecord = pending;
-  assert.strictEqual(run('getEmployeePreviousCompletedHours_(pendingHoursRecord)'), 27);
+  assert.strictEqual(run('getEmployeeTotalCompletedHours_(pendingHoursRecord)'), 36);
   assert.strictEqual(context.employeeLookupCount, 1);
 
   run('emailHoursData = buildTemplateData_(pendingHoursRecord, {});');
   const historyRow = context.emailHoursData.rows.find(
-    (row) => row.en === 'Previous Completed Rotation Hours (Employee ID)'
+    (row) => row.en === 'Total Completed Rotation Hours'
   );
   assert.ok(historyRow);
-  assert.strictEqual(historyRow.value, 27);
+  assert.strictEqual(historyRow.ar, 'إجمالي ساعات التدوير المنجزة');
+  assert.strictEqual(historyRow.value, 36);
+  assert.ok(context.emailHoursData.rows.some(
+    (row) => row.ar === 'اسم الموظف' && row.en === 'Employee Name'
+  ));
+  assert.ok(context.emailHoursData.rows.some(
+    (row) => row.ar === 'عدد ساعات التدوير اليومية المطلوبة' &&
+      row.en === 'Required Daily Rotation Hours'
+  ));
+  assert.ok(context.emailHoursData.rows.some(
+    (row) => row.ar === 'إجمالي ساعات التدوير' && row.en === 'Total Rotation Hours'
+  ));
+  assert.ok(context.emailHoursData.rows.some(
+    (row) => row.ar === 'إجمالي ساعات التدوير المطلوبة' &&
+      row.en === 'Total Requested Rotation Hours'
+  ));
+  assert.ok(context.emailHoursData.rows.every(
+    (row) => !String(row.en).includes('(Employee ID)')
+  ));
   assert.strictEqual(context.employeeLookupCount, 1);
 });
 
@@ -700,7 +749,7 @@ test('one submission sends one grouped approval email to the unit head', () => {
         EVALUATION_FORM_URL: ''
       };
     };
-    getEmployeePreviousCompletedHours_ = function() { return 0; };
+    getEmployeeTotalCompletedHours_ = function() { return 0; };
     makeWebAppUrl_ = function(action, token) { return 'https://example.com/' + action + '/' + token; };
     renderTemplate_ = function(_name, data) { groupedTemplateData = data; return '<html>grouped</html>'; };
     sendEmailSafe_ = function(payload, context) {
@@ -724,9 +773,23 @@ test('one submission sends one grouped approval email to the unit head', () => {
     ['REQ-1', 'REQ-2', 'REQ-3']
   );
   assert.strictEqual(context.groupedTemplateData.requests.length, 3);
+  assert.ok(context.groupedTemplateData.rows.some(
+    (row) => row.ar === 'اسم الموظف' && row.en === 'Employee Name'
+  ));
+  assert.ok(context.groupedTemplateData.rows.some(
+    (row) => row.ar === 'إجمالي ساعات التدوير المطلوبة' &&
+      row.en === 'Total Requested Rotation Hours'
+  ));
   context.groupedTemplateData.requests.forEach((request, index) => {
     assert.match(request.approveUrl, new RegExp(`approve/TOKEN-${index + 1}`));
     assert.match(request.rejectUrl, new RegExp(`reject/TOKEN-${index + 1}`));
+    assert.ok(request.rows.some(
+      (row) => row.ar === 'عدد ساعات التدوير اليومية المطلوبة' &&
+        row.en === 'Required Daily Rotation Hours'
+    ));
+    assert.ok(request.rows.some(
+      (row) => row.ar === 'إجمالي ساعات التدوير' && row.en === 'Total Rotation Hours'
+    ));
   });
   assert.strictEqual(context.groupedTemplateData.approveUrl, '');
   assert.strictEqual(context.groupedTemplateData.rejectUrl, '');
@@ -738,6 +801,7 @@ test('one submission sends one grouped approval email to the unit head', () => {
 
 test('submission validation errors go to Employee Services instead of the unit head', () => {
   context.submissionReviewPayload = null;
+  context.submissionReviewTemplateData = null;
   run(`
     getConfig = function() {
       return {
@@ -746,8 +810,11 @@ test('submission validation errors go to Employee Services instead of the unit h
         ORGANIZATION_NAME_EN: 'Employee Services'
       };
     };
-    normalizeRotationOptionsFromSubmission_ = function() { return []; };
-    renderTemplate_ = function() { return '<html>review</html>'; };
+    normalizeRotationOptionsFromSubmission_ = function(data) { return data.rotationOptions || []; };
+    renderTemplate_ = function(_name, data) {
+      submissionReviewTemplateData = data;
+      return '<html>review</html>';
+    };
     sendEmailSafe_ = function(payload) {
       submissionReviewPayload = payload;
       return true;
@@ -756,7 +823,15 @@ test('submission validation errors go to Employee Services instead of the unit h
       directManagerEmail: 'manager@example.com',
       submitterEmail: 'submitter@example.com',
       employeeEmail: 'employee@example.com',
-      approverEmail: 'unit-head@example.com'
+      approverEmail: 'unit-head@example.com',
+      employeeName: 'Employee',
+      rotationOptions: [{
+        rotationUnit: 'Unit 1',
+        section: 'Section 1',
+        startDate: new Date('2026-07-01T00:00:00'),
+        endDate: new Date('2026-07-03T00:00:00'),
+        hours: 2
+      }]
     }, 'RESPONSE-1', new Error('Validation failed'));
   `);
 
@@ -766,6 +841,13 @@ test('submission validation errors go to Employee Services instead of the unit h
     `${context.submissionReviewPayload.to},${context.submissionReviewPayload.cc}`,
     /manager@example\.com|submitter@example\.com|employee@example\.com|unit-head@example\.com/
   );
+  assert.ok(context.submissionReviewTemplateData.rows.some(
+    (row) => row.ar === 'اسم الموظف' && row.en === 'Employee Name'
+  ));
+  assert.ok(context.submissionReviewTemplateData.rows.some(
+    (row) => row.ar === 'عدد ساعات التدوير اليومية المطلوبة 1' &&
+      row.en === 'Required Daily Rotation Hours 1'
+  ));
   context.oldQueuedReviewPayload = {
     to: 'unit-head@example.com',
     cc: 'employee@example.com',

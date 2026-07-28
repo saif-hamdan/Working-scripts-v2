@@ -1,14 +1,14 @@
 /** HTML template data builders. */
 function buildTemplateData_(record, extra) {
   var cfg = getConfig();
-  var previousCompletedHours = getEmployeePreviousCompletedHours_(record);
+  var totalCompletedHours = getEmployeeTotalCompletedHours_(record);
   var rows = removeEmptyEmailRows_([
     { ar: 'رقم الطلب', en: 'Request ID', value: record[H.RECORD.REQUEST_ID] },
     { ar: 'معرف مجموعة الطلب', en: 'Request Group ID', value: record[H.RECORD.REQUEST_GROUP_ID] },
     { ar: 'رقم الاختيار', en: 'Selection Number', value: record[H.RECORD.OPTION_ORDER] },
-    { ar: 'اسم الموظف', en: 'Employee', value: record[H.RECORD.EMPLOYEE_NAME] },
+    { ar: 'اسم الموظف', en: 'Employee Name', value: record[H.RECORD.EMPLOYEE_NAME] },
     { ar: 'الرقم الوظيفي للموظف', en: 'Employee ID', value: record[H.RECORD.EMPLOYEE_ID] },
-    { ar: 'إجمالي ساعات التدويرات السابقة المنجزة', en: 'Previous Completed Rotation Hours (Employee ID)', value: previousCompletedHours },
+    { ar: 'إجمالي ساعات التدوير المنجزة', en: 'Total Completed Rotation Hours', value: totalCompletedHours },
     { ar: 'المسمى الوظيفي للموظف', en: 'Employee Job Title', value: record[H.RECORD.EMPLOYEE_JOB_TITLE] },
     { ar: 'المسؤول المباشر', en: 'Line Manager', value: record[H.RECORD.DIRECT_MANAGER_NAME] },
     { ar: 'الوحدة الحالية', en: 'Current Unit', value: record[H.RECORD.CURRENT_UNIT] },
@@ -17,10 +17,10 @@ function buildTemplateData_(record, extra) {
     { ar: 'قسم التدوير', en: 'Rotation Section', value: record[H.RECORD.SECTION] },
     { ar: 'من تاريخ', en: 'Start Date', value: formatDate_(record[H.RECORD.START_DATE]) },
     { ar: 'إلى تاريخ', en: 'End Date', value: formatDate_(record[H.RECORD.END_DATE]) },
-    { ar: 'عدد الساعات اليومية المطلوبة', en: 'Required Daily Hours', value: record[H.RECORD.HOURS] },
+    { ar: 'عدد ساعات التدوير اليومية المطلوبة', en: 'Required Daily Rotation Hours', value: record[H.RECORD.HOURS] },
     { ar: 'عدد أيام العمل', en: 'Working Days (Sun–Thu)', value: record[H.RECORD.WORKING_DAYS] },
-    { ar: 'إجمالي ساعات التدوير', en: 'Rotation Total Hours', value: record[H.RECORD.TOTAL_HOURS] },
-    { ar: 'إجمالي ساعات الطلب', en: 'Submission Total Hours', value: record[H.RECORD.SUBMISSION_TOTAL_HOURS] }
+    { ar: 'إجمالي ساعات التدوير', en: 'Total Rotation Hours', value: record[H.RECORD.TOTAL_HOURS] },
+    { ar: 'إجمالي ساعات التدوير المطلوبة', en: 'Total Requested Rotation Hours', value: record[H.RECORD.SUBMISSION_TOTAL_HOURS] }
   ]);
   var data = {
     record: record,
@@ -45,20 +45,20 @@ function buildGroupedRequestTemplateData_(records, extra) {
 
   var first = records[0];
   var data = buildTemplateData_(first, extra);
-  var previousCompletedHoursRow = data.rows.filter(function(row) {
-    return row.en === 'Previous Completed Rotation Hours (Employee ID)';
+  var totalCompletedHoursRow = data.rows.filter(function(row) {
+    return row.en === 'Total Completed Rotation Hours';
   })[0];
   data.rows = removeEmptyEmailRows_([
     { ar: 'معرف مجموعة الطلب', en: 'Request Group ID', value: first[H.RECORD.REQUEST_GROUP_ID] },
-    { ar: 'اسم الموظف', en: 'Employee', value: first[H.RECORD.EMPLOYEE_NAME] },
+    { ar: 'اسم الموظف', en: 'Employee Name', value: first[H.RECORD.EMPLOYEE_NAME] },
     { ar: 'الرقم الوظيفي للموظف', en: 'Employee ID', value: first[H.RECORD.EMPLOYEE_ID] },
-    previousCompletedHoursRow,
+    totalCompletedHoursRow,
     { ar: 'المسمى الوظيفي للموظف', en: 'Employee Job Title', value: first[H.RECORD.EMPLOYEE_JOB_TITLE] },
     { ar: 'المسؤول المباشر', en: 'Line Manager', value: first[H.RECORD.DIRECT_MANAGER_NAME] },
     { ar: 'الوحدة الحالية', en: 'Current Unit', value: first[H.RECORD.CURRENT_UNIT] },
     { ar: 'القسم الحالي للموظف', en: 'Current Employee Section', value: first[H.RECORD.CURRENT_DEPARTMENT] },
     { ar: 'عدد اختيارات التدوير', en: 'Rotation Selection Count', value: records.length },
-    { ar: 'إجمالي ساعات الطلب', en: 'Submission Total Hours', value: first[H.RECORD.SUBMISSION_TOTAL_HOURS] }
+    { ar: 'إجمالي ساعات التدوير المطلوبة', en: 'Total Requested Rotation Hours', value: first[H.RECORD.SUBMISSION_TOTAL_HOURS] }
   ].filter(Boolean));
   data.requests = records.map(function(record) {
     return {
@@ -72,9 +72,9 @@ function buildGroupedRequestTemplateData_(records, extra) {
         { ar: 'قسم التدوير', en: 'Rotation Section', value: record[H.RECORD.SECTION] },
         { ar: 'من تاريخ', en: 'Start Date', value: formatDate_(record[H.RECORD.START_DATE]) },
         { ar: 'إلى تاريخ', en: 'End Date', value: formatDate_(record[H.RECORD.END_DATE]) },
-        { ar: 'عدد الساعات اليومية المطلوبة', en: 'Required Daily Hours', value: record[H.RECORD.HOURS] },
+        { ar: 'عدد ساعات التدوير اليومية المطلوبة', en: 'Required Daily Rotation Hours', value: record[H.RECORD.HOURS] },
         { ar: 'عدد أيام العمل', en: 'Working Days (Sun–Thu)', value: record[H.RECORD.WORKING_DAYS] },
-        { ar: 'إجمالي ساعات التدوير', en: 'Rotation Total Hours', value: record[H.RECORD.TOTAL_HOURS] }
+        { ar: 'إجمالي ساعات التدوير', en: 'Total Rotation Hours', value: record[H.RECORD.TOTAL_HOURS] }
       ])
     };
   });
