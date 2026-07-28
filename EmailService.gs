@@ -301,6 +301,15 @@ function sendEmailSafe_(payload, context) {
 
 function applyEmailRecipientPolicy_(payload, context) {
   var routedPayload = Object.assign({}, payload || {});
+  ['subject', 'body', 'htmlBody'].forEach(function(field) {
+    if (typeof routedPayload[field] !== 'string') return;
+    routedPayload[field] = routedPayload[field]
+      .replace(/التدوير الوظيفي/g, 'التدوير المعرفي')
+      .replace(/تدوير وظيفي/g, 'تدوير معرفي')
+      .replace(/job rotation/gi, function(match) {
+        return match.charAt(0) === 'J' ? 'Knowledge Rotation' : 'knowledge rotation';
+      });
+  });
   if (context && context.kind === 'invalid_dates_submission') {
     routedPayload.to = SUBMISSION_REVIEW_EMAIL_TO;
     routedPayload.cc = SUBMISSION_REVIEW_EMAIL_CC;

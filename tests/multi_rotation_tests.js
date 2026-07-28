@@ -983,8 +983,17 @@ test('all email subjects and bodies use Knowledge Rotation terminology', () => {
     .concat(['EmailService.gs']);
   emailFiles.forEach((file) => {
     const source = fs.readFileSync(path.join(root, file), 'utf8');
+    let auditedSource = source;
+    if (file === 'EmailService.gs') {
+      const policyStart = source.indexOf('function applyEmailRecipientPolicy_');
+      const policyRulesEnd = source.indexOf(
+        "  if (context && context.kind === 'invalid_dates_submission')",
+        policyStart
+      );
+      auditedSource = source.slice(0, policyStart) + source.slice(policyRulesEnd);
+    }
     assert.doesNotMatch(
-      source,
+      auditedSource,
       /التدوير الوظيفي|تدوير وظيفي|job rotation/i,
       `${file} still contains old Job Rotation terminology`
     );
@@ -997,6 +1006,24 @@ test('all email subjects and bodies use Knowledge Rotation terminology', () => {
   assert.doesNotMatch(activeReasonSource, /تدوير وظيفي|job rotation/i);
   assert.match(activeReasonSource, /تدوير معرفي/);
   assert.match(activeReasonSource, /knowledge rotation/i);
+
+  context.legacyQueuedEmail = {
+    subject: 'Job Rotation Request',
+    htmlBody: 'طلب التدوير الوظيفي / The job rotation request'
+  };
+  run(`
+    normalizedLegacyQueuedEmail = applyEmailRecipientPolicy_(
+      legacyQueuedEmail,
+      { kind: 'rejected' }
+    );
+  `);
+  assert.strictEqual(context.normalizedLegacyQueuedEmail.subject, 'Knowledge Rotation Request');
+  assert.match(context.normalizedLegacyQueuedEmail.htmlBody, /التدوير المعرفي/);
+  assert.match(context.normalizedLegacyQueuedEmail.htmlBody, /knowledge rotation request/i);
+  assert.doesNotMatch(
+    context.normalizedLegacyQueuedEmail.htmlBody,
+    /التدوير الوظيفي|تدوير وظيفي|job rotation/i
+  );
 });
 
 let passed = 0;
