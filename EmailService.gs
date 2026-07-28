@@ -116,9 +116,76 @@ function sendGroupedSubmissionConfirmationEmail_(records) {
 }
 
 
+function isEmployeeCorrectionSubmissionError_(error) {
+  return Boolean(
+    error &&
+    error.code === 'SUBMISSION_VALIDATION' &&
+    error.recipientPolicy === 'EMPLOYEE_CORRECTION'
+  );
+}
+
+function getRotationOptionDate_(option, isStart) {
+  option = option || {};
+  return isStart
+    ? (option.fromDate || option.startDate)
+    : (option.toDate || option.endDate);
+}
+
+function formatRotationConflictSelection_(option, fallbackNumber) {
+  var number = toNumber_(option && option.optionOrder, fallbackNumber);
+  var location = [
+    safeString_(option && option.rotationUnit),
+    safeString_(option && option.section)
+  ].filter(Boolean).join(' — ');
+  var range = formatDate_(getRotationOptionDate_(option, true)) + ' — ' +
+    formatDate_(getRotationOptionDate_(option, false));
+  return 'Rotation Selection ' + number + ': ' + location + ' (' + range + ')';
+}
+
+function buildSubmissionOverlapRows_(rotationOptions) {
+  var rows = [];
+  rotationOptions = rotationOptions || [];
+  for (var i = 0; i < rotationOptions.length; i++) {
+    var firstStart = dateOnly_(getRotationOptionDate_(rotationOptions[i], true));
+    var firstEnd = dateOnly_(getRotationOptionDate_(rotationOptions[i], false));
+    if (!firstStart || !firstEnd) continue;
+    for (var j = i + 1; j < rotationOptions.length; j++) {
+      var secondStart = dateOnly_(getRotationOptionDate_(rotationOptions[j], true));
+      var secondEnd = dateOnly_(getRotationOptionDate_(rotationOptions[j], false));
+      if (!secondStart || !secondEnd ||
+          !isDateRangeOverlap_(firstStart, firstEnd, secondStart, secondEnd)) continue;
+      var conflictNumber = (rows.length / 2) + 1;
+      var overlapStart = new Date(Math.max(firstStart.getTime(), secondStart.getTime()));
+      var overlapEnd = new Date(Math.min(firstEnd.getTime(), secondEnd.getTime()));
+      rows.push({
+        ar: 'التدويرات المتعارضة ' + conflictNumber,
+        en: 'Conflicting Rotations ' + conflictNumber,
+        value: formatRotationConflictSelection_(rotationOptions[i], i + 1) +
+          ' ↔ ' + formatRotationConflictSelection_(rotationOptions[j], j + 1)
+      });
+      rows.push({
+        ar: 'فترة تداخل التواريخ ' + conflictNumber,
+        en: 'Overlapping Date Range ' + conflictNumber,
+        value: formatDate_(overlapStart) + ' — ' + formatDate_(overlapEnd)
+      });
+    }
+  }
+  return rows;
+}
+
+function buildEmployeeCorrectionRecipients_(data) {
+  data = data || {};
+  return uniqueNonEmpty_([
+    data.directManagerEmail || data.submitterEmail,
+    data.employeeEmail
+  ]).join(',');
+}
+
 function sendInvalidDatesSubmissionEmail(data, responseId, error) {
   data = data || {};
   var cfg = getConfig();
+  var employeeCorrection = isEmployeeCorrectionSubmissionError_(error);
+  var rotationOptions = normalizeRotationOptionsFromSubmission_(data);
   var validationRows = [
     { ar: 'اسم الموظف', en: 'Employee Name', value: data.employeeName || '' },
     { ar: 'الرقم الوظيفي للموظف', en: 'Employee ID', value: data.employeeId || '' },
@@ -127,16 +194,26 @@ function sendInvalidDatesSubmissionEmail(data, responseId, error) {
     { ar: 'الوحدة الحالية', en: 'Current Unit', value: data.currentUnit || '' },
     { ar: 'القسم الحالي للموظف', en: 'Current Employee Section', value: data.currentDepartment || '' }
   ];
-  normalizeRotationOptionsFromSubmission_(data).forEach(function(option, index) {
-    var number = index + 1;
-    validationRows.push({ ar: 'اختيار التدوير ' + number, en: 'Rotation Selection ' + number, value: [option.rotationUnit, option.section].filter(Boolean).join(' — ') });
-    validationRows.push({ ar: 'الفترة ' + number, en: 'Date Range ' + number, value: formatDate_(option.startDate) + ' — ' + formatDate_(option.endDate) });
+  rotationOptions.forEach(function(option, index) {
+    var number = toNumber_(option.optionOrder, index + 1);
+    validationRows.push({ ar: 'وحدة التدوير ' + number, en: 'Rotation Unit ' + number, value: option.rotationUnit });
+    validationRows.push({ ar: 'قسم التدوير ' + number, en: 'Rotation Section ' + number, value: option.section });
+    validationRows.push({ ar: 'من تاريخ ' + number, en: 'Start Date ' + number, value: formatDate_(getRotationOptionDate_(option, true)) });
+    validationRows.push({ ar: 'إلى تاريخ ' + number, en: 'End Date ' + number, value: formatDate_(getRotationOptionDate_(option, false)) });
     validationRows.push({
       ar: 'عدد ساعات التدوير اليومية المطلوبة ' + number,
       en: 'Required Daily Rotation Hours ' + number,
       value: option.hours
     });
   });
+  if (employeeCorrection) {
+    validationRows.push({
+      ar: 'نوع التعارض',
+      en: 'Conflict Type',
+      value: 'تداخل في تواريخ التدوير / Overlapping rotation dates'
+    });
+    validationRows = validationRows.concat(buildSubmissionOverlapRows_(rotationOptions));
+  }
   validationRows.push({ ar: 'سبب عدم المعالجة', en: 'Processing Error', value: error && error.message ? error.message : safeString_(error) });
   var templateData = {
     brand: cfg.BRAND,
@@ -144,15 +221,25 @@ function sendInvalidDatesSubmissionEmail(data, responseId, error) {
     orgEn: cfg.ORGANIZATION_NAME_EN,
     responseId: responseId || '',
     errorMessage: error && error.message ? error.message : safeString_(error),
+    isEmployeeCorrection: employeeCorrection,
     rows: removeEmptyEmailRows_(validationRows)
   };
   var html = renderTemplate_('Emails_InvalidDates', templateData);
+  var context = {
+    kind: 'invalid_dates_submission',
+    requestId: responseId || '',
+    recipientPolicy: employeeCorrection ? 'EMPLOYEE_CORRECTION' : 'EMPLOYEE_SERVICES',
+    directManagerEmail: safeString_(data.directManagerEmail || data.submitterEmail),
+    employeeEmail: safeString_(data.employeeEmail)
+  };
   return sendEmailSafe_({
-    to: SUBMISSION_REVIEW_EMAIL_TO,
-    cc: SUBMISSION_REVIEW_EMAIL_CC,
-    subject: 'تعذر معالجة طلب التدوير المعرفي / Knowledge Rotation Submission Requires Review',
+    to: employeeCorrection ? buildEmployeeCorrectionRecipients_(data) : SUBMISSION_REVIEW_EMAIL_TO,
+    cc: employeeCorrection ? '' : SUBMISSION_REVIEW_EMAIL_CC,
+    subject: employeeCorrection
+      ? 'يلزم تصحيح تداخل تواريخ التدوير المعرفي / Knowledge Rotation Date Overlap Requires Correction'
+      : 'تعذر معالجة طلب التدوير المعرفي / Knowledge Rotation Submission Requires Review',
     htmlBody: html
-  }, { kind: 'invalid_dates_submission', requestId: responseId || '' });
+  }, context);
 }
 
 function buildApprovedNotificationPayload_(record) {
@@ -315,8 +402,16 @@ function applyEmailRecipientPolicy_(payload, context) {
       });
   });
   if (context && context.kind === 'invalid_dates_submission') {
-    routedPayload.to = SUBMISSION_REVIEW_EMAIL_TO;
-    routedPayload.cc = SUBMISSION_REVIEW_EMAIL_CC;
+    if (context.recipientPolicy === 'EMPLOYEE_CORRECTION') {
+      routedPayload.to = uniqueNonEmpty_([
+        context.directManagerEmail,
+        context.employeeEmail
+      ]).join(',');
+      routedPayload.cc = '';
+    } else {
+      routedPayload.to = SUBMISSION_REVIEW_EMAIL_TO;
+      routedPayload.cc = SUBMISSION_REVIEW_EMAIL_CC;
+    }
     routedPayload.bcc = '';
   }
   return routedPayload;

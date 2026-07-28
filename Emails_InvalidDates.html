@@ -9,12 +9,22 @@
     <div class="card">
       <div class="header" style="background:<?= data.brand.primaryColor ?>;">
         <? if (data.brand.logoUrl) { ?><img class="logo" src="<?= data.brand.logoUrl ?>" alt="Employees and Retirees Services Section / قسم خدمات الموظفين والمتقاعدين Logo"><? } ?>
-        <div class="title-ar">تم استلام طلب التدوير المعرفي</div>
-        <div class="title-en">Knowledge Rotation Request Submitted</div>
+        <? if (data.isEmployeeCorrection) { ?>
+          <div class="title-ar">يلزم تصحيح طلب التدوير المعرفي</div>
+          <div class="title-en">Knowledge Rotation Request Requires Correction</div>
+        <? } else { ?>
+          <div class="title-ar">تم استلام طلب التدوير المعرفي</div>
+          <div class="title-en">Knowledge Rotation Request Submitted</div>
+        <? } ?>
       </div>
       <div class="content">
-        <div class="intro-ar">تم استلام طلب التدوير المعرفي، لكن تعذر اجتياز التحقق الآلي. يرجى مراجعة السبب والتفاصيل ثم إرسال طلب صحيح.</div>
-        <div class="intro-en">The knowledge rotation request was received but did not pass authoritative validation. Review the reason and details, then submit a corrected request.</div>
+        <? if (data.isEmployeeCorrection) { ?>
+          <div class="intro-ar">تتداخل تواريخ اثنين أو أكثر من اختيارات التدوير. توضح التفاصيل أدناه الأقسام والفترات المتعارضة وفترة التداخل الدقيقة. يرجى تصحيح الطلب وإعادة إرساله.</div>
+          <div class="intro-en">Two or more rotation selections have overlapping dates. The details below identify the conflicting sections, their date ranges, and the exact overlap. Please correct and resubmit the request.</div>
+        <? } else { ?>
+          <div class="intro-ar">تم استلام طلب التدوير المعرفي، لكن تعذر اجتياز التحقق الآلي. يرجى مراجعة السبب والتفاصيل ثم إرسال طلب صحيح.</div>
+          <div class="intro-en">The knowledge rotation request was received but did not pass authoritative validation. Review the reason and details, then submit a corrected request.</div>
+        <? } ?>
 
 <table class="details">
   <tr><th>البيان / Field</th><th>القيمة / Value</th></tr>

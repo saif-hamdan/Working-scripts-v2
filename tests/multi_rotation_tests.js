@@ -378,7 +378,26 @@ test('duplicate sections and overlapping selections are rejected', () => {
   context.overlapOptions = validOptions(2);
   context.overlapOptions[1].fromDate = new Date('2026-07-07T00:00:00');
   context.overlapOptions[1].toDate = new Date('2026-07-09T00:00:00');
-  assert.throws(() => run('validateUnifiedRotationOptions_({}, overlapOptions)'), /cannot overlap/);
+  assert.throws(
+    () => run('validateUnifiedRotationOptions_({}, overlapOptions)'),
+    (error) => {
+      assert.match(error.message, /cannot overlap/);
+      assert.strictEqual(error.code, 'SUBMISSION_VALIDATION');
+      assert.strictEqual(error.validationType, 'ROTATION_DATE_OVERLAP');
+      assert.strictEqual(error.recipientPolicy, 'EMPLOYEE_CORRECTION');
+      assert.strictEqual(error.conflict.firstSection, 'Section 1');
+      assert.strictEqual(error.conflict.secondSection, 'Section 2');
+      assert.strictEqual(
+        context.Utilities.formatDate(error.conflict.overlapStartDate, 'Asia/Muscat', 'dd/MM/yyyy'),
+        '07/07/2026'
+      );
+      assert.strictEqual(
+        context.Utilities.formatDate(error.conflict.overlapEndDate, 'Asia/Muscat', 'dd/MM/yyyy'),
+        '07/07/2026'
+      );
+      return true;
+    }
+  );
 });
 
 test('empty and unvisited selections create no parsed options', () => {
@@ -862,6 +881,114 @@ test('submission validation errors go to Employee Services instead of the unit h
   assert.strictEqual(context.reroutedQueuedReviewPayload.to, 'employeeservices@squ.edu.om');
   assert.strictEqual(context.reroutedQueuedReviewPayload.cc, 'm.alaamri1@squ.edu.om');
   assert.strictEqual(context.reroutedQueuedReviewPayload.bcc, '');
+});
+
+test('same-submission date overlaps show exact sections and dates and bypass the unit head', () => {
+  context.employeeCorrectionPayload = null;
+  context.employeeCorrectionContext = null;
+  context.employeeCorrectionTemplateData = null;
+  context.employeeCorrectionData = {
+    employeeName: 'Employee',
+    employeeId: '200',
+    employeeJobTitle: 'Analyst',
+    directManagerName: 'Manager',
+    directManagerEmail: 'manager@example.com',
+    employeeEmail: 'employee@example.com',
+    currentUnit: 'Unit A',
+    currentDepartment: 'Current Section',
+    approverEmail: 'unit-head@example.com',
+    currentUnitHeadEmail: 'current-head@example.com',
+    rotationOptions: [
+      option(1, 'Unit A', 'Section 1', '2026-07-05T00:00:00', '2026-07-07T00:00:00', 2),
+      option(2, 'Unit A', 'Section 2', '2026-07-07T00:00:00', '2026-07-09T00:00:00', 3)
+    ]
+  };
+  run(`
+    employeeCorrectionError = null;
+    try {
+      validateUnifiedRotationOptions_({}, employeeCorrectionData.rotationOptions);
+    } catch (error) {
+      employeeCorrectionError = error;
+    }
+    if (!employeeCorrectionError) throw new Error('Expected an overlap validation error.');
+    getConfig = function() {
+      return {
+        BRAND: { primaryColor: '#0B4EA2', logoUrl: '' },
+        ORGANIZATION_NAME_AR: 'Employee Services',
+        ORGANIZATION_NAME_EN: 'Employee Services'
+      };
+    };
+    normalizeRotationOptionsFromSubmission_ = function(data) { return data.rotationOptions || []; };
+    renderTemplate_ = function(_name, data) {
+      employeeCorrectionTemplateData = data;
+      return '<html>employee correction</html>';
+    };
+    sendEmailSafe_ = function(payload, emailContext) {
+      employeeCorrectionPayload = payload;
+      employeeCorrectionContext = emailContext;
+      return true;
+    };
+    sendInvalidDatesSubmissionEmail(
+      employeeCorrectionData,
+      'RESPONSE-OVERLAP',
+      employeeCorrectionError
+    );
+  `);
+
+  assert.strictEqual(
+    context.employeeCorrectionPayload.to,
+    'manager@example.com,employee@example.com'
+  );
+  assert.strictEqual(context.employeeCorrectionPayload.cc, '');
+  assert.doesNotMatch(
+    context.employeeCorrectionPayload.to,
+    /unit-head@example\.com|current-head@example\.com/
+  );
+  assert.match(context.employeeCorrectionPayload.subject, /Date Overlap Requires Correction/);
+  assert.strictEqual(context.employeeCorrectionContext.recipientPolicy, 'EMPLOYEE_CORRECTION');
+  assert.strictEqual(context.employeeCorrectionTemplateData.isEmployeeCorrection, true);
+
+  const overlapDetailsRow = context.employeeCorrectionTemplateData.rows.find(
+    (row) => row.en === 'Conflicting Rotations 1'
+  );
+  assert.ok(overlapDetailsRow);
+  assert.match(overlapDetailsRow.value, /Rotation Selection 1: Unit A — Section 1/);
+  assert.match(overlapDetailsRow.value, /Rotation Selection 2: Unit A — Section 2/);
+  assert.match(overlapDetailsRow.value, /05\/07\/2026 — 07\/07\/2026/);
+  assert.match(overlapDetailsRow.value, /07\/07\/2026 — 09\/07\/2026/);
+
+  const overlapRangeRow = context.employeeCorrectionTemplateData.rows.find(
+    (row) => row.en === 'Overlapping Date Range 1'
+  );
+  assert.ok(overlapRangeRow);
+  assert.strictEqual(overlapRangeRow.value, '07/07/2026 — 07/07/2026');
+  assert.ok(context.employeeCorrectionTemplateData.rows.some(
+    (row) => row.en === 'Rotation Section 1' && row.value === 'Section 1'
+  ));
+  assert.ok(context.employeeCorrectionTemplateData.rows.some(
+    (row) => row.en === 'Start Date 2' && row.value === '07/07/2026'
+  ));
+  assert.ok(context.employeeCorrectionTemplateData.rows.some(
+    (row) => row.en === 'End Date 2' && row.value === '09/07/2026'
+  ));
+
+  context.reroutedEmployeeCorrectionPayload = {
+    to: 'unit-head@example.com',
+    cc: 'current-head@example.com',
+    bcc: 'another-head@example.com'
+  };
+  run(`
+    enforcedEmployeeCorrectionPayload = applyEmailRecipientPolicy_(
+      reroutedEmployeeCorrectionPayload,
+      employeeCorrectionContext
+    );
+  `);
+  assert.strictEqual(
+    context.enforcedEmployeeCorrectionPayload.to,
+    'manager@example.com,employee@example.com'
+  );
+  assert.strictEqual(context.enforcedEmployeeCorrectionPayload.cc, '');
+  assert.strictEqual(context.enforcedEmployeeCorrectionPayload.bcc, '');
 });
 
 test('one unit-head group approval updates all three rotations but leaves final decisions pending', () => {

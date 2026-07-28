@@ -428,6 +428,35 @@ function datesOverlap_(startA, endA, startB, endB) {
   return dateOnly_(startA).getTime() <= dateOnly_(endB).getTime() && dateOnly_(startB).getTime() <= dateOnly_(endA).getTime();
 }
 
+function makeRotationDateOverlapValidationError_(messageAr, messageEn, firstOption, secondOption) {
+  var error = makeSubmissionValidationError_(messageAr, messageEn);
+  var firstStart = dateOnly_(firstOption && firstOption.fromDate);
+  var firstEnd = dateOnly_(firstOption && firstOption.toDate);
+  var secondStart = dateOnly_(secondOption && secondOption.fromDate);
+  var secondEnd = dateOnly_(secondOption && secondOption.toDate);
+  error.validationType = 'ROTATION_DATE_OVERLAP';
+  error.recipientPolicy = 'EMPLOYEE_CORRECTION';
+  error.conflict = {
+    firstSelectionNumber: toNumber_(firstOption && firstOption.optionOrder, 0),
+    secondSelectionNumber: toNumber_(secondOption && secondOption.optionOrder, 0),
+    firstUnit: safeString_(firstOption && firstOption.rotationUnit),
+    firstSection: safeString_(firstOption && firstOption.section),
+    secondUnit: safeString_(secondOption && secondOption.rotationUnit),
+    secondSection: safeString_(secondOption && secondOption.section),
+    firstStartDate: firstStart,
+    firstEndDate: firstEnd,
+    secondStartDate: secondStart,
+    secondEndDate: secondEnd,
+    overlapStartDate: firstStart && secondStart
+      ? new Date(Math.max(firstStart.getTime(), secondStart.getTime()))
+      : null,
+    overlapEndDate: firstEnd && secondEnd
+      ? new Date(Math.min(firstEnd.getTime(), secondEnd.getTime()))
+      : null
+  };
+  return error;
+}
+
 function isSectionInUnit_(unitName, sectionName) {
   var targetUnit = normalizeKey_(unitName);
   var targetSection = normalizeKey_(sectionName);
@@ -487,7 +516,12 @@ function validateSubmissionData_(data, rotationOptions) {
   for (var i = 0; i < internalOptions.length; i++) {
     for (var j = i + 1; j < internalOptions.length; j++) {
       if (datesOverlap_(internalOptions[i].fromDate, internalOptions[i].toDate, internalOptions[j].fromDate, internalOptions[j].toDate)) {
-        throw new Error('Internal rotation date ranges cannot overlap.');
+        throw makeRotationDateOverlapValidationError_(
+          'لا يمكن أن تتداخل فترات التدوير الداخلي في الطلب الواحد.',
+          'Internal rotation date ranges cannot overlap.',
+          internalOptions[i],
+          internalOptions[j]
+        );
       }
     }
   }
@@ -571,9 +605,11 @@ function validateUnifiedRotationOptions_(data, rotationOptions) {
   for (var i = 0; i < rotationOptions.length; i++) {
     for (var j = i + 1; j < rotationOptions.length; j++) {
       if (datesOverlap_(rotationOptions[i].fromDate, rotationOptions[i].toDate, rotationOptions[j].fromDate, rotationOptions[j].toDate)) {
-        throw makeSubmissionValidationError_(
+        throw makeRotationDateOverlapValidationError_(
           'لا يمكن أن تتداخل فترات اختيارات التدوير في الطلب الواحد.',
-          'Rotation date ranges within the same submission cannot overlap.'
+          'Rotation date ranges within the same submission cannot overlap.',
+          rotationOptions[i],
+          rotationOptions[j]
         );
       }
     }
