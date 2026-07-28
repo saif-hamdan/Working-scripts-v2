@@ -1,8 +1,8 @@
 # Deployment Checklist
 
 - [ ] Create or prepare the `SQU Job Rotation Dashboard` spreadsheet.
-- [ ] Create or prepare the `استمارة تحديد مسار التدوير الوظيفي للموظفين الجدد / New Employee Job Rotation Path Form` Google Form.
-- [ ] Create or prepare the `تقييم تجربة التدوير الوظيفي / Job Rotation Experience Evaluation` Google Form.
+- [ ] Create or prepare the `استمارة تحديد مسار التدوير المعرفي للموظفين الجدد / New Employee Knowledge Rotation Path Form` Google Form.
+- [ ] Create or prepare the `Knowledge Rotation Experience Evaluation / تقييم تجربة التدوير المعرفي` Google Form.
 - [ ] Add all working script files to one Apps Script project.
 - [ ] Confirm the duplicate Script ID is `1s9bvFblbnaAXKd5VInk4O7hniqEN_MgeljrPtQRpwd5LldA04IuMMWIG`.
 - [ ] Confirm `Setup Summary` contains only newly created duplicate resource IDs.
@@ -11,7 +11,7 @@
 - [ ] Confirm every rotation dropdown displays `Unit Name — Section Name`.
 - [ ] Confirm the footprint reported by Step 05 stays below configured Forms limits.
 - [ ] Add Script Properties from `CONFIG_TEMPLATE.json`.
-- [ ] Confirm an automated test email displays `قسم خدمات الموظفين والمتقاعدين | Employee Services`; legacy sender-name properties are ignored.
+- [ ] Confirm an automated test email displays `Employee Services`; legacy sender-name properties are ignored.
 - [ ] Do not run `setupAll()` for the fresh staged setup; follow `MULTI_ROTATION_SETUP.md`.
 - [ ] Replace sample unit data in `إدارة الوحدات`.
 - [ ] Replace sample section data in `إدارة الأقسام`.
@@ -22,8 +22,9 @@
 - [ ] After every new Web App deployment, run `run15_saveActiveWebAppUrl()` again before sending links.
 - [ ] Save the new Web App `/exec` URL before enabling any approval links.
 - [ ] Submit controlled tests containing 1, 2, and 3 rotations.
-- [ ] Test approve.
-- [ ] Test reject with reason.
+- [ ] Submit three rotations and confirm the unit head receives one email with only **Approve** and **Reject**.
+- [ ] Test **Approve** and confirm all three rows receive unit-head approval while each row remains separately pending for final dashboard approval.
+- [ ] Test **Reject** with one reason and confirm it is applied to all rotations in the submission.
 - [ ] Test same-employee active-rotation auto-rejection.
 - [ ] Test two overlapping requests in the same section.
 - [ ] Test final status cannot be changed to `منجز` before head approval.

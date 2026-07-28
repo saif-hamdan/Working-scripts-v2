@@ -116,35 +116,37 @@ function setMultiRotationCurrentUnitChoices_(form, units) {
 function ensureMultiRotationSelectionPage_(form, selectionNumber, choiceValues) {
   var pageTitle = optionTitle_(FORM.TITLES.ROTATION_PAGE_PREFIX, selectionNumber);
   var page = ensurePage_(form, pageTitle);
-  page.setHelpText(
-    'اختر القسم وحدد الفترة والساعات اليومية. / Select the section, dates, and required daily hours.'
-  );
+  page.setHelpText('');
 
   var section = ensureList_(
     form,
     optionTitle_(FORM.TITLES.ROTATION_SECTION_PREFIX, selectionNumber),
     true
   );
-  section.setHelpText('الوحدة — القسم / Unit — Section');
+  section.setHelpText('');
   section.setChoiceValues(choiceValues);
 
-  var start = ensureDate_(
+  var occurrenceIndex = selectionNumber - 1;
+  var start = ensureMultiRotationDateOccurrence_(
     form,
     optionTitle_(FORM.TITLES.ROTATION_FROM_PREFIX, selectionNumber),
+    occurrenceIndex,
     true
   );
-  start.setHelpText('صيغة التاريخ: يوم/شهر/سنة (DD/MM/YYYY). / Date format: DD/MM/YYYY.');
+  start.setHelpText('');
 
-  var end = ensureDate_(
+  var end = ensureMultiRotationDateOccurrence_(
     form,
     optionTitle_(FORM.TITLES.ROTATION_TO_PREFIX, selectionNumber),
+    occurrenceIndex,
     true
   );
-  end.setHelpText('صيغة التاريخ: يوم/شهر/سنة (DD/MM/YYYY). / Date format: DD/MM/YYYY.');
+  end.setHelpText('');
 
-  var hours = ensureText_(
+  var hours = ensureMultiRotationTextOccurrence_(
     form,
     optionTitle_(FORM.TITLES.ROTATION_HOURS_PREFIX, selectionNumber),
+    occurrenceIndex,
     true
   );
   hours.setHelpText('من ساعتين إلى سبع ساعات يومياً. / Between 2 and 7 hours per day.');
@@ -157,7 +159,7 @@ function ensureMultiRotationSelectionPage_(form, selectionNumber, choiceValues) 
     continuation = item ? item.asMultipleChoiceItem() : form.addMultipleChoiceItem().setTitle(continuationTitle);
     continuation
       .setRequired(true)
-      .setHelpText('اختر نعم للمتابعة أو لا لإرسال الطلب. / Choose Yes to continue or No to submit.')
+      .setHelpText('')
       .setChoiceValues([FORM.TITLES.ROTATION_ADD_MORE_YES, FORM.TITLES.ROTATION_ADD_MORE_NO]);
   }
 
@@ -169,6 +171,26 @@ function ensureMultiRotationSelectionPage_(form, selectionNumber, choiceValues) 
     hours: hours,
     continuation: continuation
   };
+}
+
+function getMultiRotationItemOccurrence_(form, title, type, occurrenceIndex) {
+  var targetIndex = Math.max(0, Number(occurrenceIndex) || 0);
+  var matches = form.getItems(type).filter(function(item) {
+    return safeBootstrapFormItemTitle_(item) === safeString_(title);
+  });
+  return matches[targetIndex] || null;
+}
+
+function ensureMultiRotationDateOccurrence_(form, title, occurrenceIndex, required) {
+  var item = getMultiRotationItemOccurrence_(form, title, FormApp.ItemType.DATE, occurrenceIndex);
+  if (!item) item = form.addDateItem().setTitle(title);
+  return item.asDateItem().setRequired(Boolean(required));
+}
+
+function ensureMultiRotationTextOccurrence_(form, title, occurrenceIndex, required) {
+  var item = getMultiRotationItemOccurrence_(form, title, FormApp.ItemType.TEXT, occurrenceIndex);
+  if (!item) item = form.addTextItem().setTitle(title);
+  return item.asTextItem().setRequired(Boolean(required));
 }
 
 function applyDailyHoursValidation_(textItem) {
@@ -235,11 +257,11 @@ function validateMultiRotationForm_(form, sections) {
     }
 
     [
-      { title: optionTitle_(FORM.TITLES.ROTATION_FROM_PREFIX, i), type: FormApp.ItemType.DATE, cast: 'asDateItem' },
-      { title: optionTitle_(FORM.TITLES.ROTATION_TO_PREFIX, i), type: FormApp.ItemType.DATE, cast: 'asDateItem' },
-      { title: optionTitle_(FORM.TITLES.ROTATION_HOURS_PREFIX, i), type: FormApp.ItemType.TEXT, cast: 'asTextItem' }
+      { title: optionTitle_(FORM.TITLES.ROTATION_FROM_PREFIX, i), type: FormApp.ItemType.DATE, cast: 'asDateItem', occurrenceIndex: i - 1 },
+      { title: optionTitle_(FORM.TITLES.ROTATION_TO_PREFIX, i), type: FormApp.ItemType.DATE, cast: 'asDateItem', occurrenceIndex: i - 1 },
+      { title: optionTitle_(FORM.TITLES.ROTATION_HOURS_PREFIX, i), type: FormApp.ItemType.TEXT, cast: 'asTextItem', occurrenceIndex: i - 1 }
     ].forEach(function(spec) {
-      var item = getItem_(form, spec.title, spec.type);
+      var item = getMultiRotationItemOccurrence_(form, spec.title, spec.type, spec.occurrenceIndex);
       if (!item) {
         issues.push('Missing required question: ' + spec.title);
       } else if (!item[spec.cast]().isRequired()) {

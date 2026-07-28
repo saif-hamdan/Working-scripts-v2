@@ -8,7 +8,7 @@ const SYSTEM = Object.freeze({
   REQUEST_PREFIX: 'TRN'
 });
 
-const EMAIL_SENDER_DISPLAY_NAME = 'قسم خدمات الموظفين والمتقاعدين | Employee Services';
+const EMAIL_SENDER_DISPLAY_NAME = 'Employee Services';
 
 const RESPONSE_QUEUE_BATCH_SIZE = 1;
 const ACTION_QUEUE_BATCH_SIZE = 25;
@@ -303,8 +303,8 @@ const FORM = Object.freeze({
   NO_AVAILABLE_SECTIONS: 'لا توجد أقسام متاحة حالياً',
   NO_EXTERNAL_ROTATION: 'لا أرغب في إضافة تدوير خارجي / No external rotation',
   TITLES: Object.freeze({
-    FORM_TITLE: 'استمارة تحديد مسار التدوير الوظيفي للموظفين الجدد / New Employee Job Rotation Path Form',
-    FORM_DESCRIPTION: 'في إطار تطوير الأداء المؤسسي وتأهيل الموظفين الجدد، تم إعداد هذه الاستبانة لتحديد مسار التدوير الوظيفي بما يدعم اكتساب الخبرات العملية وتسريع اندماج الموظف في بيئة العمل.\nTo support institutional performance enhancement and the effective onboarding of new employees, this form has been developed to identify each employee\'s job rotation pathway, facilitating the acquisition of practical experience and accelerating integration into the work environment.',
+    FORM_TITLE: 'استمارة تحديد مسار التدوير المعرفي للموظفين الجدد / New Employee Knowledge Rotation Path Form',
+    FORM_DESCRIPTION: 'في إطار تطوير الأداء المؤسسي وتأهيل الموظفين الجدد، تم إعداد هذه الاستمارة لتحديد مسار التدوير المعرفي بما يدعم اكتساب الخبرات العملية وتسريع اندماج الموظف الجديد في بيئة العمل.\nTo support institutional performance enhancement and the effective onboarding of new employees, this form has been developed to identify each employee\'s knowledge rotation pathway, facilitating the acquisition of practical experience and accelerating integration into the work environment.',
     LINE_MANAGER_SECTION: 'بيانات المسؤول المباشر / Line Manager Details',
     DIRECT_MANAGER_NAME: 'اسم المسؤول المباشر / Line Manager Name',
     DIRECT_MANAGER_ID: 'رقم وظيفي المسؤول المباشر / Line Manager Employee ID',
@@ -319,14 +319,14 @@ const FORM = Object.freeze({
     CURRENT_EMPLOYEE_SECTION: 'بيانات الموظف الحالية / Current Employee Details',
     CURRENT_UNIT: 'الوحدة الحالية للموظف / Current Employee Unit',
     CURRENT_DEPARTMENT: 'القسم الحالي للموظف / Current Employee Section',
-    ROTATION_SECTION: 'بيانات التدوير الوظيفي / Job Rotation Details',
+    ROTATION_SECTION: 'بيانات التدوير المعرفي / Knowledge Rotation Details',
     ROTATION_PAGE_PREFIX: 'اختيار التدوير {n} / Rotation Selection {n}',
     ROTATION_SECTION_PREFIX: 'اختيار التدوير {n}: القسم / Rotation Selection {n}: Section',
     OPTIONAL_ROTATION_GRID: 'اختيارات التدوير الإضافية / Additional Rotation Selections',
     OPTIONAL_ROTATION_GRID_ROW_PREFIX: 'اختيار التدوير {n} / Rotation Selection {n}',
-    ROTATION_FROM_PREFIX: 'اختيار التدوير {n}: من تاريخ / Rotation Selection {n}: From',
-    ROTATION_TO_PREFIX: 'اختيار التدوير {n}: إلى تاريخ / Rotation Selection {n}: To',
-    ROTATION_HOURS_PREFIX: 'اختيار التدوير {n}: الساعات اليومية / Rotation Selection {n}: Daily Hours',
+    ROTATION_FROM_PREFIX: 'من تاريخ | From',
+    ROTATION_TO_PREFIX: 'إلى تاريخ | To',
+    ROTATION_HOURS_PREFIX: 'الساعات اليومية | Daily Hours',
     ROTATION_ADD_MORE_PREFIX: 'هل ترغب في إضافة تدوير آخر؟ / Do you want to add another rotation? ({n})',
     ROTATION_ADD_MORE_YES: 'نعم / Yes',
     ROTATION_ADD_MORE_NO: 'لا، إنهاء الطلب / No, finish the request',
@@ -391,9 +391,9 @@ const FORM_RESPONSE_TITLE_CANDIDATES = Object.freeze({
   HOURS: Object.freeze([FORM.TITLES.HOURS, 'عدد الساعات اليومية المطلوبة', 'عدد الساعات', 'عدد ساعات ال' + 'تد' + 'ريب اليومية', 'Daily ' + 'Train' + 'ing Hours', 'عدد ساعات ال' + 'تد' + 'ريب اليومية / Daily ' + 'Train' + 'ing Hours']),
 
   ROTATION_SECTION: Object.freeze([FORM.TITLES.ROTATION_DEPARTMENT, 'Rotation Section']),
-  ROTATION_FROM: Object.freeze([FORM.TITLES.START_DATE, 'Rotation Start Date', 'From Date']),
-  ROTATION_TO: Object.freeze([FORM.TITLES.END_DATE, 'Rotation End Date', 'To Date']),
-  ROTATION_HOURS: Object.freeze([FORM.TITLES.HOURS, 'Required Daily Hours', 'Daily Hours']),
+  ROTATION_FROM: Object.freeze(['اختيار التدوير {n}: من تاريخ / Rotation Selection {n}: From', FORM.TITLES.START_DATE, 'Rotation Start Date', 'From Date']),
+  ROTATION_TO: Object.freeze(['اختيار التدوير {n}: إلى تاريخ / Rotation Selection {n}: To', FORM.TITLES.END_DATE, 'Rotation End Date', 'To Date']),
+  ROTATION_HOURS: Object.freeze(['اختيار التدوير {n}: الساعات اليومية / Rotation Selection {n}: Daily Hours', FORM.TITLES.HOURS, 'Required Daily Hours', 'Daily Hours']),
 
   INTERNAL_SECTION: Object.freeze(['التدوير داخل الوحدة - الخيار {n}: القسم / Section', 'Internal section {n}', 'Internal Section {n}', 'القسم الداخلي {n}']),
   INTERNAL_FROM: Object.freeze(['التدوير داخل الوحدة - الخيار {n}: الفترة من / Period from', 'From date {n}', 'الفترة من {n}']),

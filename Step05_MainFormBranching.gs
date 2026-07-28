@@ -417,6 +417,14 @@ function getBootstrapBranchCleanupSpec_() {
     exactTitles.push(optionTitle_(BFORM.TITLES.ROTATION_FROM_PREFIX, rotationOption));
     exactTitles.push(optionTitle_(BFORM.TITLES.ROTATION_TO_PREFIX, rotationOption));
     exactTitles.push(optionTitle_(BFORM.TITLES.ROTATION_HOURS_PREFIX, rotationOption));
+    exactTitles.push('اختيار التدوير ' + rotationOption + ' / Rotation Selection {n}');
+    exactTitles.push('اختيار التدوير ' + rotationOption + ': القسم / Rotation Selection {n}: Section');
+    exactTitles.push('اختيار التدوير ' + rotationOption + ': من تاريخ / Rotation Selection {n}: From');
+    exactTitles.push('اختيار التدوير ' + rotationOption + ': من تاريخ / Rotation Selection ' + rotationOption + ': From');
+    exactTitles.push('اختيار التدوير ' + rotationOption + ': إلى تاريخ / Rotation Selection {n}: To');
+    exactTitles.push('اختيار التدوير ' + rotationOption + ': إلى تاريخ / Rotation Selection ' + rotationOption + ': To');
+    exactTitles.push('اختيار التدوير ' + rotationOption + ': الساعات اليومية / Rotation Selection {n}: Daily Hours');
+    exactTitles.push('اختيار التدوير ' + rotationOption + ': الساعات اليومية / Rotation Selection ' + rotationOption + ': Daily Hours');
     exactTitles.push(optionTitle_(BFORM.TITLES.ROTATION_ADD_MORE_PREFIX, rotationOption));
     questionPrefixes.push(optionTitle_(BFORM.TITLES.ROTATION_SECTION_PREFIX, rotationOption) + ' - ');
   }

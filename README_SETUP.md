@@ -12,8 +12,8 @@ No CSV files are required. Apps Script creates the Google Sheet tabs directly, a
 
 ## What this toolkit creates/prepares
 
-- Main Google Form: `طلب تدوير وظيفي للموظف / Employee Rotation Request`
-- Evaluation Google Form: `تقييم تجربة التدوير الوظيفي / Rotation Evaluation`
+- Main Google Form: `استمارة تحديد مسار التدوير المعرفي للموظفين الجدد / New Employee Knowledge Rotation Path Form`
+- Evaluation Google Form: `Knowledge Rotation Experience Evaluation / تقييم تجربة التدوير المعرفي`
 - Dashboard spreadsheet with Arabic RTL tabs:
   - `لوحة الأقسام`
   - `سجل الطلبات`

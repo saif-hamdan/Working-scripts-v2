@@ -75,7 +75,9 @@ function load(file) {
   'TrainingHoursService.gs',
   'TemplateService.gs',
   'EmailService.gs',
-  'EvaluationService.gs'
+  'EvaluationService.gs',
+  'ApprovalWebApp.gs',
+  'ApprovalActionQueueService.gs'
 ].forEach(load);
 
 function run(expression) {
@@ -94,7 +96,7 @@ const sections = [
 ];
 context.testSections = sections;
 run('getSections_ = function() { return testSections; };');
-run('optionTitle_ = function(template, optionNumber) { return String(template || "").replace("{n}", String(optionNumber)); };');
+run('optionTitle_ = function(template, optionNumber) { return String(template || "").split("{n}").join(String(optionNumber)); };');
 
 function option(order, unit, section, start, end, hours) {
   return {
@@ -144,6 +146,35 @@ test('form navigation is limited to selections 1 through 3', () => {
   const source = fs.readFileSync(path.join(root, 'MultiRotationFormService.gs'), 'utf8');
   assert.match(source, /selectionNumber < \(FORM\.MAX_ROTATION_OPTIONS \|\| 3\)/);
   assert.match(source, /pages\[pages\.length - 1\]\.setGoToPage\(FormApp\.PageNavigationType\.SUBMIT\)/);
+});
+
+test('requested form wording and repeated labels are exact', () => {
+  assert.strictEqual(
+    FORM.TITLES.FORM_TITLE,
+    'استمارة تحديد مسار التدوير المعرفي للموظفين الجدد / New Employee Knowledge Rotation Path Form'
+  );
+  assert.match(FORM.TITLES.FORM_DESCRIPTION, /هذه الاستمارة/);
+  assert.match(FORM.TITLES.FORM_DESCRIPTION, /knowledge rotation pathway/);
+  assert.strictEqual(
+    run('optionTitle_(FORM.TITLES.ROTATION_SECTION_PREFIX, 1)'),
+    'اختيار التدوير 1: القسم / Rotation Selection 1: Section'
+  );
+  assert.strictEqual(FORM.TITLES.ROTATION_FROM_PREFIX, 'من تاريخ | From');
+  assert.strictEqual(FORM.TITLES.ROTATION_TO_PREFIX, 'إلى تاريخ | To');
+  assert.strictEqual(FORM.TITLES.ROTATION_HOURS_PREFIX, 'الساعات اليومية | Daily Hours');
+
+  const multiRotationSource = fs.readFileSync(path.join(root, 'MultiRotationFormService.gs'), 'utf8');
+  assert.doesNotMatch(
+    multiRotationSource,
+    /اختر القسم وحدد الفترة والساعات اليومية\. \/ Select the section, dates, and required daily hours\./
+  );
+  assert.match(multiRotationSource, /occurrenceIndex = selectionNumber - 1/);
+  assert.match(multiRotationSource, /getMultiRotationItemOccurrence_/);
+  assert.match(multiRotationSource, /hours\.setHelpText\('من ساعتين إلى سبع ساعات يومياً\./);
+
+  const evaluationSource = fs.readFileSync(path.join(root, 'Step07_EvaluationForm.gs'), 'utf8');
+  assert.match(evaluationSource, /تقييم تجربة التدوير المعرفي/);
+  assert.match(evaluationSource, /New Employee Knowledge Rotation Experience Evaluation Form/);
 });
 
 test('current-unit choices are restored after clean branching reset', () => {
@@ -265,13 +296,79 @@ test('duplicate sections and overlapping selections are rejected', () => {
 
 test('empty and unvisited selections create no parsed options', () => {
   context.accessorValues = {};
-  run('testAccessor = function(titles) { for (var i = 0; i < titles.length; i++) if (accessorValues[titles[i]]) return accessorValues[titles[i]]; return ""; };');
+  run(`
+    testAccessor = function(titles, occurrenceIndex) {
+      for (var i = 0; i < titles.length; i++) {
+        var value = accessorValues[titles[i]];
+        if (Array.isArray(value)) {
+          if (typeof occurrenceIndex === 'number') {
+            if (value[occurrenceIndex]) return value[occurrenceIndex];
+          } else {
+            for (var valueIndex = 0; valueIndex < value.length; valueIndex++) {
+              if (value[valueIndex]) return value[valueIndex];
+            }
+          }
+        } else if (value) {
+          return value;
+        }
+      }
+      return "";
+    };
+  `);
   assert.strictEqual(run('parseUnifiedRotationOptions_(testAccessor, "").length'), 0);
-  context.accessorValues[FORM.TITLES.ROTATION_SECTION_PREFIX.replace('{n}', '1')] = 'Unit A — Section 1';
-  context.accessorValues[FORM.TITLES.ROTATION_FROM_PREFIX.replace('{n}', '1')] = '05/07/2026';
-  context.accessorValues[FORM.TITLES.ROTATION_TO_PREFIX.replace('{n}', '1')] = '07/07/2026';
-  context.accessorValues[FORM.TITLES.ROTATION_HOURS_PREFIX.replace('{n}', '1')] = '2';
+  context.accessorValues[FORM.TITLES.ROTATION_SECTION_PREFIX.split('{n}').join('1')] = 'Unit A — Section 1';
+  context.accessorValues[FORM.TITLES.ROTATION_FROM_PREFIX] = ['05/07/2026'];
+  context.accessorValues[FORM.TITLES.ROTATION_TO_PREFIX] = ['07/07/2026'];
+  context.accessorValues[FORM.TITLES.ROTATION_HOURS_PREFIX] = ['2'];
   assert.strictEqual(run('parseUnifiedRotationOptions_(testAccessor, "").length'), 1);
+});
+
+test('identical From, To, and Daily Hours labels remain selection-safe', () => {
+  context.accessorValues = {};
+  for (let selectionNumber = 1; selectionNumber <= 3; selectionNumber += 1) {
+    context.accessorValues[
+      FORM.TITLES.ROTATION_SECTION_PREFIX.split('{n}').join(String(selectionNumber))
+    ] = `Unit ${selectionNumber} — Section ${selectionNumber}`;
+  }
+  context.accessorValues[FORM.TITLES.ROTATION_FROM_PREFIX] = [
+    '05/07/2026',
+    '12/07/2026',
+    '19/07/2026'
+  ];
+  context.accessorValues[FORM.TITLES.ROTATION_TO_PREFIX] = [
+    '07/07/2026',
+    '14/07/2026',
+    '21/07/2026'
+  ];
+  context.accessorValues[FORM.TITLES.ROTATION_HOURS_PREFIX] = ['2', '5', '7'];
+  run('parsedRepeatedOptions = parseUnifiedRotationOptions_(testAccessor, "");');
+  assert.strictEqual(context.parsedRepeatedOptions.length, 3);
+  assert.deepStrictEqual(
+    Array.from(context.parsedRepeatedOptions, (item) => item.optionOrder),
+    [1, 2, 3]
+  );
+  assert.deepStrictEqual(
+    Array.from(context.parsedRepeatedOptions, (item) => item.hours),
+    ['2', '5', '7']
+  );
+  assert.deepStrictEqual(
+    Array.from(context.parsedRepeatedOptions, (item) => item.section),
+    ['Section 1', 'Section 2', 'Section 3']
+  );
+});
+
+test('queued responses with the previous partial placeholder titles remain readable', () => {
+  context.accessorValues = {
+    'اختيار التدوير 1: القسم / Rotation Selection {n}: Section': 'Unit A — Section 1',
+    'اختيار التدوير 1: من تاريخ / Rotation Selection {n}: From': '05/07/2026',
+    'اختيار التدوير 1: إلى تاريخ / Rotation Selection {n}: To': '07/07/2026',
+    'اختيار التدوير 1: الساعات اليومية / Rotation Selection {n}: Daily Hours': '2'
+  };
+  run('legacyPlaceholderOptions = parseUnifiedRotationOptions_(testAccessor, "");');
+  assert.strictEqual(context.legacyPlaceholderOptions.length, 1);
+  assert.strictEqual(context.legacyPlaceholderOptions[0].optionOrder, 1);
+  assert.strictEqual(context.legacyPlaceholderOptions[0].section, 'Section 1');
+  assert.strictEqual(context.legacyPlaceholderOptions[0].hours, '2');
 });
 
 test('partial retry resumes without duplicate selection records', () => {
@@ -523,12 +620,212 @@ test('three rotations receive separate evaluations on the day after each individ
   });
 });
 
+test('one submission sends one grouped approval email to the unit head', () => {
+  function groupedApprovalRecord(selectionNumber) {
+    const record = { _rowNumber: selectionNumber + 1 };
+    record[H.RECORD.REQUEST_ID] = `REQ-${selectionNumber}`;
+    record[H.RECORD.REQUEST_GROUP_ID] = 'GROUP-1';
+    record[H.RECORD.OPTION_ORDER] = selectionNumber;
+    record[H.RECORD.EMPLOYEE_NAME] = 'Employee';
+    record[H.RECORD.EMPLOYEE_ID] = '200';
+    record[H.RECORD.EMPLOYEE_JOB_TITLE] = 'Analyst';
+    record[H.RECORD.DIRECT_MANAGER_NAME] = 'Manager';
+    record[H.RECORD.CURRENT_UNIT] = 'Current Unit';
+    record[H.RECORD.CURRENT_DEPARTMENT] = 'Current Section';
+    record[H.RECORD.ROTATION_UNIT] = `Unit ${selectionNumber}`;
+    record[H.RECORD.SECTION] = `Section ${selectionNumber}`;
+    record[H.RECORD.START_DATE] = new Date(`2026-07-${String(selectionNumber * 7 - 2).padStart(2, '0')}T00:00:00`);
+    record[H.RECORD.END_DATE] = new Date(`2026-07-${String(selectionNumber * 7).padStart(2, '0')}T00:00:00`);
+    record[H.RECORD.HOURS] = selectionNumber + 1;
+    record[H.RECORD.WORKING_DAYS] = 3;
+    record[H.RECORD.TOTAL_HOURS] = (selectionNumber + 1) * 3;
+    record[H.RECORD.SUBMISSION_TOTAL_HOURS] = 27;
+    record[H.RECORD.TOKEN] = `TOKEN-${selectionNumber}`;
+    record[H.RECORD.APPROVER_EMAIL] = 'head@example.com';
+    record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_PENDING;
+    record[H.RECORD.FINAL_STATUS] = STATUS.FINAL_PENDING;
+    record[H.RECORD.APPROVAL_EMAIL_SENT_AT] = '';
+    record[H.RECORD.EMAIL_RETRY_COUNT] = 0;
+    return record;
+  }
+
+  context.groupedApprovalRecords = [1, 2, 3].map(groupedApprovalRecord);
+  context.groupedPayloads = [];
+  context.groupedTemplateData = null;
+  context.groupedUpdates = [];
+  run(`
+    getConfig = function() {
+      return {
+        BRAND: { primaryColor: '#0B4EA2', logoUrl: '' },
+        ORGANIZATION_NAME_AR: 'Employee Services',
+        ORGANIZATION_NAME_EN: 'Employee Services',
+        EVALUATION_FORM_URL: ''
+      };
+    };
+    getEmployeePreviousCompletedHours_ = function() { return 0; };
+    makeWebAppUrl_ = function(action, token) { return 'https://example.com/' + action + '/' + token; };
+    renderTemplate_ = function(_name, data) { groupedTemplateData = data; return '<html>grouped</html>'; };
+    sendEmailSafe_ = function(payload, context) {
+      groupedPayloads.push({ payload: payload, context: context });
+      return true;
+    };
+    updateRequestByRow_ = function(rowNumber, updates) {
+      groupedUpdates.push({ rowNumber: rowNumber, updates: updates });
+    };
+    now_ = function() { return new Date('2026-07-28T07:00:00'); };
+    groupedApprovalResult = sendGroupedApprovalEmails_(groupedApprovalRecords);
+  `);
+
+  assert.strictEqual(context.groupedApprovalResult.groups, 1);
+  assert.strictEqual(context.groupedApprovalResult.sent, 1);
+  assert.strictEqual(context.groupedPayloads.length, 1);
+  assert.strictEqual(context.groupedPayloads[0].payload.to, 'head@example.com');
+  assert.strictEqual(context.groupedPayloads[0].context.kind, 'approval_group');
+  assert.deepStrictEqual(
+    Array.from(context.groupedPayloads[0].context.requestIds),
+    ['REQ-1', 'REQ-2', 'REQ-3']
+  );
+  assert.strictEqual(context.groupedTemplateData.requests.length, 3);
+  assert.match(context.groupedTemplateData.approveUrl, /approveGroup\/TOKEN-1/);
+  assert.match(context.groupedTemplateData.rejectUrl, /rejectGroup\/TOKEN-1/);
+  assert.strictEqual(context.groupedTemplateData.requests[0].approveUrl, undefined);
+  assert.strictEqual(context.groupedTemplateData.requests[0].rejectUrl, undefined);
+  assert.strictEqual(context.groupedUpdates.length, 3);
+});
+
+test('one unit-head group approval updates all three rotations but leaves final decisions pending', () => {
+  context.groupDecisionRecords = context.groupedApprovalRecords.map((record) => Object.assign({}, record));
+  context.groupDecisionUpdates = [];
+  context.groupLookupLimits = [];
+  context.groupConflictReadCount = 0;
+  context.groupConflictCheckCount = 0;
+  run(`
+    getRequestByToken_ = function(token) {
+      return groupDecisionRecords.filter(function(record) {
+        return record[H.RECORD.TOKEN] === token;
+      })[0] || null;
+    };
+    getOrCreateSheet_ = function() { return {}; };
+    findObjectsByValue_ = function(_sheet, _header, _value, maxResults) {
+      groupLookupLimits.push(maxResults);
+      return groupDecisionRecords.slice();
+    };
+    getRecords_ = function() {
+      groupConflictReadCount++;
+      return groupDecisionRecords.slice();
+    };
+    findConflicts = function(_criteria, candidates) {
+      groupConflictCheckCount++;
+      if (!candidates || candidates.length !== 3) throw new Error('Conflict candidates were not reused.');
+      return null;
+    };
+    updateRequestByRow_ = function(rowNumber, updates) {
+      groupDecisionUpdates.push({ rowNumber: rowNumber, updates: updates });
+    };
+    queueConflictNotification = function() {
+      throw new Error('No conflict notification was expected.');
+    };
+    now_ = function() { return new Date('2026-07-28T08:00:00'); };
+    processQueuedApproveGroupAction_('TOKEN-1');
+  `);
+
+  assert.deepStrictEqual(Array.from(context.groupLookupLimits), [4]);
+  assert.strictEqual(context.groupConflictReadCount, 1);
+  assert.strictEqual(context.groupConflictCheckCount, 3);
+  assert.strictEqual(context.groupDecisionUpdates.length, 3);
+  context.groupDecisionUpdates.forEach((entry) => {
+    assert.strictEqual(entry.updates[H.RECORD.HEAD_STATUS], STATUS.HEAD_ACCEPTED);
+    assert.strictEqual(entry.updates[H.RECORD.FINAL_STATUS], STATUS.FINAL_PENDING);
+  });
+});
+
+test('unit-head group action refuses an unexpected fourth rotation', () => {
+  const unexpectedFourth = Object.assign({}, context.groupedApprovalRecords[0]);
+  unexpectedFourth._rowNumber = 5;
+  unexpectedFourth[H.RECORD.REQUEST_ID] = 'REQ-4';
+  unexpectedFourth[H.RECORD.OPTION_ORDER] = 4;
+  unexpectedFourth[H.RECORD.TOKEN] = 'TOKEN-4';
+  context.groupDecisionRecords = context.groupedApprovalRecords
+    .map((record) => Object.assign({}, record))
+    .concat([unexpectedFourth]);
+  context.groupDecisionUpdates = [];
+  run(`
+    getRequestByToken_ = function() { return groupDecisionRecords[0]; };
+    findObjectsByValue_ = function() { return groupDecisionRecords.slice(); };
+    updateRequestByRow_ = function(rowNumber, updates) {
+      groupDecisionUpdates.push({ rowNumber: rowNumber, updates: updates });
+    };
+  `);
+
+  assert.throws(
+    () => run(`processQueuedApproveGroupAction_('TOKEN-1')`),
+    /more than the supported 3 rotations/
+  );
+  assert.strictEqual(context.groupDecisionUpdates.length, 0);
+});
+
+test('one unit-head group rejection updates all three rotations and queues email work', () => {
+  context.groupDecisionRecords = context.groupedApprovalRecords.map((record) => Object.assign({}, record));
+  context.groupDecisionUpdates = [];
+  context.groupRejectedNotifications = [];
+  run(`
+    getRequestByToken_ = function(token) {
+      return groupDecisionRecords.filter(function(record) {
+        return record[H.RECORD.TOKEN] === token;
+      })[0] || null;
+    };
+    findObjectsByValue_ = function() { return groupDecisionRecords.slice(); };
+    updateRequestByRow_ = function(rowNumber, updates) {
+      groupDecisionUpdates.push({ rowNumber: rowNumber, updates: updates });
+    };
+    queueRejectedNotification = function(record) {
+      groupRejectedNotifications.push(record);
+      return true;
+    };
+    sendRejectedNotification = function() {
+      throw new Error('Group rejection must not send email inside the action trigger.');
+    };
+    now_ = function() { return new Date('2026-07-28T08:15:00'); };
+    processQueuedRejectGroupAction_('TOKEN-1', 'Not approved');
+  `);
+
+  assert.strictEqual(context.groupDecisionUpdates.length, 3);
+  assert.strictEqual(context.groupRejectedNotifications.length, 3);
+  context.groupDecisionUpdates.forEach((entry) => {
+    assert.strictEqual(entry.updates[H.RECORD.HEAD_STATUS], STATUS.HEAD_REJECTED);
+    assert.strictEqual(entry.updates[H.RECORD.FINAL_STATUS], STATUS.FINAL_REJECTED);
+    assert.strictEqual(entry.updates[H.RECORD.REJECTION_REASON], 'Not approved');
+  });
+});
+
+test('group approval stays bounded while dashboard final approval remains per row', () => {
+  const approvalSource = fs.readFileSync(path.join(root, 'ApprovalWebApp.gs'), 'utf8');
+  const queueSource = fs.readFileSync(path.join(root, 'ApprovalActionQueueService.gs'), 'utf8');
+  const dashboardValidationSource = fs.readFileSync(path.join(root, 'ValidationService.gs'), 'utf8');
+  assert.match(approvalSource, /FORM\.MAX_ROTATION_OPTIONS \|\| 3/);
+  assert.match(approvalSource, /var conflictCandidates = getRecords_\(\)/);
+  assert.match(approvalSource, /queueRejectedNotification\(record\)/);
+  assert.match(
+    approvalSource,
+    /function handleApprove_\(token\)[\s\S]*REQUEST_GROUP_ID[\s\S]*return handleApproveGroup_\(token\)/
+  );
+  assert.match(
+    approvalSource,
+    /function showRejectPage_\(token\)[\s\S]*REQUEST_GROUP_ID[\s\S]*return showRejectGroupPage_\(token\)/
+  );
+  assert.match(queueSource, /shouldStopSync_\(options\.startedAt\)/);
+  assert.match(dashboardValidationSource, /function applyFinalStatusChange_\(rowNumber/);
+  assert.match(dashboardValidationSource, /updateObjectRow_\(sheet, rowNumber,/);
+  assert.doesNotMatch(dashboardValidationSource, /REQUEST_GROUP_ID/);
+});
+
 test('dates render DD/MM/YYYY and sender/final recipients remain forced', () => {
   context.outputDate = new Date('2026-04-20T00:00:00');
   assert.strictEqual(run('formatDate_(outputDate)'), '20/04/2026');
   const emailSource = fs.readFileSync(path.join(root, 'EmailService.gs'), 'utf8');
   const constantsSource = fs.readFileSync(path.join(root, 'Constants.gs'), 'utf8');
-  assert.match(constantsSource, /قسم خدمات الموظفين والمتقاعدين \| Employee Services/);
+  assert.match(constantsSource, /const EMAIL_SENDER_DISPLAY_NAME = 'Employee Services'/);
+  assert.strictEqual(run('buildEmailMessage_({ to: "recipient@example.com", name: "Wrong Name" }).name'), 'Employee Services');
   assert.match(emailSource, /record\[H\.RECORD\.EMPLOYEE_EMAIL\][\s\S]*record\[H\.RECORD\.DIRECT_MANAGER_EMAIL\][\s\S]*record\[H\.RECORD\.CURRENT_UNIT_HEAD_EMAIL\]/);
   assert.match(emailSource, /EMAIL_SENDER_DISPLAY_NAME/);
 });

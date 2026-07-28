@@ -29,6 +29,7 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
   perRecordOptions.requestGroupId = requestGroupId;
   perRecordOptions.stableResponseId = stableResponseId;
   perRecordOptions.submissionTotalHours = submissionTotalHours;
+  perRecordOptions.deferSubmissionNotifications = true;
   perRecordOptions.existingRecords = options.existingRecords ||
     getConflictCandidateRecordsForSubmission_(data, rotationOptions);
   var startSelectionNumber = Math.max(1, toNumber_(options.startSelectionNumber, 1));
@@ -52,8 +53,56 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
       options.onSelectionProcessed(option.optionOrder, rotationOptions.length, created, false);
     }
   }
+  var submissionRecords = collectSubmissionRequestRecords_(stableResponseId, rotationOptions, createdRecords);
+  if (options.suppressSubmissionNotifications !== true && submissionRecords.length === rotationOptions.length) {
+    finalizeSubmissionNotifications_(submissionRecords);
+  }
   if (options.deferRefresh !== true && createdRecords.length) refreshDashboardForRecords_(createdRecords);
   return createdRecords.length === 1 ? createdRecords[0] : createdRecords;
+}
+
+function collectSubmissionRequestRecords_(stableResponseId, rotationOptions, availableRecords) {
+  var recordsByOrder = {};
+  (availableRecords || []).forEach(function(record) {
+    var optionOrder = toNumber_(record[H.RECORD.OPTION_ORDER] || record[H.REQUEST_SOURCE_INDEX.SELECTION_NUMBER], 0);
+    if (optionOrder) recordsByOrder[optionOrder] = record;
+  });
+  (rotationOptions || []).forEach(function(option) {
+    var optionOrder = toNumber_(option.optionOrder, 0);
+    if (!optionOrder || recordsByOrder[optionOrder]) return;
+    var selectionKey = makeSelectionIdempotencyKey_(stableResponseId, optionOrder);
+    var indexRecord = findIndexedRequestBySelectionKey_(selectionKey);
+    if (!indexRecord) return;
+    var requestId = safeString_(indexRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID]);
+    recordsByOrder[optionOrder] = getRequestById_(requestId) || indexRecord;
+  });
+  return (rotationOptions || []).map(function(option) {
+    return recordsByOrder[toNumber_(option.optionOrder, 0)] || null;
+  }).filter(Boolean);
+}
+
+function isPendingApprovalNotificationRecord_(record) {
+  return safeString_(record[H.RECORD.HEAD_STATUS]) === STATUS.HEAD_PENDING &&
+    safeString_(record[H.RECORD.FINAL_STATUS]) === STATUS.FINAL_PENDING &&
+    !safeString_(record[H.RECORD.APPROVAL_EMAIL_SENT_AT]) &&
+    toNumber_(record[H.RECORD.EMAIL_RETRY_COUNT], 0) === 0;
+}
+
+function finalizeSubmissionNotifications_(records) {
+  records = (records || []).slice().sort(function(left, right) {
+    return toNumber_(left[H.RECORD.OPTION_ORDER], 0) - toNumber_(right[H.RECORD.OPTION_ORDER], 0);
+  });
+  var pendingApprovalRecords = records.filter(isPendingApprovalNotificationRecord_);
+  if (!pendingApprovalRecords.length) return { approvalGroups: 0, confirmationSent: false };
+  var approvalResult = sendGroupedApprovalEmails_(pendingApprovalRecords);
+  var confirmationSent = sendGroupedSubmissionConfirmationEmail_(records);
+  logInfo_(
+    'finalizeSubmissionNotifications_',
+    safeString_(records[0][H.RECORD.REQUEST_GROUP_ID]),
+    'Grouped approval emails: ' + approvalResult.groups +
+      '; grouped submission confirmation processed: ' + confirmationSent + '.'
+  );
+  return { approvalGroups: approvalResult.groups, confirmationSent: confirmationSent };
 }
 
 function createRequestRecordForRotationOption_(data, option, options) {
@@ -160,10 +209,14 @@ function createRequestRecordForRotationOption_(data, option, options) {
     sendConflictNotification(record, conflict, 'submission');
     logInfo_('createRequestFromNormalizedData_:conflict', requestId, 'Request rejected at submission because of conflict.');
   } else {
-    var sent = sendApprovalEmail(record);
-    if (sent) updateRequestByRow_(rowNumber, { [H.RECORD.APPROVAL_EMAIL_SENT_AT]: now_() });
-    sendSubmissionConfirmationEmail(record);
-    logInfo_('createRequestFromNormalizedData_', requestId, 'Request created and approval email processed.');
+    if (options.deferSubmissionNotifications === true) {
+      logInfo_('createRequestFromNormalizedData_', requestId, 'Request created; approval email is deferred until every selection in the submission is ready.');
+    } else {
+      var sent = sendApprovalEmail(record);
+      if (sent) updateRequestByRow_(rowNumber, { [H.RECORD.APPROVAL_EMAIL_SENT_AT]: now_() });
+      sendSubmissionConfirmationEmail(record);
+      logInfo_('createRequestFromNormalizedData_', requestId, 'Request created and approval email processed.');
+    }
   }
 
   return record;
@@ -171,25 +224,35 @@ function createRequestRecordForRotationOption_(data, option, options) {
 
 function parseFormSubmission_(e) {
   var named = {};
+  var namedOccurrences = {};
   var submitterEmail = '';
   var responseId = '';
 
   if (e && e.namedValues) {
     named = e.namedValues;
+    Object.keys(named).forEach(function(title) {
+      namedOccurrences[title] = Array.isArray(named[title]) ? named[title].slice() : [named[title]];
+    });
   }
 
   if (e && e.responseId) responseId = safeString_(e.responseId);
 
   if (e && e.response) {
     var response = e.response;
+    namedOccurrences = {};
     try { submitterEmail = response.getRespondentEmail() || ''; } catch (ignore) {}
     try { responseId = response.getId ? response.getId() : ''; } catch (ignore2) {}
-    try { named.Timestamp = [response.getTimestamp ? response.getTimestamp() : '']; } catch (ignore3) {}
+    try {
+      named.Timestamp = [response.getTimestamp ? response.getTimestamp() : ''];
+      namedOccurrences.Timestamp = named.Timestamp.slice();
+    } catch (ignore3) {}
     response.getItemResponses().forEach(function(ir) {
       var responseItem = ir.getItem();
       var title = responseItem.getTitle();
       var rawResponse = ir.getResponse();
       named[title] = Array.isArray(rawResponse) ? rawResponse : [rawResponse];
+      if (!namedOccurrences[title]) namedOccurrences[title] = [];
+      namedOccurrences[title].push(rawResponse);
       if (Array.isArray(rawResponse)) {
         try {
           var gridRows = responseItem.asGridItem().getRows();
@@ -201,20 +264,24 @@ function parseFormSubmission_(e) {
     });
   }
 
-  function val(title) {
-    var v = named[title];
-    if (Array.isArray(v)) {
-      for (var i = 0; i < v.length; i++) {
-        if (safeString_(v[i])) return v[i];
+  function val(title, occurrenceIndex) {
+    var occurrences = namedOccurrences[title];
+    if (Array.isArray(occurrences)) {
+      if (typeof occurrenceIndex === 'number') {
+        return occurrenceIndex >= 0 && occurrenceIndex < occurrences.length ? occurrences[occurrenceIndex] : '';
+      }
+      for (var occurrence = 0; occurrence < occurrences.length; occurrence++) {
+        if (safeString_(occurrences[occurrence])) return occurrences[occurrence];
       }
       return '';
     }
+    var v = named[title];
     return v || '';
   }
 
-  function firstNonEmpty(titles) {
+  function firstNonEmpty(titles, occurrenceIndex) {
     for (var i = 0; i < titles.length; i++) {
-      var s = safeString_(val(titles[i]));
+      var s = safeString_(val(titles[i], occurrenceIndex));
       if (s) return s;
     }
     return '';
@@ -262,19 +329,28 @@ function parseLinkedResponseRow_(headers, row) {
   headers = headers || [];
   row = row || [];
 
-  function val(title) {
+  function val(title, occurrenceIndex) {
+    var targetOccurrence = typeof occurrenceIndex === 'number'
+      ? Math.max(0, occurrenceIndex)
+      : null;
+    var matchedOccurrence = 0;
     var fallback = '';
     for (var i = 0; i < headers.length; i++) {
       if (safeString_(headers[i]) !== title) continue;
+      if (targetOccurrence !== null) {
+        if (matchedOccurrence === targetOccurrence) return row[i];
+        matchedOccurrence++;
+        continue;
+      }
       if (safeString_(row[i])) return row[i];
       fallback = row[i];
     }
     return fallback;
   }
 
-  function firstNonEmpty(titles) {
+  function firstNonEmpty(titles, occurrenceIndex) {
     for (var i = 0; i < titles.length; i++) {
-      var s = safeString_(val(titles[i]));
+      var s = safeString_(val(titles[i], occurrenceIndex));
       if (s) return s;
     }
     return '';
@@ -518,16 +594,28 @@ function parseUnifiedRotationOptions_(firstNonEmpty, rotationUnit) {
   for (var i = 1; i <= (FORM.MAX_ROTATION_OPTIONS || 3); i++) {
     var sectionChoice = firstNonEmpty([
       optionTitle_(FORM.TITLES.ROTATION_SECTION_PREFIX, i)
-    ].concat(expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_SECTION, i)));
-    var fromDate = parseDateFlexible_(firstNonEmpty([
-      optionTitle_(FORM.TITLES.ROTATION_FROM_PREFIX, i)
-    ].concat(expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_FROM, i))));
-    var toDate = parseDateFlexible_(firstNonEmpty([
-      optionTitle_(FORM.TITLES.ROTATION_TO_PREFIX, i)
-    ].concat(expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_TO, i))));
-    var hours = firstNonEmpty([
-      optionTitle_(FORM.TITLES.ROTATION_HOURS_PREFIX, i)
-    ].concat(expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_HOURS, i)));
+    ].concat(
+      expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_SECTION, i),
+      expandLegacySingleReplacementTitles_([FORM.TITLES.ROTATION_SECTION_PREFIX], i)
+    ));
+    var fromDate = parseDateFlexible_(readRepeatedRotationResponse_(
+      firstNonEmpty,
+      optionTitle_(FORM.TITLES.ROTATION_FROM_PREFIX, i),
+      FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_FROM,
+      i
+    ));
+    var toDate = parseDateFlexible_(readRepeatedRotationResponse_(
+      firstNonEmpty,
+      optionTitle_(FORM.TITLES.ROTATION_TO_PREFIX, i),
+      FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_TO,
+      i
+    ));
+    var hours = readRepeatedRotationResponse_(
+      firstNonEmpty,
+      optionTitle_(FORM.TITLES.ROTATION_HOURS_PREFIX, i),
+      FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_HOURS,
+      i
+    );
     if (!sectionChoice && !fromDate && !toDate && !hours) continue;
     var parsedSection = parseRotationSectionChoice_(sectionChoice, '');
     options.push({
@@ -541,6 +629,16 @@ function parseUnifiedRotationOptions_(firstNonEmpty, rotationUnit) {
     });
   }
   return options;
+}
+
+function readRepeatedRotationResponse_(firstNonEmpty, visibleTitle, legacyTemplates, optionNumber) {
+  var occurrenceValue = firstNonEmpty([visibleTitle], optionNumber - 1);
+  if (safeString_(occurrenceValue)) return occurrenceValue;
+  var legacyTitles = expandOptionTitles_(legacyTemplates, optionNumber).filter(function(title) {
+    return safeString_(title) !== safeString_(visibleTitle);
+  });
+  legacyTitles = legacyTitles.concat(expandLegacySingleReplacementTitles_(legacyTemplates, optionNumber));
+  return firstNonEmpty(legacyTitles);
 }
 
 function expandUnitScopedTitles_(titles, unitName) {
@@ -574,7 +672,15 @@ function appendParsedRotationOptions_(options, rotationType, maxOptions, firstNo
 }
 
 function expandOptionTitles_(templates, optionNumber) {
-  return (templates || []).map(function(title) { return safeString_(title).replace('{n}', optionNumber); });
+  return (templates || []).map(function(title) {
+    return safeString_(title).split('{n}').join(optionNumber);
+  });
+}
+
+function expandLegacySingleReplacementTitles_(templates, optionNumber) {
+  return (templates || []).map(function(title) {
+    return safeString_(title).replace('{n}', optionNumber);
+  });
 }
 
 function expandBranchedOptionTitles_(templates, optionNumber, unitName) {
@@ -648,6 +754,16 @@ function isRecordActiveOrApproved_(record) {
   return head === STATUS.HEAD_ACCEPTED && ACTIVE_FINAL_STATUSES.indexOf(finalStatus) !== -1;
 }
 
+function getPendingApprovalSubmissionRecords_(sheet, seedRecord) {
+  var groupId = safeString_(seedRecord[H.RECORD.REQUEST_GROUP_ID]);
+  var records = groupId
+    ? findObjectsByValue_(sheet, H.RECORD.REQUEST_GROUP_ID, groupId, FORM.MAX_ROTATION_OPTIONS || 3)
+    : [seedRecord];
+  return records.filter(isPendingApprovalNotificationRecord_).sort(function(left, right) {
+    return toNumber_(left[H.RECORD.OPTION_ORDER], 0) - toNumber_(right[H.RECORD.OPTION_ORDER], 0);
+  });
+}
+
 function processPendingApprovalEmails(options) {
   options = options || {};
   var sheet = getSheet_(SHEETS.RECORDS);
@@ -672,13 +788,14 @@ function processPendingApprovalEmails(options) {
   });
   var sentCount = 0;
   var attemptedCount = 0;
+  var processedGroups = {};
   for (var i = 0; i < records.length; i++) {
     var record = records[i];
-    if (safeString_(record[H.RECORD.HEAD_STATUS]) !== STATUS.HEAD_PENDING) continue;
-    if (safeString_(record[H.RECORD.FINAL_STATUS]) !== STATUS.FINAL_PENDING) continue;
-    if (safeString_(record[H.RECORD.APPROVAL_EMAIL_SENT_AT])) continue;
-    var retryCount = toNumber_(record[H.RECORD.EMAIL_RETRY_COUNT], 0);
-    if (retryCount > 0) continue;
+    if (!isPendingApprovalNotificationRecord_(record)) continue;
+    var groupKey = safeString_(record[H.RECORD.REQUEST_GROUP_ID]) ||
+      safeString_(record[H.RECORD.REQUEST_ID]);
+    if (processedGroups[groupKey]) continue;
+    processedGroups[groupKey] = true;
     if (attemptedCount >= PENDING_APPROVAL_EMAIL_BATCH_SIZE) {
       setQueueScanCursor_(PENDING_APPROVAL_SCAN_CURSOR_KEY, record._rowNumber, lastRow);
       return { scanned: i, sent: sentCount, remainingLikely: true };
@@ -687,13 +804,10 @@ function processPendingApprovalEmails(options) {
       setQueueScanCursor_(PENDING_APPROVAL_SCAN_CURSOR_KEY, record._rowNumber, lastRow);
       return { scanned: i, sent: sentCount, remainingLikely: true };
     }
-    attemptedCount++;
-    var sent = sendApprovalEmail(record);
-    if (sent) {
-      updateRequestByRow_(record._rowNumber, { [H.RECORD.APPROVAL_EMAIL_SENT_AT]: now_() });
-      sentCount++;
-    }
-    else updateRequestByRow_(record._rowNumber, { [H.RECORD.EMAIL_RETRY_COUNT]: retryCount + 1 });
+    var pendingGroup = getPendingApprovalSubmissionRecords_(sheet, record);
+    var delivery = sendGroupedApprovalEmails_(pendingGroup);
+    attemptedCount += delivery.groups;
+    sentCount += delivery.sent;
   }
   advanceQueueScanCursor_(PENDING_APPROVAL_SCAN_CURSOR_KEY, scanRange, lastRow);
   return { scanned: records.length, sent: sentCount, remainingLikely: scanRange.endRow < lastRow };

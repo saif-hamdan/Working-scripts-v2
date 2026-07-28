@@ -19,7 +19,8 @@ This branch is the isolated duplicate Apps Script project for the Google Forms +
   - `طابور البريد`
 - One parent Form submission with one to three sequential rotation selections.
 - Every rotation dropdown displays all active choices as `Unit Name — Section Name`.
-- Approval/rejection web app links with secure tokens; approval emails are sent only to the unit head.
+- One grouped unit-head approval email per submission, with one **Approve** and one **Reject** action for its one-to-three rotations.
+- Final dashboard approval remains independent for each rotation row, even when the unit head approved the submission as one group.
 - Required rejection reason page.
 - Conflict checking on submission and again on approval.
 - Immediate auto-rejection if the employee already has active approved rotation.
@@ -40,12 +41,12 @@ This branch is the isolated duplicate Apps Script project for the Google Forms +
 
 ```text
 DASHBOARD_SPREADSHEET_ID = your `SQU Job Rotation Dashboard` spreadsheet ID
-MAIN_FORM_ID = your `استمارة تحديد مسار التدوير الوظيفي للموظفين الجدد / New Employee Job Rotation Path Form` Google Form ID
+MAIN_FORM_ID = your `استمارة تحديد مسار التدوير المعرفي للموظفين الجدد / New Employee Knowledge Rotation Path Form` Google Form ID
 FORM_RESPONSES_SPREADSHEET_ID = required linked Google Form responses spreadsheet ID
 RESPONSE_QUEUE_BATCH_SIZE = 1
 QUEUE_SCAN_WINDOW_ROWS = 500
-EVALUATION_FORM_URL = `تقييم تجربة التدوير الوظيفي / Job Rotation Experience Evaluation` Google Form published URL
-EVALUATION_FORM_ID = `تقييم تجربة التدوير الوظيفي / Job Rotation Experience Evaluation` Google Form ID
+EVALUATION_FORM_URL = `Knowledge Rotation Experience Evaluation / تقييم تجربة التدوير المعرفي` Google Form published URL
+EVALUATION_FORM_ID = `Knowledge Rotation Experience Evaluation / تقييم تجربة التدوير المعرفي` Google Form ID
 OWNER_EMAIL = employeeservices@squ.edu.om
 ADMIN_EMAILS = employeeservices@squ.edu.om
 APPROVER_UNIT_MODE = CURRENT_UNIT
@@ -58,7 +59,7 @@ BRAND_LOGO_URL = official hosted logo URL
 EVALUATION_ALLOWED_FINAL_STATUSES = معتمد,منجز
 ```
 
-The workflow always passes `قسم خدمات الموظفين والمتقاعدين | Employee Services` to `MailApp.sendEmail()` for automated messages, including queued retries. Legacy `EMAIL_SENDER_NAME` properties and hidden settings are ignored, so an old value such as `SQU Training System` cannot override it. This does not change the Google account or Gmail **Send mail as** display name, so emails sent manually from the same account keep their existing display name.
+The workflow always passes `Employee Services` to `MailApp.sendEmail()` for automated messages, including queued retries. Legacy `EMAIL_SENDER_NAME` properties, payload values, and hidden settings are ignored, so an old display name cannot override it. This does not change the Google account or Gmail **Send mail as** display name, so emails sent manually from the same account keep their existing display name.
 
 
 ### Optional response queue throughput settings
@@ -80,7 +81,7 @@ Recommended values:
 
 Recommended `APPROVER_UNIT_MODE` is `CURRENT_UNIT`, meaning the head of the unit the employee belongs to approves. Use `ROTATION_UNIT` only if your policy requires the receiving rotation unit head to approve.
 
-4. In the `استمارة تحديد مسار التدوير الوظيفي للموظفين الجدد / New Employee Job Rotation Path Form` Google Form, use **Responses → Link to Sheets** to create or select the linked response spreadsheet, then set `FORM_RESPONSES_SPREADSHEET_ID` to that spreadsheet ID. This linked response sheet is required: request records are created only when `processUnprocessedFormResponses()` reads the response-sheet queue during sync.
+4. In the `استمارة تحديد مسار التدوير المعرفي للموظفين الجدد / New Employee Knowledge Rotation Path Form` Google Form, use **Responses → Link to Sheets** to create or select the linked response spreadsheet, then set `FORM_RESPONSES_SPREADSHEET_ID` to that spreadsheet ID. This linked response sheet is required: request records are created only when `processUnprocessedFormResponses()` reads the response-sheet queue during sync.
 5. For a new project, run `setupAll()` once and authorize permissions. For an existing configured project with duplicated or broken rotation questions, upload the latest code and run `run17_repairMainFormBranching()` before any broad setup rebuild, then repeat `run06_continueMainFormBranching()` until it reports `Complete`.
 6. Fill the visible `إدارة الوحدات` and `إدارة الأقسام` sheets with your real unit/section data. The production script syncs these into the hidden runtime `الوحدات` and `الأقسام` sheets.
 7. Deploy the script as a **Web App**:
@@ -93,7 +94,7 @@ Recommended `APPROVER_UNIT_MODE` is `CURRENT_UNIT`, meaning the head of the unit
 
 Native Google Forms cannot authoritatively compare two date answers or count working days. This implementation uses up to three sequential rotation pages and validates dates, Sunday–Thursday working days, duplicates, and overlaps again in the response queue. Each visited selection creates one independent Records-sheet row linked by a request-group ID; empty and unvisited selections create no records.
 
-The five-minute `syncSystem()` trigger compares the current unit/section reference hash with the hash represented by the published form. Unchanged executions make no Google Form changes. When data changes, the live form remains open and keeps its current navigation until all updated pages validate; only then is the new navigation published and obsolete unreachable pages removed. Approval and request-status changes refresh the dashboard but do not rebuild the form. Form submissions are not converted into requests by a direct form-submit trigger; the five-minute sync calls `processUnprocessedFormResponses()` to create requests from the linked response-sheet queue. Admins may also run `processResponseQueueOnce()` manually, or use the `معالجة الطلبات غير المعالجة` custom menu item, after a form outage or high-volume submission period; it logs the number of processed, skipped, and failed rows. If `FORM_RESPONSES_SPREADSHEET_ID` is missing, setup and sync log a warning and no submitted form responses can become requests. The approval handler still re-checks conflicts atomically with `LockService`, so even if the form choice was stale, the system blocks late conflicts.
+The five-minute `syncSystem()` trigger compares the current unit/section reference hash with the hash represented by the published form. Unchanged executions make no Google Form changes. When data changes, the live form remains open and keeps its current navigation until all updated pages validate; only then is the new navigation published and obsolete unreachable pages removed. Approval and request-status changes refresh the dashboard but do not rebuild the form. Form submissions are not converted into requests by a direct form-submit trigger; the five-minute sync calls `processUnprocessedFormResponses()` to create requests from the linked response-sheet queue. Admins may also run `processResponseQueueOnce()` manually, or use the `معالجة الطلبات غير المعالجة` custom menu item, after a form outage or high-volume submission period; it logs the number of processed, skipped, and failed rows. If `FORM_RESPONSES_SPREADSHEET_ID` is missing, setup and sync log a warning and no submitted form responses can become requests. The approval handler still re-checks conflicts atomically with `LockService`, so even if the form choice was stale, the system blocks late conflicts. A grouped unit-head action is capped at three records, reuses one conflict-data read, and queues rejection notifications instead of sending them inside the action trigger.
 
 Use `installTriggers()` to install one `syncSystem()` trigger. Do not create a separate time-driven trigger for `run11_refreshMainFormFromAdminSheets()`; the Step 12 compatibility runner removes legacy copies.
 

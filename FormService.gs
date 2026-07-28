@@ -9,11 +9,7 @@ function setupFormStructure(options) {
   options = options || {};
   var form = openMainForm_();
   form.setTitle(FORM.TITLES.FORM_TITLE);
-  form.setDescription(
-    FORM.TITLES.FORM_DESCRIPTION +
-    '\n\nيمكن أن يتضمن الطلب الواحد من اختيار واحد إلى ثلاثة اختيارات تدوير وظيفي. ' +
-    '/ One submission may contain between one and three job-rotation selections.'
-  );
+  form.setDescription(FORM.TITLES.FORM_DESCRIPTION);
   try { form.setCollectEmail(true); } catch (ignore) {}
   try { form.setRequireLogin(true); } catch (ignoreLogin) {}
 
@@ -80,7 +76,7 @@ function removeObsoleteRotationOptionItems_(form) {
 }
 
 function optionTitle_(template, optionNumber) {
-  return safeString_(template).replace('{n}', optionNumber);
+  return safeString_(template).split('{n}').join(optionNumber);
 }
 
 function deleteFormItemIfPresent_(form, title, type) {

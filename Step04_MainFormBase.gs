@@ -24,16 +24,12 @@ function run04_rebuildMainFormBaseQuestions() {
 
 function rebuildMainFormBase_(form, dashboard) {
   form.setTitle(BFORM.TITLES.FORM_TITLE);
-  form.setDescription(
-    BFORM.TITLES.FORM_DESCRIPTION +
-    '\n\nيمكن أن يتضمن الطلب الواحد من اختيار واحد إلى ثلاثة اختيارات تدوير وظيفي. ' +
-    '/ One submission may contain between one and three job-rotation selections.'
-  );
+  form.setDescription(BFORM.TITLES.FORM_DESCRIPTION);
   try { form.setCollectEmail(true); } catch (ignore) {}
   try { form.setRequireLogin(true); } catch (ignoreLogin) {}
   try { form.setAllowResponseEdits(false); } catch (ignore2) {}
   try { form.setProgressBar(true); } catch (ignore3) {}
-  try { form.setConfirmationMessage('تم إرسال طلب التدوير الوظيفي بنجاح. / Your job rotation request has been submitted successfully.'); } catch (ignore4) {}
+  try { form.setConfirmationMessage('تم إرسال طلب التدوير المعرفي بنجاح. / Your knowledge rotation request has been submitted successfully.'); } catch (ignore4) {}
 
   if (BOOTSTRAP_CONFIG.REBUILD_MAIN_FORM_ITEMS) deleteAllFormItems_(form);
 
@@ -152,5 +148,5 @@ function applyNumericValidation_(textItem) {
 }
 
 function optionTitle_(template, optionNumber) {
-  return safeString_(template).replace('{n}', optionNumber);
+  return safeString_(template).split('{n}').join(optionNumber);
 }

@@ -11,16 +11,107 @@ function sendApprovalEmail(record) {
   }, { kind: 'approval', requestId: record[H.RECORD.REQUEST_ID] });
 }
 
+function groupApprovalRecordsByRecipient_(records) {
+  var groups = {};
+  (records || []).forEach(function(record) {
+    var recipient = safeString_(record[H.RECORD.APPROVER_EMAIL]);
+    var key = normalizeKey_(recipient) || ('missing:' + safeString_(record[H.RECORD.REQUEST_ID]));
+    if (!groups[key]) groups[key] = { recipient: recipient, records: [] };
+    groups[key].records.push(record);
+  });
+  return Object.keys(groups).map(function(key) { return groups[key]; });
+}
+
+function buildApprovalGroupContext_(records) {
+  records = (records || []).slice().sort(function(left, right) {
+    return toNumber_(left[H.RECORD.OPTION_ORDER], 0) - toNumber_(right[H.RECORD.OPTION_ORDER], 0);
+  });
+  return {
+    kind: 'approval_group',
+    requestGroupId: records.length ? safeString_(records[0][H.RECORD.REQUEST_GROUP_ID]) : '',
+    requestIds: records.map(function(record) { return safeString_(record[H.RECORD.REQUEST_ID]); })
+  };
+}
+
+function buildGroupedApprovalPayload_(records, recipient) {
+  var data = buildGroupedRequestTemplateData_(records, {});
+  var groupToken = safeString_(records[0][H.RECORD.TOKEN]);
+  data.approveUrl = makeWebAppUrl_('approveGroup', groupToken);
+  data.rejectUrl = makeWebAppUrl_('rejectGroup', groupToken);
+  var groupId = safeString_(records[0][H.RECORD.REQUEST_GROUP_ID]);
+  return {
+    to: safeString_(recipient),
+    subject: 'طلبات موافقة التدوير الوظيفي / Job Rotation Approval Requests - ' +
+      groupId + ' (' + records.length + ')',
+    htmlBody: renderTemplate_('Emails_Approval', data)
+  };
+}
+
+function markApprovalGroupDelivery_(records, sent) {
+  var deliveredAt = sent ? now_() : '';
+  (records || []).forEach(function(record) {
+    var updates = sent
+      ? {
+          [H.RECORD.APPROVAL_EMAIL_SENT_AT]: deliveredAt,
+          [H.RECORD.EMAIL_RETRY_COUNT]: 0
+        }
+      : {
+          [H.RECORD.EMAIL_RETRY_COUNT]: toNumber_(record[H.RECORD.EMAIL_RETRY_COUNT], 0) + 1
+        };
+    if (record._rowNumber) updateRequestByRow_(record._rowNumber, updates);
+    Object.keys(updates).forEach(function(header) { record[header] = updates[header]; });
+  });
+}
+
+function sendGroupedApprovalEmails_(records) {
+  var result = { groups: 0, sent: 0, queued: 0, records: 0 };
+  groupApprovalRecordsByRecipient_(records).forEach(function(group) {
+    if (!group.records.length) return;
+    var context = buildApprovalGroupContext_(group.records);
+    var sent = sendEmailSafe_(
+      buildGroupedApprovalPayload_(group.records, group.recipient),
+      context
+    );
+    markApprovalGroupDelivery_(group.records, sent);
+    result.groups++;
+    result.records += group.records.length;
+    if (sent) result.sent++;
+    else result.queued++;
+  });
+  return result;
+}
+
 
 function sendSubmissionConfirmationEmail(record) {
   var data = buildTemplateData_(record, {});
   var html = renderTemplate_('Emails_Submitted', data);
   return sendEmailSafe_({
     to: safeString_(record[H.RECORD.DIRECT_MANAGER_EMAIL]),
-    cc: uniqueNonEmpty_([record[H.RECORD.EMPLOYEE_EMAIL], record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]]).join(','),
+    cc: uniqueNonEmpty_([record[H.RECORD.EMPLOYEE_EMAIL]]).join(','),
     subject: 'تم استلام طلب التدوير الوظيفي / Job Rotation Request Submitted - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   }, { kind: 'submitted', requestId: record[H.RECORD.REQUEST_ID] });
+}
+
+function sendGroupedSubmissionConfirmationEmail_(records) {
+  records = (records || []).slice().sort(function(left, right) {
+    return toNumber_(left[H.RECORD.OPTION_ORDER], 0) - toNumber_(right[H.RECORD.OPTION_ORDER], 0);
+  });
+  if (!records.length) return false;
+  var first = records[0];
+  var data = buildGroupedRequestTemplateData_(records, {});
+  var html = renderTemplate_('Emails_Submitted', data);
+  return sendEmailSafe_({
+    to: safeString_(first[H.RECORD.DIRECT_MANAGER_EMAIL]),
+    cc: uniqueNonEmpty_([first[H.RECORD.EMPLOYEE_EMAIL]]).join(','),
+    subject: 'تم استلام طلبات التدوير الوظيفي / Job Rotation Requests Submitted - ' +
+      safeString_(first[H.RECORD.REQUEST_GROUP_ID]) + ' (' + records.length + ')',
+    htmlBody: html
+  }, {
+    kind: 'submitted_group',
+    requestGroupId: safeString_(first[H.RECORD.REQUEST_GROUP_ID]),
+    requestIds: records.map(function(record) { return safeString_(record[H.RECORD.REQUEST_ID]); })
+  });
 }
 
 
@@ -180,7 +271,7 @@ function sendEvaluationEmail(record, evaluationUrl) {
   var rotationSuffix = rotationNumber ? ' - التدوير ' + rotationNumber + ' / Rotation ' + rotationNumber : '';
   var sent = sendEmailSafe_({
     to: safeString_(record[H.RECORD.EMPLOYEE_EMAIL]),
-    subject: 'تقييم تجربة التدوير الوظيفي / Job Rotation Experience Evaluation - ' +
+    subject: 'تقييم تجربة التدوير المعرفي / Knowledge Rotation Experience Evaluation - ' +
       record[H.RECORD.REQUEST_ID] + rotationSuffix,
     htmlBody: html
   }, context);
@@ -218,7 +309,7 @@ function buildEmailMessage_(payload) {
   };
   // Keep the workflow identity independent of legacy Script Properties or
   // hidden settings such as "SQU Training System".
-  var senderName = safeString_(payload.name || EMAIL_SENDER_DISPLAY_NAME);
+  var senderName = EMAIL_SENDER_DISPLAY_NAME;
   if (senderName) message.name = senderName;
   return message;
 }
@@ -317,6 +408,16 @@ function processEmailQueue(options) {
         if (record && !safeString_(record[H.RECORD.APPROVAL_EMAIL_SENT_AT])) {
           updateRequestByRow_(record._rowNumber, { [H.RECORD.APPROVAL_EMAIL_SENT_AT]: now_() });
         }
+      } else if (context.kind === 'approval_group' && Array.isArray(context.requestIds)) {
+        var groupDeliveredAt = now_();
+        context.requestIds.forEach(function(requestId) {
+          var groupedRecord = getRequestById_(requestId);
+          if (!groupedRecord) return;
+          updateRequestByRow_(groupedRecord._rowNumber, {
+            [H.RECORD.APPROVAL_EMAIL_SENT_AT]: groupDeliveredAt,
+            [H.RECORD.EMAIL_RETRY_COUNT]: 0
+          });
+        });
       }
       stats.sent++;
       stats.processed++;

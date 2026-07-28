@@ -13,7 +13,7 @@ function run07_setupEvaluationForm() {
 }
 
 function rebuildEvaluationForm_(form) {
-  form.setTitle('نموذج استبانة تقييم تجربة التدوير الوظيفي للموظفين الجدد (التغذية الراجعة) / New Employee Job Rotation Experience Evaluation Form (Feedback)');
+  form.setTitle('نموذج استبانة تقييم تجربة التدوير المعرفي للموظفين الجدد (التغذية الراجعة) / New Employee Knowledge Rotation Experience Evaluation Form (Feedback)');
   form.setDescription('يرجى تعبئة الاستبانة بعد انتهاء البرنامج. / Please complete this evaluation after the program ends.');
   try { form.setCollectEmail(true); } catch (ignore) {}
   try { form.setAllowResponseEdits(false); } catch (ignore2) {}
@@ -22,7 +22,7 @@ function rebuildEvaluationForm_(form) {
 
   if (BOOTSTRAP_CONFIG.REBUILD_EVALUATION_FORM_ITEMS) deleteAllFormItems_(form);
 
-  addEvaluationSection_(form, 'نموذج استبانة تقييم تجربة التدوير الوظيفي للموظفين الجدد (التغذية الراجعة) / New Employee Job Rotation Experience Evaluation Form (Feedback)');
+  addEvaluationSection_(form, 'نموذج استبانة تقييم تجربة التدوير المعرفي للموظفين الجدد (التغذية الراجعة) / New Employee Knowledge Rotation Experience Evaluation Form (Feedback)');
   addEvaluationSection_(form, 'أولاً: بيانات الموظف / First: Employee Information');
   ensureText_(form, EVALUATION_FIELDS.REQUEST_ID, true);
   ensureText_(form, EVALUATION_FIELDS.REQUEST_GROUP_ID, true);
@@ -43,9 +43,9 @@ function rebuildEvaluationForm_(form) {
 
   addEvaluationSection_(form, 'ثانياً: تقييم البرنامج / Second: Program Evaluation');
   addEvaluationSection_(form, 'مقياس التقييم / Rating scale: (1 = ضعيف جداً / Very Poor | 2 = ضعيف / Poor | 3 = متوسط / Average | 4 = جيد / Good | 5 = ممتاز / Excellent)');
-  addEvaluationGrid_(form, 'التهيئة والتدوير الوظيفي / Orientation and Rotation', [
+  addEvaluationGrid_(form, 'التهيئة والتدوير المعرفي / Orientation and Knowledge Rotation', [
     'وضوح برنامج التهيئة في بداية التوظيف / Clarity of the orientation program at the start of employment',
-    'جودة التدوير الوظيفي على الأنظمة والإجراءات / Quality of rotation on systems and procedures',
+    'جودة التدوير المعرفي على الأنظمة والإجراءات / Quality of knowledge rotation on systems and procedures',
     'مدى استفادتي من مرحلة التهيئة / How much I benefited from the orientation phase'
   ], true);
   addEvaluationGrid_(form, 'التدوير داخل الوحدة / Rotation Within the Unit', [
