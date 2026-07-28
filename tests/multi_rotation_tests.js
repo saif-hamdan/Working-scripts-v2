@@ -761,6 +761,20 @@ test('submission validation errors go to Employee Services instead of the unit h
     `${context.submissionReviewPayload.to},${context.submissionReviewPayload.cc}`,
     /manager@example\.com|submitter@example\.com|employee@example\.com|unit-head@example\.com/
   );
+  context.oldQueuedReviewPayload = {
+    to: 'unit-head@example.com',
+    cc: 'employee@example.com',
+    bcc: 'manager@example.com'
+  };
+  run(`
+    reroutedQueuedReviewPayload = applyEmailRecipientPolicy_(
+      oldQueuedReviewPayload,
+      { kind: 'invalid_dates_submission' }
+    );
+  `);
+  assert.strictEqual(context.reroutedQueuedReviewPayload.to, 'employeeservices@squ.edu.om');
+  assert.strictEqual(context.reroutedQueuedReviewPayload.cc, 'm.alaamri1@squ.edu.om');
+  assert.strictEqual(context.reroutedQueuedReviewPayload.bcc, '');
 });
 
 test('one unit-head group approval updates all three rotations but leaves final decisions pending', () => {

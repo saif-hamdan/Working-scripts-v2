@@ -285,6 +285,7 @@ function isEmailContextQueued_(context) {
 }
 
 function sendEmailSafe_(payload, context) {
+  payload = applyEmailRecipientPolicy_(payload, context);
   try {
     if (!safeString_(payload.to)) throw new Error('Email recipient is empty.');
     MailApp.sendEmail(buildEmailMessage_(payload));
@@ -295,6 +296,16 @@ function sendEmailSafe_(payload, context) {
     logError_('sendEmailSafe_:' + (context && context.kind || ''), context && context.requestId, err);
     return false;
   }
+}
+
+function applyEmailRecipientPolicy_(payload, context) {
+  var routedPayload = Object.assign({}, payload || {});
+  if (context && context.kind === 'invalid_dates_submission') {
+    routedPayload.to = SUBMISSION_REVIEW_EMAIL_TO;
+    routedPayload.cc = SUBMISSION_REVIEW_EMAIL_CC;
+    routedPayload.bcc = '';
+  }
+  return routedPayload;
 }
 
 function buildEmailMessage_(payload) {
@@ -315,6 +326,7 @@ function buildEmailMessage_(payload) {
 }
 
 function queueEmailForLater_(payload, context) {
+  payload = applyEmailRecipientPolicy_(payload, context);
   try {
     if (!safeString_(payload.to)) throw new Error('Email recipient is empty.');
     queueEmail_(payload, context, null);
@@ -327,6 +339,7 @@ function queueEmailForLater_(payload, context) {
 }
 
 function queueEmail_(payload, context, error) {
+  payload = applyEmailRecipientPolicy_(payload, context);
   var sheet = getOrCreateSheet_(SHEETS.EMAIL_QUEUE);
   setSheetHeaders_(sheet, QUEUE_HEADERS);
   appendObjectRow_(sheet, QUEUE_HEADERS, {
@@ -389,13 +402,14 @@ function processEmailQueue(options) {
     actionableCount++;
     var context = parseJsonSafe_(row[H.QUEUE.CONTEXT_JSON], {});
     try {
-      var message = buildEmailMessage_({
+      var queuedPayload = applyEmailRecipientPolicy_({
         to: safeString_(row[H.QUEUE.TO]),
         cc: safeString_(row[H.QUEUE.CC]),
         bcc: safeString_(row[H.QUEUE.BCC]),
         subject: safeString_(row[H.QUEUE.SUBJECT]),
         htmlBody: safeString_(row[H.QUEUE.HTML])
-      });
+      }, context);
+      var message = buildEmailMessage_(queuedPayload);
       MailApp.sendEmail(message);
       updateObjectRow_(sheet, row._rowNumber, {
         [H.QUEUE.STATUS]: STATUS.QUEUE_SENT,
