@@ -24,6 +24,7 @@ const context = {
   Logger: { log() {} },
   Utilities: {
     DigestAlgorithm: { SHA_256: 'SHA_256' },
+    Charset: { UTF_8: 'UTF_8' },
     computeDigest(_algorithm, value) {
       return Array.from(crypto.createHash('sha256').update(String(value)).digest())
         .map((byte) => byte > 127 ? byte - 256 : byte);
@@ -66,9 +67,11 @@ function load(file) {
 
 [
   'Constants.gs',
+  'Config.gs',
   'Utils.gs',
   'RotationMetricsService.gs',
   'RequestService.gs',
+  'DataService.gs',
   'ConflictService.gs',
   'FormService.gs',
   'MultiRotationFormService.gs',
@@ -558,9 +561,11 @@ test('partial retry resumes without duplicate selection records', () => {
   assert.strictEqual(context.mockCreatedKeys.length, 3);
 });
 
-test('existing conflict detection still blocks an overlapping accepted record', () => {
+test('conflicts allow multiple employees in one section but block one employee across overlapping sections', () => {
   const record = {};
   record[H.RECORD.REQUEST_ID] = 'EXISTING';
+  record[H.RECORD.EMPLOYEE_ID] = '200';
+  record[H.RECORD.EMPLOYEE_NAME] = 'Employee One';
   record[H.RECORD.ROTATION_UNIT] = 'Unit A';
   record[H.RECORD.SECTION] = 'Section 1';
   record[H.RECORD.START_DATE] = new Date('2026-07-05T00:00:00');
@@ -568,9 +573,36 @@ test('existing conflict detection still blocks an overlapping accepted record', 
   record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_ACCEPTED;
   record[H.RECORD.FINAL_STATUS] = STATUS.FINAL_APPROVED;
   context.conflictRecords = [record];
-  run('findSectionByUnitAndName_ = function() { return { capacity: 1 }; };');
   assert.strictEqual(
-    run(`findConflicts({ rotationUnit: 'Unit A', section: 'Section 1', startDate: new Date('2026-07-07'), endDate: new Date('2026-07-09') }, conflictRecords)[H.RECORD.REQUEST_ID]`),
+    run(`findConflicts({
+      employeeId: '200',
+      employeeName: 'Employee One',
+      rotationUnit: 'Unit A',
+      section: 'Section 2',
+      startDate: new Date('2026-07-07'),
+      endDate: new Date('2026-07-09')
+    }, conflictRecords)[H.RECORD.REQUEST_ID]`),
+    'EXISTING'
+  );
+  assert.strictEqual(
+    run(`findConflicts({
+      employeeId: '201',
+      employeeName: 'Employee Two',
+      rotationUnit: 'Unit A',
+      section: 'Section 1',
+      startDate: new Date('2026-07-07'),
+      endDate: new Date('2026-07-09')
+    }, conflictRecords)`),
+    null
+  );
+
+  record[H.RECORD.FINAL_STATUS] = STATUS.FINAL_PENDING;
+  assert.strictEqual(
+    run(`findConflicts({
+      employeeId: '200',
+      startDate: new Date('2026-07-07'),
+      endDate: new Date('2026-07-09')
+    }, conflictRecords)[H.RECORD.REQUEST_ID]`),
     'EXISTING'
   );
 });
@@ -1008,7 +1040,7 @@ test('one unit-head group approval updates all three rotations but leaves final 
       groupLookupLimits.push(maxResults);
       return groupDecisionRecords.slice();
     };
-    getRecords_ = function() {
+    getEmployeeConflictCandidateRecords_ = function() {
       groupConflictReadCount++;
       return groupDecisionRecords.slice();
     };
@@ -1167,12 +1199,131 @@ test('legacy group actions stay bounded while dashboard final approval remains p
   const queueSource = fs.readFileSync(path.join(root, 'ApprovalActionQueueService.gs'), 'utf8');
   const dashboardValidationSource = fs.readFileSync(path.join(root, 'ValidationService.gs'), 'utf8');
   assert.match(approvalSource, /FORM\.MAX_ROTATION_OPTIONS \|\| 3/);
-  assert.match(approvalSource, /var conflictCandidates = getRecords_\(\)/);
+  assert.match(approvalSource, /var conflictCandidates = getEmployeeConflictCandidateRecords_\(/);
   assert.match(approvalSource, /queueRejectedNotification\(record\)/);
   assert.match(queueSource, /shouldStopSync_\(options\.startedAt\)/);
   assert.match(dashboardValidationSource, /function applyFinalStatusChange_\(rowNumber/);
   assert.match(dashboardValidationSource, /updateObjectRow_\(sheet, rowNumber,/);
   assert.doesNotMatch(dashboardValidationSource, /REQUEST_GROUP_ID/);
+});
+
+test('section-head email defaults and email-only edits do not change the form-choice hash', () => {
+  const unit = {};
+  unit[H.UNIT.UNIT_ID] = 'UNIT-A';
+  unit[H.UNIT.UNIT_NAME] = 'Unit A';
+  unit[H.UNIT.HEAD_EMAIL] = 'unit-head-1@example.com';
+  unit[H.UNIT.ACTIVE] = STATUS.YES;
+
+  const section = {};
+  section[H.SECTION.SECTION_ID] = 'SECTION-1';
+  section[H.SECTION.UNIT_ID] = 'UNIT-A';
+  section[H.SECTION.UNIT_NAME] = 'Unit A';
+  section[H.SECTION.SECTION_NAME] = 'Section 1';
+  section[H.SECTION.ACTIVE] = STATUS.YES;
+  section[H.SECTION.CAPACITY] = 1;
+  section[H.SECTION.HEAD_EMAIL] = '';
+
+  context.referenceUnits = [unit];
+  context.referenceSections = [section];
+  const normalized = run('normalizeAdminSectionRows_(referenceSections, referenceUnits)[0]');
+  assert.strictEqual(
+    normalized[H.SECTION.HEAD_EMAIL],
+    'M.ALAAMRI1@squ.edu.om'
+  );
+
+  context.normalizedReferenceSections = [normalized];
+  const originalHash = run(
+    'makeFormReferenceChecksum_(referenceUnits, normalizedReferenceSections)'
+  );
+  unit[H.UNIT.HEAD_EMAIL] = 'unit-head-2@example.com';
+  normalized[H.SECTION.HEAD_EMAIL] = 'section-head-2@example.com';
+  normalized[H.SECTION.CAPACITY] = 99;
+  const emailOnlyHash = run(
+    'makeFormReferenceChecksum_(referenceUnits, normalizedReferenceSections)'
+  );
+  assert.strictEqual(emailOnlyHash, originalHash);
+
+  normalized[H.SECTION.SECTION_NAME] = 'Section 1 Updated';
+  const choiceChangeHash = run(
+    'makeFormReferenceChecksum_(referenceUnits, normalizedReferenceSections)'
+  );
+  assert.notStrictEqual(choiceChangeHash, originalHash);
+
+  const syncSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
+  const schemaSource = fs.readFileSync(path.join(root, 'Step18_SectionHeadEmails.gs'), 'utf8');
+  assert.match(syncSource, /var needsFormRefresh = formChoicesChanged \|\|/);
+  assert.doesNotMatch(
+    schemaSource,
+    /FormApp|openMainForm|openEvaluationForm|rebuildMainForm|rebuildEvaluationForm/
+  );
+});
+
+test('final approval CCs the selected section head but final rejection does not', () => {
+  const record = {};
+  record[H.RECORD.REQUEST_ID] = 'REQ-FINAL';
+  record[H.RECORD.EMPLOYEE_EMAIL] = 'employee@example.com';
+  record[H.RECORD.DIRECT_MANAGER_EMAIL] = 'manager@example.com';
+  record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL] = 'current-head@example.com';
+  record[H.RECORD.ROTATION_UNIT] = 'Unit A';
+  record[H.RECORD.SECTION] = 'Section 1';
+  record[H.RECORD.EMPLOYEE_ID] = '200';
+  context.finalRecipientRecord = record;
+  run(`
+    getConfig = function() {
+      return {
+        BRAND: { primaryColor: '#0B4EA2', logoUrl: '' },
+        ORGANIZATION_NAME_AR: 'Employee Services',
+        ORGANIZATION_NAME_EN: 'Employee Services',
+        EVALUATION_FORM_URL: ''
+      };
+    };
+    getEmployeeTotalCompletedHours_ = function() { return 0; };
+    renderTemplate_ = function() { return '<html>final</html>'; };
+    findSectionByUnitAndName_ = function() {
+      return { headEmail: 'section-head@example.com' };
+    };
+    finalApprovedPayload = buildFinalApprovedNotificationPayload_(finalRecipientRecord);
+    finalRejectedPayload = buildFinalRejectedNotificationPayload_(finalRecipientRecord);
+    employeeConflictPayload = buildConflictNotificationPayload_(
+      finalRecipientRecord,
+      finalRecipientRecord,
+      'test'
+    );
+  `);
+  assert.strictEqual(context.finalApprovedPayload.cc, 'section-head@example.com');
+  assert.doesNotMatch(
+    `${context.finalRejectedPayload.to},${context.finalRejectedPayload.cc || ''}`,
+    /section-head@example\.com/
+  );
+  assert.match(context.finalApprovedPayload.to, /employee@example\.com/);
+  assert.match(context.finalApprovedPayload.to, /manager@example\.com/);
+  assert.match(context.finalApprovedPayload.to, /current-head@example\.com/);
+  assert.strictEqual(
+    context.employeeConflictPayload.to,
+    'manager@example.com,employee@example.com'
+  );
+  assert.strictEqual(context.employeeConflictPayload.cc, '');
+});
+
+test('rejection pages trust a valid configured production URL without deployment comparison', () => {
+  run(`
+    getConfig = function() {
+      return { WEB_APP_URL: 'https://script.google.com/macros/s/DEPLOYMENT-ID/exec' };
+    };
+    rejectionUrlStatus = getValidatedWebAppUrlStatus_();
+  `);
+  assert.strictEqual(context.rejectionUrlStatus.ok, true);
+  assert.strictEqual(
+    context.rejectionUrlStatus.url,
+    'https://script.google.com/macros/s/DEPLOYMENT-ID/exec'
+  );
+  const approvalSource = fs.readFileSync(path.join(root, 'ApprovalWebApp.gs'), 'utf8');
+  const validationStart = approvalSource.indexOf('function getValidatedWebAppUrlStatus_');
+  const validationEnd = approvalSource.indexOf('function normalizeWebAppUrl_', validationStart);
+  assert.doesNotMatch(
+    approvalSource.slice(validationStart, validationEnd),
+    /ScriptApp\.getService\(\)\.getUrl\(\)/
+  );
 });
 
 test('dates render DD/MM/YYYY and sender/final recipients remain forced', () => {
@@ -1207,6 +1358,14 @@ test('all email subjects and bodies use Knowledge Rotation terminology', () => {
       `${file} still contains old Job Rotation terminology`
     );
   });
+  ['EmailService.gs', 'Emails_Approved.html', 'Emails_Conflict.html'].forEach((file) => {
+    const source = fs.readFileSync(path.join(root, file), 'utf8');
+    assert.doesNotMatch(source, /طلب تدوير معرفي/);
+  });
+  assert.match(
+    fs.readFileSync(path.join(root, 'Emails_Conflict.html'), 'utf8'),
+    /طلب التدوير المعرفي/
+  );
 
   const requestSource = fs.readFileSync(path.join(root, 'RequestService.gs'), 'utf8');
   const activeReasonStart = requestSource.indexOf('function buildActiveEmployeeRejectionReason_');

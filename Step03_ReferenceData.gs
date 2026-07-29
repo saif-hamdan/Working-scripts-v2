@@ -76,6 +76,10 @@ function validateReferenceData_(ss) {
 
     if (!section.id) issues.push(issue_('WARN', BS.SECTIONS, 'Missing section ID.', unitKey + ' / ' + section.name));
     if (section.capacity < 1) issues.push(issue_('WARN', BS.SECTIONS, 'Section capacity is less than 1.', unitKey + ' / ' + section.name));
+    if (!section.headEmail) issues.push(issue_('ERROR', BS.SECTIONS, 'Missing section head email.', unitKey + ' / ' + section.name));
+    if (section.headEmail && !validEmail_(section.headEmail)) {
+      issues.push(issue_('ERROR', BS.SECTIONS, 'Invalid section head email.', unitKey + ' / ' + section.name + ': ' + section.headEmail));
+    }
   });
 
   Object.keys(sectionKeyCounts).forEach(function(key) {

@@ -168,8 +168,14 @@ function createRequestRecordForRotationOption_(data, option, options) {
   record[H.RECORD.LAST_ERROR] = '';
   record[H.RECORD.FORM_RESPONSE_SOURCE_ID] = data.responseSourceId;
 
-  var activeRotation = findActiveRotationByEmployee_(data.employeeId, data.employeeName, requestId, options.existingRecords);
-  var conflict = null;
+  var activeRotation = findActiveRotationByEmployee_(
+    data.employeeId,
+    data.employeeName,
+    requestId,
+    options.existingRecords,
+    option.fromDate,
+    option.toDate
+  );
 
   if (activeRotation) {
     record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_EMPLOYEE_ACTIVE;
@@ -177,22 +183,6 @@ function createRequestRecordForRotationOption_(data, option, options) {
     record[H.RECORD.REJECTION_REASON] = buildActiveEmployeeRejectionReason_(activeRotation);
     record[H.RECORD.CONFLICT_ID] = activeRotation[H.RECORD.REQUEST_ID];
     record[H.RECORD.CONFLICT_DETAILS] = formatActiveRotationDetails_(activeRotation);
-    record[H.RECORD.DECISION_DATE] = now_();
-  } else {
-    conflict = findConflicts({
-      rotationUnit: option.rotationUnit,
-      section: option.section,
-      startDate: option.fromDate,
-      endDate: option.toDate,
-      excludeRequestId: requestId
-    }, options.existingRecords);
-  }
-
-  if (conflict) {
-    record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_CONFLICT;
-    record[H.RECORD.FINAL_STATUS] = STATUS.FINAL_CONFLICT;
-    record[H.RECORD.CONFLICT_ID] = conflict[H.RECORD.REQUEST_ID];
-    record[H.RECORD.CONFLICT_DETAILS] = formatConflictDetails_(conflict);
     record[H.RECORD.DECISION_DATE] = now_();
   }
 
@@ -204,10 +194,7 @@ function createRequestRecordForRotationOption_(data, option, options) {
 
   if (activeRotation) {
     sendActiveEmployeeRejectedNotification(record, activeRotation);
-    logInfo_('createRequestFromNormalizedData_:activeEmployeeRejected', requestId, 'Request rejected because employee already has an active approved job rotation.');
-  } else if (conflict) {
-    sendConflictNotification(record, conflict, 'submission');
-    logInfo_('createRequestFromNormalizedData_:conflict', requestId, 'Request rejected at submission because of conflict.');
+    logInfo_('createRequestFromNormalizedData_:activeEmployeeRejected', requestId, 'Request rejected because the employee already has an overlapping accepted knowledge rotation.');
   } else {
     if (options.deferSubmissionNotifications === true) {
       logInfo_('createRequestFromNormalizedData_', requestId, 'Request created; approval email is deferred until every selection in the submission is ready.');
@@ -542,13 +529,6 @@ function getConflictCandidateRecordsForSubmission_(data, rotationOptions) {
   } else if (safeString_(data.employeeName)) {
     candidates = candidates.concat(findObjectsByValue_(sheet, H.RECORD.EMPLOYEE_NAME, data.employeeName, 500));
   }
-  var seenSections = {};
-  (rotationOptions || []).forEach(function(option) {
-    var sectionKey = normalizeKey_(option.section);
-    if (!sectionKey || seenSections[sectionKey]) return;
-    seenSections[sectionKey] = true;
-    candidates = candidates.concat(findObjectsByValue_(sheet, H.RECORD.SECTION, option.section, 1000));
-  });
   var seenRequests = {};
   return candidates.filter(function(record) {
     var requestId = safeString_(record[H.RECORD.REQUEST_ID]) || String(record._rowNumber);

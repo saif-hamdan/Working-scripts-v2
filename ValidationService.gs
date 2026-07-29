@@ -233,13 +233,17 @@ function handleAdminReferenceEdit_(e) {
   try {
     syncReferenceDataFromAdminSheets_({ forceFormat: true });
     var bootstrapSync = syncAdminReferenceData_(openDashboardFromProperties_());
-    var queued = markMainFormReferenceDataDirty_(bootstrapSync.hash);
+    var queued = markMainFormReferenceDataDirty_(
+      bootstrapSync.formHash || bootstrapSync.hash
+    );
     refreshDashboard(true);
     logInfo_(
       'handleAdminReferenceEdit_',
       '',
       'Reference data synced from ' + sheet.getName() + '. ' +
-        (queued ? 'A change-driven form refresh was queued for syncSystem.' : 'The final data matches the published form; no rebuild was queued.')
+        (queued
+          ? 'Form-choice data changed; a change-driven form refresh was queued for syncSystem.'
+          : 'Only non-form data changed, or the choices already match; no form rebuild was queued.')
     );
   } catch (err) {
     logError_('handleAdminReferenceEdit_', '', err);

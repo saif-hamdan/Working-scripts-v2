@@ -146,7 +146,8 @@ function readSections_(ss, options) {
       unitName: String(row[2] || '').trim(),
       name: String(row[3] || '').trim(),
       active: isActiveValue_(row[4]),
-      capacity: Number(row[5] || 1) || 1
+      capacity: Number(row[5] || 1) || 1,
+      headEmail: String(row[6] || DEFAULT_SECTION_HEAD_EMAIL).trim()
     };
   });
 }
@@ -231,6 +232,7 @@ function ensureAdminReferenceSheets_(ss) {
 
   copySystemReferenceToAdminIfNeeded_(adminUnits, systemUnits, BH.UNITS.length);
   copySystemReferenceToAdminIfNeeded_(adminSections, systemSections, BH.SECTIONS.length);
+  ensureDefaultSectionHeadEmails_(adminSections);
   applyReferenceAdminFormatting_(ss);
 }
 
@@ -251,6 +253,7 @@ function applyReferenceAdminFormatting_(ss) {
   if (adminSections) {
     applyBasicSheetFormat_(adminSections, BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR);
     applyYesNoValidationByHeader_(adminSections, BH.SECTIONS, 'نشط');
+    clearColumnValidationByHeader_(adminSections, BH.SECTIONS, 'بريد رئيس القسم');
     applyUnitIdValidation_(ss, adminSections);
   }
 }
@@ -301,7 +304,9 @@ function syncAdminReferenceData_(ss) {
     unitRows
   );
   var hash = hashReferenceRows_(unitRows, sectionRows);
+  var formHash = hashFormReferenceRows_(unitRows, sectionRows);
   var previousHash = getBootstrapProperty_(BSPROP.REFERENCE_DATA_HASH, '');
+  var previousFormHash = getBootstrapProperty_(BSPROP.REFERENCE_FORM_HASH, '');
   var changed = hash !== previousHash;
   var runtimeDataMissing = (unitRows.length && systemUnits.getLastRow() < 2) ||
     (sectionRows.length && systemSections.getLastRow() < 2);
@@ -320,11 +325,31 @@ function syncAdminReferenceData_(ss) {
     try { systemSections.hideSheet(); } catch (ignore2) {}
   }
 
-  setBootstrapProperties_({
+  var syncProperties = {
     [BSPROP.REFERENCE_DATA_HASH]: hash,
+    [BSPROP.REFERENCE_FORM_HASH]: formHash,
     [BSPROP.LAST_REFERENCE_SYNC]: new Date().toISOString()
-  });
-  return { unitCount: unitRows.length, sectionCount: sectionRows.length, hash: hash, changed: changed };
+  };
+  // Migrate an existing published baseline from the old full-data hash to the
+  // form-only hash. Head-name/email and capacity changes must never trigger a
+  // form rebuild.
+  if (!previousFormHash && previousHash) {
+    if (getBootstrapProperty_(BSPROP.BRANCH_PUBLISHED_HASH, '') === previousHash) {
+      syncProperties[BSPROP.BRANCH_PUBLISHED_HASH] = formHash;
+    }
+    if (getBootstrapProperty_(BSPROP.BRANCH_TARGET_HASH, '') === previousHash) {
+      syncProperties[BSPROP.BRANCH_TARGET_HASH] = formHash;
+    }
+  }
+  setBootstrapProperties_(syncProperties);
+  return {
+    unitCount: unitRows.length,
+    sectionCount: sectionRows.length,
+    hash: hash,
+    formHash: formHash,
+    changed: changed,
+    formChoicesChanged: Boolean(previousFormHash && formHash !== previousFormHash)
+  };
 }
 
 function cascadeInactiveUnitSections_(sectionRows, unitRows) {
@@ -360,6 +385,16 @@ function hashReferenceRows_(unitRows, sectionRows) {
     var value = byte < 0 ? byte + 256 : byte;
     return ('0' + value.toString(16)).slice(-2);
   }).join('');
+}
+
+function hashFormReferenceRows_(unitRows, sectionRows) {
+  var formUnitRows = (unitRows || []).map(function(row) {
+    return [row[0], row[1], row[5]];
+  });
+  var formSectionRows = (sectionRows || []).map(function(row) {
+    return [row[0], row[1], row[2], row[3], row[4]];
+  });
+  return hashReferenceRows_(formUnitRows, formSectionRows);
 }
 
 function writeSettings_(ss, mainForm, evaluationForm) {
@@ -522,6 +557,7 @@ function writeSetupSummary_(ss, mainForm, evaluationForm) {
     ['Main form repair active', getBootstrapProperty_(BSPROP.BRANCH_REPAIR_ACTIVE, 'false')],
     ['Validation status', getBootstrapProperty_(BSPROP.VALIDATION_STATUS, BSTATUS.NOT_STARTED)],
     ['Reference data hash', getBootstrapProperty_(BSPROP.REFERENCE_DATA_HASH, '')],
+    ['Form reference hash', getBootstrapProperty_(BSPROP.REFERENCE_FORM_HASH, '')],
     ['Reference data dirty', getBootstrapProperty_(BSPROP.REFERENCE_DIRTY, 'false')],
     ['Last reference sync', getBootstrapProperty_(BSPROP.LAST_REFERENCE_SYNC, '')],
     ['Production compatibility status', getBootstrapProperty_(BSPROP.PRODUCTION_COMPATIBILITY_STATUS, BSTATUS.NOT_STARTED)],

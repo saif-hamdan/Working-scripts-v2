@@ -42,7 +42,7 @@ function startMainFormBranching_(options) {
   var sync = syncAdminReferenceData_(ss);
   var selections = initializeMultiRotationFormBuild_(form, readUnits_(ss), readSections_(ss), {
     mode: BBRANCH_MODE.CLEAN,
-    targetHash: sync.hash,
+    targetHash: sync.formHash || sync.hash,
     preservePublishedHash: options.preservePublishedHash === true
   });
 
@@ -58,7 +58,8 @@ function startMainFormBranching_(options) {
 function refreshMainFormRotationOptionChoices_(form, dashboard) {
   return initializeMultiRotationFormBuild_(form, readUnits_(dashboard), readSections_(dashboard), {
     mode: BBRANCH_MODE.LIVE,
-    targetHash: getBootstrapProperty_(BSPROP.REFERENCE_DATA_HASH, '')
+    targetHash: getBootstrapProperty_(BSPROP.REFERENCE_FORM_HASH, '') ||
+      getBootstrapProperty_(BSPROP.REFERENCE_DATA_HASH, '')
   });
 }
 

@@ -1,47 +1,69 @@
-/** Conflict checking: same rotation unit + rotation section + overlapping date range + already accepted/active. */
+/** Conflict checking: one employee cannot hold overlapping accepted rotations. */
 function findConflicts(criteria, records) {
-  records = records || getRecords_();
-  var rotationKey = normalizeKey_(criteria.rotationUnit);
-  var sectionKey = normalizeKey_(criteria.section);
-  var section = findSectionByUnitAndName_(criteria.rotationUnit, criteria.section);
-  var capacity = section ? section.capacity : 1;
-  var overlappingRecords = records.filter(function(record) {
+  criteria = criteria || {};
+  var employeeIdKey = normalizeKey_(criteria.employeeId);
+  var employeeNameKey = normalizeKey_(criteria.employeeName);
+  if (!employeeIdKey && !employeeNameKey) return null;
+
+  var candidates = records || getEmployeeConflictCandidateRecords_(
+    criteria.employeeId,
+    criteria.employeeName,
+    1000
+  );
+  var matches = candidates.filter(function(record) {
     if (safeString_(record[H.RECORD.REQUEST_ID]) === safeString_(criteria.excludeRequestId)) return false;
-    if (!isRecordActiveOrApproved_(record)) return false;
-    if (normalizeKey_(record[H.RECORD.ROTATION_UNIT]) !== rotationKey) return false;
-    if (normalizeKey_(record[H.RECORD.SECTION]) !== sectionKey) return false;
+    if (!isRecordBlockingEmployeeSchedule_(record)) return false;
+    if (employeeIdKey) {
+      if (normalizeKey_(record[H.RECORD.EMPLOYEE_ID]) !== employeeIdKey) return false;
+    } else if (normalizeKey_(record[H.RECORD.EMPLOYEE_NAME]) !== employeeNameKey) {
+      return false;
+    }
     return isDateRangeOverlap_(criteria.startDate, criteria.endDate, record[H.RECORD.START_DATE], record[H.RECORD.END_DATE]);
   });
-  return findCapacityConflictForDates_(criteria.startDate, criteria.endDate, overlappingRecords, capacity);
-}
-
-function findCapacityConflictForDates_(startDate, endDate, overlappingRecords, capacity) {
-  var start = dateOnly_(startDate);
-  var end = dateOnly_(endDate);
-  if (!start || !end) return null;
-
-  for (var day = new Date(start.getTime()); day.getTime() <= end.getTime(); day.setDate(day.getDate() + 1)) {
-    var recordsOnDay = overlappingRecords.filter(function(record) {
-      return isDateRangeOverlap_(day, day, record[H.RECORD.START_DATE], record[H.RECORD.END_DATE]);
-    });
-    if (recordsOnDay.length >= capacity) return recordsOnDay[0];
-  }
-  return null;
-}
-
-function findActiveRotationByEmployee_(employeeId, employeeName, excludeRequestId, records) {
-  var employeeIdKey = normalizeKey_(employeeId);
-  var nameKey = normalizeKey_(employeeName);
-  if (!employeeIdKey && !nameKey) return null;
-
-  var matches = (records || getRecords_()).filter(function(record) {
-    if (safeString_(record[H.RECORD.REQUEST_ID]) === safeString_(excludeRequestId)) return false;
-    if (!isRecordActiveOrApproved_(record)) return false;
-    if (!isTodayWithinRange_(record[H.RECORD.START_DATE], record[H.RECORD.END_DATE])) return false;
-    if (employeeIdKey) return normalizeKey_(record[H.RECORD.EMPLOYEE_ID]) === employeeIdKey;
-    return normalizeKey_(record[H.RECORD.EMPLOYEE_NAME]) === nameKey;
-  });
   return matches.length ? matches[0] : null;
+}
+
+function isRecordBlockingEmployeeSchedule_(record) {
+  if (safeString_(record[H.RECORD.HEAD_STATUS]) !== STATUS.HEAD_ACCEPTED) return false;
+  return [
+    STATUS.FINAL_PENDING,
+    STATUS.FINAL_APPROVED,
+    STATUS.FINAL_IN_PROGRESS,
+    STATUS.FINAL_DONE
+  ].indexOf(safeString_(record[H.RECORD.FINAL_STATUS])) !== -1;
+}
+
+function getEmployeeConflictCandidateRecords_(employeeId, employeeName, maxResults) {
+  var sheet = getSheet_(SHEETS.RECORDS);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  if (safeString_(employeeId)) {
+    return findObjectsByValue_(
+      sheet,
+      H.RECORD.EMPLOYEE_ID,
+      employeeId,
+      maxResults || 1000
+    );
+  }
+  if (safeString_(employeeName)) {
+    return findObjectsByValue_(
+      sheet,
+      H.RECORD.EMPLOYEE_NAME,
+      employeeName,
+      maxResults || 1000
+    );
+  }
+  return [];
+}
+
+function findActiveRotationByEmployee_(employeeId, employeeName, excludeRequestId, records, startDate, endDate) {
+  var today = dateOnly_(now_());
+  return findConflicts({
+    employeeId: employeeId,
+    employeeName: employeeName,
+    startDate: startDate || today,
+    endDate: endDate || today,
+    excludeRequestId: excludeRequestId
+  }, records);
 }
 
 function formatConflictDetails_(conflict) {

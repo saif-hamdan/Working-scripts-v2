@@ -59,6 +59,12 @@ Run these functions from Apps Script in order:
 8. Run `run06_continueMainFormBranching()` three times until it reports `Complete`. Each execution saves one selection-page checkpoint and stays below the Apps Script execution-time limit.
 9. `run07_setupEvaluationForm()`
 10. `run08_buildDashboardSummaryAndCharts()`
+
+For an existing deployment receiving the section-head email enhancement, run
+`run18_updateSectionHeadEmailSchema()` once after pushing the code. This adds
+`بريد رئيس القسم` to `إدارة الأقسام`, fills blank values with
+`M.ALAAMRI1@squ.edu.om`, and synchronizes the hidden reference sheet without
+opening or modifying either Google Form.
 11. `run09_applyProtections()`
 12. `run10_finalizeSetupSummary()`
 13. Run `run13_verifyProductionCompatibility()` repeatedly until it reports `Complete`. This verifies the current production setup functions in smaller chunks after the bootstrap IDs have been written into the project settings sheet.

@@ -20,6 +20,7 @@ function onOpen() {
       .addItem('13 - Verify production compatibility', 'run13_verifyProductionCompatibility')
       .addItem('14 - Repair existing resources from latest script', 'run14_repairExistingResourcesFromLatestScript')
       .addItem('17 - Repair main form branching once', 'run17_repairMainFormBranching')
+      .addItem('18 - Add section-head emails without form changes', 'run18_updateSectionHeadEmailSchema')
       .addSeparator()
       .addItem('11 - Refresh main form from admin sheets', 'run11_refreshMainFormFromAdminSheets')
       .addItem('12 - Use syncSystem for form refresh', 'run12_createFiveMinuteFormRefreshTrigger')
@@ -251,6 +252,9 @@ function syncSystem() {
     var queueChanged = hasSyncQueueChanges_(responseQueueStats, approvalActionQueueStats, emailQueueStats);
     var approvalRecordsChanged = toNumber_(approvalActionQueueStats && approvalActionQueueStats.processed, 0) > 0;
     var referenceChanged = Boolean(referenceSyncStats && referenceSyncStats.changed);
+    var formChoicesChanged = Boolean(
+      referenceSyncStats && referenceSyncStats.formChoicesChanged
+    );
     var dashboardRefreshDue = shouldRunScheduledDashboardRefresh_(nowMs);
     // Newly created response records update only their affected dashboard rows.
     // A full records scan remains scheduled, and is also used after approvals or
@@ -259,7 +263,7 @@ function syncSystem() {
     // Form choices now depend only on unit/section reference data. Request and
     // approval status changes do not require rebuilding the Google Form.
     var stagedBranchingInProgress = typeof mainFormBranchingInProgress_ === 'function' && mainFormBranchingInProgress_();
-    var needsFormRefresh = referenceChanged ||
+    var needsFormRefresh = formChoicesChanged ||
       (typeof mainFormNeedsRefresh_ === 'function' && mainFormNeedsRefresh_());
 
     if (needsDashboardRefresh || needsFormRefresh) {
@@ -272,8 +276,8 @@ function syncSystem() {
       }
       if (shouldStopSync_(startedAt)) return;
       if (needsFormRefresh) {
-        refreshFormChoicesFromSync_(startedAt, referenceChanged);
-        logInfo_('syncSystem', '', 'Change-driven form refresh checked; reason: ' + (referenceChanged ? 'reference data changes' : (stagedBranchingInProgress ? 'staged branching progress' : 'queued reference edit')) + '.');
+        refreshFormChoicesFromSync_(startedAt, formChoicesChanged);
+        logInfo_('syncSystem', '', 'Change-driven form refresh checked; reason: ' + (formChoicesChanged ? 'unit/section choice changes' : (stagedBranchingInProgress ? 'staged branching progress' : 'queued reference edit')) + '.');
       }
     } else {
       logInfo_('syncSystem', '', 'Refresh phases skipped: no queue/reference changes and scheduled intervals have not elapsed.');

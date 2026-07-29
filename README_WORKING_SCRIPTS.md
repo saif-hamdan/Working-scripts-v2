@@ -192,8 +192,8 @@ When diagnosing any stuck row, capture the row number, queue status, retry/attem
 
 ### `إدارة الأقسام`
 
-| معرف القسم | معرف الوحدة | اسم الوحدة | اسم القسم | نشط | السعة |
-|---|---|---|---|---|---|
-| المكتبة الرئيسية-الاعارة | المكتبة الرئيسية | المكتبة الرئيسية | الاعارة | نعم | 1 |
+| معرف القسم | معرف الوحدة | اسم الوحدة | اسم القسم | نشط | السعة | بريد رئيس القسم |
+|---|---|---|---|---|---|---|
+| المكتبة الرئيسية-الاعارة | المكتبة الرئيسية | المكتبة الرئيسية | الاعارة | نعم | 1 | M.ALAAMRI1@squ.edu.om |
 
-The system uses capacity 1 by default, matching the requirement that a section cannot have another trainee at the same time.
+Section capacity is retained for reporting compatibility but does not block another employee from rotating in the same section at the same time. The system blocks overlapping accepted rotations only for the same employee.

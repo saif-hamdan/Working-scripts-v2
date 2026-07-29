@@ -248,7 +248,7 @@ function buildApprovedNotificationPayload_(record) {
   return {
     to: uniqueNonEmpty_([record[H.RECORD.DIRECT_MANAGER_EMAIL], record[H.RECORD.EMPLOYEE_EMAIL]]).join(','),
     cc: uniqueNonEmpty_([record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL], record[H.RECORD.APPROVER_EMAIL]]).join(','),
-    subject: 'طلب تدوير معرفي / Knowledge Rotation Request - موافقة رئيس الوحدة بانتظار الاعتماد النهائي / Unit Head Approved Pending Final Approval - ' + record[H.RECORD.REQUEST_ID],
+    subject: 'طلب التدوير المعرفي / Knowledge Rotation Request - موافقة رئيس الوحدة بانتظار الاعتماد النهائي / Unit Head Approved Pending Final Approval - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   };
 }
@@ -283,15 +283,25 @@ function queueRejectedNotification(record) {
 function buildFinalApprovedNotificationPayload_(record) {
   var data = buildTemplateData_(record, {});
   var html = renderTemplate_('Emails_FinalApproved', data);
+  var sectionHeadEmail = getRotationSectionHeadEmail_(record);
   return {
     to: uniqueNonEmpty_([
       record[H.RECORD.EMPLOYEE_EMAIL],
       record[H.RECORD.DIRECT_MANAGER_EMAIL],
       record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]
     ]).join(','),
+    cc: uniqueNonEmpty_([sectionHeadEmail]).join(','),
     subject: 'تم الاعتماد النهائي لطلب التدوير المعرفي / Knowledge Rotation Request Finally Approved - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   };
+}
+
+function getRotationSectionHeadEmail_(record) {
+  var section = findSectionByUnitAndName_(
+    record[H.RECORD.ROTATION_UNIT],
+    record[H.RECORD.SECTION]
+  );
+  return safeString_(section && section.headEmail) || DEFAULT_SECTION_HEAD_EMAIL;
 }
 
 function sendFinalApprovedNotification(record) {
@@ -324,7 +334,6 @@ function sendActiveEmployeeRejectedNotification(record, activeRotation) {
   var html = renderTemplate_('Emails_ActiveEmployeeRejected', data);
   return sendEmailSafe_({
     to: uniqueNonEmpty_([record[H.RECORD.EMPLOYEE_EMAIL], record[H.RECORD.DIRECT_MANAGER_EMAIL]]).join(','),
-    cc: uniqueNonEmpty_([record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]]).join(','),
     subject: 'تم رفض طلب التدوير المعرفي / Knowledge Rotation Request Rejected - تدوير معرفي نشط / active knowledge rotation - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   }, { kind: 'active_employee_rejected', requestId: record[H.RECORD.REQUEST_ID] });
@@ -338,8 +347,12 @@ function buildConflictNotificationPayload_(record, conflict, source) {
   });
   var html = renderTemplate_('Emails_Conflict', data);
   return {
-    to: uniqueNonEmpty_([record[H.RECORD.APPROVER_EMAIL], record[H.RECORD.EMPLOYEE_EMAIL], record[H.RECORD.DIRECT_MANAGER_EMAIL], record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]]).join(','),
-    subject: 'طلب تدوير معرفي / Knowledge Rotation Request - تعارض / Conflict - ' + record[H.RECORD.REQUEST_ID],
+    to: uniqueNonEmpty_([
+      record[H.RECORD.DIRECT_MANAGER_EMAIL],
+      record[H.RECORD.EMPLOYEE_EMAIL]
+    ]).join(','),
+    cc: '',
+    subject: 'طلب التدوير المعرفي / Knowledge Rotation Request - تعارض / Conflict - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   };
 }

@@ -117,16 +117,20 @@ function processQueuedApproveGroupAction_(token) {
     return;
   }
 
-  // Load the record table once, then reuse it for every conflict check in this
-  // bounded group. This avoids repeating a full sheet read for each rotation.
-  var conflictCandidates = getRecords_();
+  // All rotations in one submission belong to the same employee. Load only
+  // that employee's rows once, then reuse them for the bounded group.
+  var conflictCandidates = getEmployeeConflictCandidateRecords_(
+    pendingRecords[0][H.RECORD.EMPLOYEE_ID],
+    pendingRecords[0][H.RECORD.EMPLOYEE_NAME],
+    1000
+  );
   var outcomes = pendingRecords.map(function(record) {
     var requestId = safeString_(record[H.RECORD.REQUEST_ID]);
     return {
       record: record,
       conflict: findConflicts({
-        rotationUnit: record[H.RECORD.ROTATION_UNIT],
-        section: record[H.RECORD.SECTION],
+        employeeId: record[H.RECORD.EMPLOYEE_ID],
+        employeeName: record[H.RECORD.EMPLOYEE_NAME],
         startDate: record[H.RECORD.START_DATE],
         endDate: record[H.RECORD.END_DATE],
         excludeRequestId: requestId
@@ -206,8 +210,8 @@ function processQueuedApproveAction_(token) {
     }
 
     var conflict = findConflicts({
-      rotationUnit: record[H.RECORD.ROTATION_UNIT],
-      section: record[H.RECORD.SECTION],
+      employeeId: record[H.RECORD.EMPLOYEE_ID],
+      employeeName: record[H.RECORD.EMPLOYEE_NAME],
       startDate: record[H.RECORD.START_DATE],
       endDate: record[H.RECORD.END_DATE],
       excludeRequestId: requestId
@@ -487,31 +491,10 @@ function getValidatedWebAppUrlStatus_() {
     };
   }
 
-  var activeUrl = '';
-  try {
-    activeUrl = safeString_(ScriptApp.getService().getUrl());
-  } catch (err) {
-    return {
-      ok: false,
-      message: 'Unable to read the active Web App deployment URL. Redeploy the Apps Script as a Web App, then update WEB_APP_URL.'
-    };
-  }
-
-  if (!activeUrl) {
-    return {
-      ok: false,
-      message: 'No active Web App deployment URL was found. Deploy the Apps Script as a Web App, then update WEB_APP_URL.'
-    };
-  }
-
-  if (normalizeWebAppUrl_(configuredUrl) !== normalizeWebAppUrl_(activeUrl)) {
-    return {
-      ok: false,
-      message: 'WEB_APP_URL does not match the active Web App deployment URL. Update WEB_APP_URL after the latest deployment before using rejection links.'
-    };
-  }
-
-  return { ok: true, url: configuredUrl };
+  // The configured production /exec URL is authoritative. Comparing it with a
+  // runtime-detected deployment creates false failures when a project has more
+  // than one valid deployment or Google reports an older deployment.
+  return { ok: true, url: normalizeWebAppUrl_(configuredUrl) };
 }
 
 function normalizeWebAppUrl_(url) {
