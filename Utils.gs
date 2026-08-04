@@ -16,6 +16,58 @@ function splitCsv_(value) {
     .filter(function(part) { return part !== ''; });
 }
 
+function isValidEmailAddress_(value) {
+  var email = safeString_(value);
+  return Boolean(email) && /^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/.test(email);
+}
+
+function parseEmailList_(value) {
+  var raw = value === null || value === undefined ? '' : String(value);
+  var isBlank = safeString_(raw) === '';
+  var parts = isBlank ? [] : raw.split(',');
+  var emails = [];
+  var invalidEmails = [];
+  var emptyEntryPositions = [];
+  var seen = {};
+
+  parts.forEach(function(part, index) {
+    var email = safeString_(part);
+    if (!email) {
+      emptyEntryPositions.push(index + 1);
+      return;
+    }
+    if (!isValidEmailAddress_(email)) {
+      invalidEmails.push(email);
+      return;
+    }
+    var key = normalizeEmail_(email);
+    if (seen[key]) return;
+    seen[key] = true;
+    emails.push(email);
+  });
+
+  return {
+    raw: raw,
+    emails: emails,
+    validEmails: emails,
+    invalidEmails: invalidEmails,
+    emptyEntryPositions: emptyEntryPositions,
+    hasEmptyEntries: emptyEntryPositions.length > 0,
+    isBlank: isBlank,
+    isValid: !isBlank && !invalidEmails.length && !emptyEntryPositions.length && emails.length > 0,
+    normalized: emails.join(',')
+  };
+}
+
+function validateEmailList_(value) {
+  return parseEmailList_(value);
+}
+
+function normalizeEmailListForStorage_(value) {
+  var validation = validateEmailList_(value);
+  return validation.isValid ? validation.normalized : safeString_(value);
+}
+
 function uniqueNonEmpty_(values) {
   var seen = {};
   var out = [];

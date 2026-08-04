@@ -147,7 +147,7 @@ function readSections_(ss, options) {
       name: String(row[3] || '').trim(),
       active: isActiveValue_(row[4]),
       capacity: Number(row[5] || 1) || 1,
-      headEmail: String(row[6] || DEFAULT_SECTION_HEAD_EMAIL).trim()
+      headEmail: normalizeEmailListForStorage_(row[6])
     };
   });
 }
@@ -232,7 +232,6 @@ function ensureAdminReferenceSheets_(ss) {
 
   copySystemReferenceToAdminIfNeeded_(adminUnits, systemUnits, BH.UNITS.length);
   copySystemReferenceToAdminIfNeeded_(adminSections, systemSections, BH.SECTIONS.length);
-  ensureDefaultSectionHeadEmails_(adminSections);
   applyReferenceAdminFormatting_(ss);
 }
 
@@ -374,6 +373,7 @@ function cascadeInactiveUnitSections_(sectionRows, unitRows) {
     var hasUnit = (unitId && unitById[unitId]) || (unitName && unitByName[unitName]);
     var hasActiveUnit = (unitId && activeUnitById[unitId]) || (unitName && activeUnitByName[unitName]);
     if (hasUnit && !hasActiveUnit) copy[4] = 'لا';
+    copy[6] = normalizeEmailListForStorage_(copy[6]);
     return copy;
   });
 }
@@ -611,7 +611,7 @@ function saveValidationIssues_(issues) {
 }
 
 function validEmail_(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+  return isValidEmailAddress_(email);
 }
 
 function removeSetupProtections_(sheet) {

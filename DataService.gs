@@ -28,7 +28,7 @@ function getSections_() {
         unitName: safeString_(row[H.SECTION.UNIT_NAME]),
         name: safeString_(row[H.SECTION.SECTION_NAME]),
         capacity: Math.max(1, toNumber_(row[H.SECTION.CAPACITY], 1)),
-        headEmail: safeString_(row[H.SECTION.HEAD_EMAIL]) || DEFAULT_SECTION_HEAD_EMAIL
+        headEmail: normalizeEmailListForStorage_(row[H.SECTION.HEAD_EMAIL])
       };
     })
     .filter(function(section) { return section.unitName && section.name; });
@@ -60,8 +60,6 @@ function syncReferenceDataFromAdminSheets_(options) {
   if (adminSections.getLastRow() < 2 && runtimeSections.getLastRow() >= 2) {
     clearAndWriteObjects_(adminSections, SECTION_HEADERS, getDataObjects_(runtimeSections));
   }
-  ensureDefaultSectionHeadEmails_(adminSections);
-
   var units = normalizeAdminUnitRows_(getDataObjects_(adminUnits));
   var sections = normalizeAdminSectionRows_(getDataObjects_(adminSections), units);
   var props = PropertiesService.getScriptProperties();
@@ -200,8 +198,7 @@ function normalizeAdminSectionRows_(rows, units) {
     section[H.SECTION.SECTION_NAME] = safeString_(row[H.SECTION.SECTION_NAME]);
     section[H.SECTION.ACTIVE] = hasUnit && !hasActiveUnit ? STATUS.NO : (safeString_(row[H.SECTION.ACTIVE]) || STATUS.YES);
     section[H.SECTION.CAPACITY] = Math.max(1, toNumber_(row[H.SECTION.CAPACITY], 1));
-    section[H.SECTION.HEAD_EMAIL] = safeString_(row[H.SECTION.HEAD_EMAIL]) ||
-      DEFAULT_SECTION_HEAD_EMAIL;
+    section[H.SECTION.HEAD_EMAIL] = normalizeEmailListForStorage_(row[H.SECTION.HEAD_EMAIL]);
     return section;
   }).filter(function(section) {
     return safeString_(section[H.SECTION.UNIT_NAME]) && safeString_(section[H.SECTION.SECTION_NAME]);

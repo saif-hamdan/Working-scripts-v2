@@ -172,6 +172,40 @@ function confirmFinalStatusChange(rowNumber, targetStatus) {
   }
 }
 
+function buildFinalApprovalSectionHeadEmailValidationMessage_(validation) {
+  var unitName = safeString_(validation && validation.unitName);
+  var sectionName = safeString_(validation && validation.sectionName);
+  if (validation && validation.reason === 'SECTION_NOT_FOUND') {
+    return 'تعذر الاعتماد النهائي لأن مرجع وحدة التدوير «' + unitName + '» وقسم التدوير «' + sectionName + '» غير موجود في ورقة «إدارة الأقسام». يرجى تصحيح بيانات القسم ثم إعادة المحاولة. / ' +
+      'Final approval could not be completed because the rotation unit/section reference could not be found for section "' + sectionName + '" in unit "' + unitName + '". Correct the section reference in the «إدارة الأقسام» sheet and try again.';
+  }
+  if (validation && validation.isBlank) {
+    return 'تعذر الاعتماد النهائي لأن بريد رئيس القسم مفقود للقسم «' + sectionName + '» في وحدة «' + unitName + '». يرجى تعبئة حقل «بريد رئيس القسم» في ورقة «إدارة الأقسام» ثم إعادة المحاولة. / ' +
+      'Final approval could not be completed because the section-head email is missing for section "' + sectionName + '" in unit "' + unitName + '". Complete «بريد رئيس القسم» in the «إدارة الأقسام» sheet and try again.';
+  }
+
+  var message = 'تعذر الاعتماد النهائي لأن بريد رئيس القسم غير صحيح للقسم «' + sectionName + '» في وحدة «' + unitName + '». يرجى تصحيح حقل «بريد رئيس القسم» في ورقة «إدارة الأقسام»، واستخدام الفاصلة الإنجليزية (,) بين عناوين البريد، ثم إعادة المحاولة. / ' +
+    'Final approval could not be completed because the section-head email is invalid for section "' + sectionName + '" in unit "' + unitName + '". Correct «بريد رئيس القسم» in the «إدارة الأقسام» sheet, using an English comma (,) between addresses, and try again.';
+  if (validation && validation.invalidEmails && validation.invalidEmails.length) {
+    message += '\nالعناوين غير الصحيحة: ' + validation.invalidEmails.join(', ') + ' / Invalid addresses: ' + validation.invalidEmails.join(', ');
+  }
+  if (validation && validation.hasEmptyEntries) {
+    message += '\nتحتوي قائمة البريد على خانة فارغة. / The email list contains an empty entry.';
+  }
+  return message;
+}
+
+function describeFinalApprovalSectionHeadEmailValidation_(validation) {
+  return JSON.stringify({
+    reason: validation && validation.reason,
+    unitName: validation && validation.unitName,
+    sectionName: validation && validation.sectionName,
+    raw: validation && validation.raw,
+    invalidEmails: validation && validation.invalidEmails,
+    emptyEntryPositions: validation && validation.emptyEntryPositions
+  });
+}
+
 function applyFinalStatusChange_(rowNumber, targetStatus, userEmail, logAction, currentFinalStatusOverride) {
   var ss = SpreadsheetApp.getActiveSpreadsheet() || openDashboardSpreadsheet_();
   var sheet = ss.getSheetByName(SHEETS.RECORDS) || getOrCreateSheet_(SHEETS.RECORDS);
@@ -193,9 +227,26 @@ function applyFinalStatusChange_(rowNumber, targetStatus, userEmail, logAction, 
     return { success: false, message: 'الحالة النهائية مطابقة للإجراء المطلوب بالفعل. / Final status already matches the requested action.' };
   }
 
+  var validatedSectionHeadEmails = null;
+  if (targetStatus === STATUS.FINAL_APPROVED) {
+    var sectionHeadEmailValidation = getRotationSectionHeadEmailValidation_(record);
+    if (!sectionHeadEmailValidation.isValid) {
+      logError_(
+        logAction + ':sectionHeadEmailValidation',
+        requestId,
+        new Error(describeFinalApprovalSectionHeadEmailValidation_(sectionHeadEmailValidation))
+      );
+      return {
+        success: false,
+        message: buildFinalApprovalSectionHeadEmailValidationMessage_(sectionHeadEmailValidation)
+      };
+    }
+    validatedSectionHeadEmails = sectionHeadEmailValidation.emails;
+  }
+
   record[H.RECORD.FINAL_STATUS] = targetStatus;
   var sent = targetStatus === STATUS.FINAL_APPROVED
-    ? sendFinalApprovedNotification(record)
+    ? sendFinalApprovedNotification(record, validatedSectionHeadEmails)
     : sendFinalRejectedNotification(record);
   if (sent !== true) {
     logInfo_(

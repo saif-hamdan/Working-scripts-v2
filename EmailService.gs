@@ -280,32 +280,88 @@ function queueRejectedNotification(record) {
   return queueEmailForLater_(buildRejectedNotificationPayload_(record), { kind: 'rejected', requestId: record[H.RECORD.REQUEST_ID] });
 }
 
-function buildFinalApprovedNotificationPayload_(record) {
+function buildFinalApprovedNotificationPayload_(record, validatedSectionHeadEmails) {
   var data = buildTemplateData_(record, {});
   var html = renderTemplate_('Emails_FinalApproved', data);
-  var sectionHeadEmail = getRotationSectionHeadEmail_(record);
+  var sectionHeadValidation = validatedSectionHeadEmails
+    ? validateEmailList_(Array.isArray(validatedSectionHeadEmails)
+      ? validatedSectionHeadEmails.join(',')
+      : validatedSectionHeadEmails)
+    : getRotationSectionHeadEmailValidation_(record);
+  if (!sectionHeadValidation.isValid) {
+    throw new Error('Section-head email validation failed before final-approved payload construction.');
+  }
+  var toRecipients = uniqueEmailRecipients_([
+    record[H.RECORD.EMPLOYEE_EMAIL],
+    record[H.RECORD.DIRECT_MANAGER_EMAIL],
+    record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]
+  ]);
+  var toLookup = {};
+  toRecipients.forEach(function(email) { toLookup[normalizeEmail_(email)] = true; });
+  var sectionHeadEmails = sectionHeadValidation.emails.filter(function(email) {
+    return !toLookup[normalizeEmail_(email)];
+  });
   return {
-    to: uniqueNonEmpty_([
-      record[H.RECORD.EMPLOYEE_EMAIL],
-      record[H.RECORD.DIRECT_MANAGER_EMAIL],
-      record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]
-    ]).join(','),
-    cc: uniqueNonEmpty_([sectionHeadEmail]).join(','),
+    to: toRecipients.join(','),
+    cc: sectionHeadEmails.join(','),
     subject: 'تم الاعتماد النهائي لطلب التدوير المعرفي / Knowledge Rotation Request Finally Approved - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   };
 }
 
-function getRotationSectionHeadEmail_(record) {
-  var section = findSectionByUnitAndName_(
-    record[H.RECORD.ROTATION_UNIT],
-    record[H.RECORD.SECTION]
-  );
-  return safeString_(section && section.headEmail) || DEFAULT_SECTION_HEAD_EMAIL;
+function getRotationSectionHeadEmailValidation_(record) {
+  var unitName = safeString_(record && record[H.RECORD.ROTATION_UNIT]);
+  var sectionName = safeString_(record && record[H.RECORD.SECTION]);
+  var section = findSectionByUnitAndName_(unitName, sectionName);
+  if (!section) {
+    return {
+      isValid: false,
+      reason: 'SECTION_NOT_FOUND',
+      unitName: unitName,
+      sectionName: sectionName,
+      raw: '',
+      emails: [],
+      validEmails: [],
+      invalidEmails: [],
+      emptyEntryPositions: [],
+      hasEmptyEntries: false,
+      isBlank: true,
+      normalized: ''
+    };
+  }
+
+  var validation = validateEmailList_(section.headEmail);
+  validation.reason = validation.isBlank
+    ? 'EMAIL_MISSING'
+    : (validation.isValid ? '' : 'EMAIL_INVALID');
+  validation.unitName = unitName;
+  validation.sectionName = sectionName;
+  return validation;
 }
 
-function sendFinalApprovedNotification(record) {
-  return sendEmailSafe_(buildFinalApprovedNotificationPayload_(record), { kind: 'final_approved', requestId: record[H.RECORD.REQUEST_ID] }) === true;
+function getRotationSectionHeadEmail_(record) {
+  var validation = getRotationSectionHeadEmailValidation_(record);
+  return validation.isValid ? validation.normalized : '';
+}
+
+function sendFinalApprovedNotification(record, validatedSectionHeadEmails) {
+  var validation = validatedSectionHeadEmails
+    ? validateEmailList_(Array.isArray(validatedSectionHeadEmails)
+      ? validatedSectionHeadEmails.join(',')
+      : validatedSectionHeadEmails)
+    : getRotationSectionHeadEmailValidation_(record);
+  if (!validation.isValid) {
+    logError_(
+      'sendFinalApprovedNotification:sectionHeadEmailValidation',
+      record && record[H.RECORD.REQUEST_ID],
+      new Error('Final-approved email blocked because the section-head email list is invalid.')
+    );
+    return false;
+  }
+  return sendEmailSafe_(
+    buildFinalApprovedNotificationPayload_(record, validation.emails),
+    { kind: 'final_approved', requestId: record[H.RECORD.REQUEST_ID] }
+  ) === true;
 }
 
 function buildFinalRejectedNotificationPayload_(record) {

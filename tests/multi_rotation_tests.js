@@ -1213,7 +1213,7 @@ test('legacy group actions stay bounded while dashboard final approval remains p
   assert.doesNotMatch(dashboardValidationSource, /REQUEST_GROUP_ID/);
 });
 
-test('section-head email defaults and email-only edits do not change the form-choice hash', () => {
+test('section-head email values stay explicit and email-only edits do not change the form-choice hash', () => {
   const unit = {};
   unit[H.UNIT.UNIT_ID] = 'UNIT-A';
   unit[H.UNIT.UNIT_NAME] = 'Unit A';
@@ -1232,10 +1232,7 @@ test('section-head email defaults and email-only edits do not change the form-ch
   context.referenceUnits = [unit];
   context.referenceSections = [section];
   const normalized = run('normalizeAdminSectionRows_(referenceSections, referenceUnits)[0]');
-  assert.strictEqual(
-    normalized[H.SECTION.HEAD_EMAIL],
-    'M.ALAAMRI1@squ.edu.om'
-  );
+  assert.strictEqual(normalized[H.SECTION.HEAD_EMAIL], '');
 
   context.normalizedReferenceSections = [normalized];
   const originalHash = run(

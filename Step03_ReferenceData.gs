@@ -52,7 +52,7 @@ function validateReferenceData_(ss) {
   activeUnits.forEach(function(unit) {
     unitNameCounts[unit.name] = (unitNameCounts[unit.name] || 0) + 1;
     if (!unit.headEmail) issues.push(issue_('ERROR', BS.UNITS, 'Missing unit head email.', unit.name));
-    if (unit.headEmail && !validEmail_(unit.headEmail)) issues.push(issue_('ERROR', BS.UNITS, 'Invalid unit head email.', unit.name + ': ' + unit.headEmail));
+    if (unit.headEmail && !isValidEmailAddress_(unit.headEmail)) issues.push(issue_('ERROR', BS.UNITS, 'Invalid unit head email.', unit.name + ': ' + unit.headEmail));
     if (!unit.headName) issues.push(issue_('WARN', BS.UNITS, 'Missing unit head name.', unit.name));
   });
 
@@ -76,9 +76,18 @@ function validateReferenceData_(ss) {
 
     if (!section.id) issues.push(issue_('WARN', BS.SECTIONS, 'Missing section ID.', unitKey + ' / ' + section.name));
     if (section.capacity < 1) issues.push(issue_('WARN', BS.SECTIONS, 'Section capacity is less than 1.', unitKey + ' / ' + section.name));
-    if (!section.headEmail) issues.push(issue_('ERROR', BS.SECTIONS, 'Missing section head email.', unitKey + ' / ' + section.name));
-    if (section.headEmail && !validEmail_(section.headEmail)) {
-      issues.push(issue_('ERROR', BS.SECTIONS, 'Invalid section head email.', unitKey + ' / ' + section.name + ': ' + section.headEmail));
+    var sectionHeadEmailValidation = validateEmailList_(section.headEmail);
+    if (sectionHeadEmailValidation.isBlank) {
+      issues.push(issue_('ERROR', BS.SECTIONS, 'Missing section head email.', unitKey + ' / ' + section.name));
+    } else if (!sectionHeadEmailValidation.isValid) {
+      var invalidDetails = sectionHeadEmailValidation.invalidEmails.slice();
+      if (sectionHeadEmailValidation.hasEmptyEntries) invalidDetails.push('[empty entry]');
+      issues.push(issue_(
+        'ERROR',
+        BS.SECTIONS,
+        'Invalid section head email list.',
+        unitKey + ' / ' + section.name + ': ' + invalidDetails.join(', ')
+      ));
     }
   });
 
