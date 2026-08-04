@@ -160,6 +160,10 @@ test('requested form wording and repeated labels are exact', () => {
   assert.match(FORM.TITLES.FORM_DESCRIPTION, /هذه الاستمارة/);
   assert.match(FORM.TITLES.FORM_DESCRIPTION, /knowledge rotation pathway/);
   assert.strictEqual(
+    FORM.TITLES.EMPLOYEE_NAME,
+    'اسم الموظف الثلاثي / Full Employee Name'
+  );
+  assert.strictEqual(
     run('optionTitle_(FORM.TITLES.ROTATION_SECTION_PREFIX, 1)'),
     'اختيار التدوير 1: القسم / Rotation Selection 1: Section'
   );
@@ -268,7 +272,6 @@ test('employee-ID completed hours count only approved rotations whose end date h
     record[H.RECORD.HOURS] = 2;
     record[H.RECORD.WORKING_DAYS] = 3;
     record[H.RECORD.TOTAL_HOURS] = totalHours;
-    record[H.RECORD.SUBMISSION_TOTAL_HOURS] = totalHours;
     record[H.RECORD.HEAD_STATUS] = headStatus;
     record[H.RECORD.FINAL_STATUS] = finalStatus;
     record[H.RECORD.END_DATE] = new Date(endDate);
@@ -777,7 +780,7 @@ test('one submission sends one grouped approval email to the unit head', () => {
     record[H.RECORD.HOURS] = selectionNumber + 1;
     record[H.RECORD.WORKING_DAYS] = 3;
     record[H.RECORD.TOTAL_HOURS] = (selectionNumber + 1) * 3;
-    record[H.RECORD.SUBMISSION_TOTAL_HOURS] = 27;
+    record._submissionTotalHours = 27;
     record[H.RECORD.TOKEN] = `TOKEN-${selectionNumber}`;
     record[H.RECORD.APPROVER_EMAIL] = 'head@example.com';
     record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_PENDING;
@@ -1019,7 +1022,10 @@ test('same-submission date overlaps show exact sections and dates and bypass the
     context.enforcedEmployeeCorrectionPayload.to,
     'manager@example.com,employee@example.com'
   );
-  assert.strictEqual(context.enforcedEmployeeCorrectionPayload.cc, '');
+  assert.strictEqual(
+    context.enforcedEmployeeCorrectionPayload.cc,
+    'employeeservices@squ.edu.om'
+  );
   assert.strictEqual(context.enforcedEmployeeCorrectionPayload.bcc, '');
 });
 
@@ -1326,13 +1332,63 @@ test('rejection pages trust a valid configured production URL without deployment
   );
 });
 
+test('employee-hours summary uses the Knowledge Rotation tab name and renames the development tab', () => {
+  assert.strictEqual(
+    run('SHEETS.EMPLOYEE_ROTATION_HOURS'),
+    'ملخص ساعات التدوير المعرفي'
+  );
+  assert.strictEqual(
+    run('LEGACY_EMPLOYEE_ROTATION_HOURS_SHEET_NAME'),
+    'ملخص ساعات التدوير الوظيفي للموظفين'
+  );
+  const source = fs.readFileSync(path.join(root, 'TrainingHoursService.gs'), 'utf8');
+  assert.match(source, /legacySheet\.setName\(SHEETS\.EMPLOYEE_ROTATION_HOURS\)/);
+});
+
+test('request-sheet schema removes the submission total, uses the new type, and hides internal fields', () => {
+  assert.strictEqual(STATUS.TYPE_ROTATION, 'التدوير المعرفي');
+  assert.strictEqual(run('RECORD_HEADERS.indexOf(LEGACY_SUBMISSION_TOTAL_HOURS_HEADER)'), -1);
+  assert.ok(run('INTERNAL_RECORD_HEADERS.indexOf(H.RECORD.REQUEST_GROUP_ID)') >= 0);
+  assert.ok(run('INTERNAL_RECORD_HEADERS.indexOf(H.RECORD.SELECTION_KEY)') >= 0);
+
+  const requestSource = fs.readFileSync(path.join(root, 'RequestService.gs'), 'utf8');
+  assert.doesNotMatch(requestSource, /H\.RECORD\.SUBMISSION_TOTAL_HOURS/);
+  assert.match(requestSource, /record\._submissionTotalHours = options\.submissionTotalHours/);
+
+  const templateSource = fs.readFileSync(path.join(root, 'TemplateService.gs'), 'utf8');
+  assert.match(templateSource, /findObjectsByValue_\([\s\S]*H\.RECORD\.REQUEST_GROUP_ID[\s\S]*FORM\.MAX_ROTATION_OPTIONS/);
+
+  const migrationSource = fs.readFileSync(path.join(root, 'Step19_RequestSheetAndFormLabels.gs'), 'utf8');
+  assert.match(migrationSource, /removeLegacySubmissionTotalHoursColumn_/);
+  assert.match(migrationSource, /hideInternalColumns_/);
+  assert.match(migrationSource, /updateMainFormEmployeeNameTitle_/);
+  assert.doesNotMatch(migrationSource, /rebuildMainForm|initializeMultiRotationFormBuild_|rebuildEvaluationForm/);
+});
+
 test('dates render DD/MM/YYYY and sender/final recipients remain forced', () => {
   context.outputDate = new Date('2026-04-20T00:00:00');
   assert.strictEqual(run('formatDate_(outputDate)'), '20/04/2026');
   const emailSource = fs.readFileSync(path.join(root, 'EmailService.gs'), 'utf8');
   const constantsSource = fs.readFileSync(path.join(root, 'Constants.gs'), 'utf8');
   assert.match(constantsSource, /const EMAIL_SENDER_DISPLAY_NAME = 'Employee Services'/);
-  assert.strictEqual(run('buildEmailMessage_({ to: "recipient@example.com", name: "Wrong Name" }).name'), 'Employee Services');
+  run(`
+    standardEmailMessage = buildEmailMessage_({
+      to: 'recipient@example.com',
+      cc: 'existing-copy@example.com',
+      name: 'Wrong Name'
+    });
+    directEmployeeServicesMessage = buildEmailMessage_({
+      to: 'EMPLOYEESERVICES@squ.edu.om',
+      cc: 'employeeservices@squ.edu.om,existing-copy@example.com'
+    });
+  `);
+  assert.strictEqual(context.standardEmailMessage.name, 'Employee Services');
+  assert.strictEqual(
+    context.standardEmailMessage.cc,
+    'existing-copy@example.com,employeeservices@squ.edu.om'
+  );
+  assert.strictEqual(context.directEmployeeServicesMessage.to, 'EMPLOYEESERVICES@squ.edu.om');
+  assert.strictEqual(context.directEmployeeServicesMessage.cc, 'existing-copy@example.com');
   assert.match(emailSource, /record\[H\.RECORD\.EMPLOYEE_EMAIL\][\s\S]*record\[H\.RECORD\.DIRECT_MANAGER_EMAIL\][\s\S]*record\[H\.RECORD\.CURRENT_UNIT_HEAD_EMAIL\]/);
   assert.match(emailSource, /EMAIL_SENDER_DISPLAY_NAME/);
 });

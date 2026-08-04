@@ -50,12 +50,15 @@ function setupSheets() {
 
 function ensureMainSheets_(ss) {
   setSheetHeaders_(ensureSheet_(ss, SHEETS.DASHBOARD), DASHBOARD_HEADERS);
-  setSheetHeaders_(ensureSheet_(ss, SHEETS.RECORDS), RECORD_HEADERS);
+  var recordsSheet = ensureSheet_(ss, SHEETS.RECORDS);
+  removeLegacySubmissionTotalHoursColumn_(recordsSheet);
+  setSheetHeaders_(recordsSheet, RECORD_HEADERS);
   applyCleanTableFormatting_(ss.getSheetByName(SHEETS.DASHBOARD), DASHBOARD_HEADERS.length);
-  applyCleanTableFormatting_(ss.getSheetByName(SHEETS.RECORDS), RECORD_HEADERS.length);
-  setSheetHeaders_(ensureSheet_(ss, SHEETS.EMPLOYEE_ROTATION_HOURS), EMPLOYEE_ROTATION_HOURS_HEADERS);
-  applyCleanTableFormatting_(ss.getSheetByName(SHEETS.EMPLOYEE_ROTATION_HOURS), EMPLOYEE_ROTATION_HOURS_HEADERS.length);
-  hideInternalColumns_(ss.getSheetByName(SHEETS.RECORDS));
+  applyCleanTableFormatting_(recordsSheet, RECORD_HEADERS.length);
+  var employeeHoursSheet = getEmployeeRotationHoursSheet_(ss);
+  setSheetHeaders_(employeeHoursSheet, EMPLOYEE_ROTATION_HOURS_HEADERS);
+  applyCleanTableFormatting_(employeeHoursSheet, EMPLOYEE_ROTATION_HOURS_HEADERS.length);
+  hideInternalColumns_(recordsSheet);
 }
 
 function ensureReferenceSheets_(ss) {

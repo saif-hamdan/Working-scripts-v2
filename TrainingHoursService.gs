@@ -47,9 +47,26 @@ function isEmployeeRotationHoursSummaryActiveTime_(date) {
 
 function renderEmployeeRotationHoursSummary_(rows) {
   var ss = openDashboardSpreadsheet_();
-  var sheet = ensureSheet_(ss, SHEETS.EMPLOYEE_ROTATION_HOURS);
+  var sheet = getEmployeeRotationHoursSheet_(ss);
   clearAndWriteObjects_(sheet, EMPLOYEE_ROTATION_HOURS_HEADERS, rows || []);
   applyCleanTableFormatting_(sheet, EMPLOYEE_ROTATION_HOURS_HEADERS.length);
+}
+
+/**
+ * Reuses and renames the existing summary tab so changing its managed name
+ * never creates a duplicate sheet or loses its formatting/history.
+ */
+function getEmployeeRotationHoursSheet_(ss) {
+  ss = ss || openDashboardSpreadsheet_();
+  var sheet = ss.getSheetByName(SHEETS.EMPLOYEE_ROTATION_HOURS);
+  if (sheet) return sheet;
+
+  var legacySheet = ss.getSheetByName(LEGACY_EMPLOYEE_ROTATION_HOURS_SHEET_NAME);
+  if (legacySheet) {
+    legacySheet.setName(SHEETS.EMPLOYEE_ROTATION_HOURS);
+    return legacySheet;
+  }
+  return ensureSheet_(ss, SHEETS.EMPLOYEE_ROTATION_HOURS);
 }
 
 function calculateEmployeeRotationHoursSummary_(records, referenceDate) {
@@ -176,7 +193,7 @@ function refreshEmployeeRotationHoursForRecords_(records) {
   records = records || [];
   if (!records.length) return [];
   var recordsSheet = getSheet_(SHEETS.RECORDS);
-  var summarySheet = ensureSheet_(openDashboardSpreadsheet_(), SHEETS.EMPLOYEE_ROTATION_HOURS);
+  var summarySheet = getEmployeeRotationHoursSheet_(openDashboardSpreadsheet_());
   setSheetHeaders_(summarySheet, EMPLOYEE_ROTATION_HOURS_HEADERS);
   var employeeLookup = {};
   var updatedRows = [];

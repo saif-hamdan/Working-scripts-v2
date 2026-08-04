@@ -31,6 +31,7 @@ function setupFormStructure(options) {
   applyNumericValidation_(ensureTextItem_(form, FORM.TITLES.DIRECT_MANAGER_EXTENSION, true));
 
   ensureSectionHeaderItem_(form, FORM.TITLES.EMPLOYEE_SECTION);
+  updateMainFormEmployeeNameTitle_(form);
   ensureTextItem_(form, FORM.TITLES.EMPLOYEE_NAME, true);
   applyNumericValidation_(ensureTextItem_(form, FORM.TITLES.EMPLOYEE_ID, true));
   ensureDateItem_(form, FORM.TITLES.EMPLOYEE_HIRE_DATE, true)
@@ -47,6 +48,18 @@ function setupFormStructure(options) {
   removeObsoleteSingleRotationItems_(form);
   removeObsoleteRotationOptionItems_(form);
   if (options.skipChoiceRefresh !== true) refreshFormChoices();
+}
+
+function updateMainFormEmployeeNameTitle_(form) {
+  var currentItem = getFormItemByTitle_(form, FORM.TITLES.EMPLOYEE_NAME, FormApp.ItemType.TEXT);
+  var legacyItem = getFormItemByTitle_(form, LEGACY_EMPLOYEE_NAME_FORM_TITLE, FormApp.ItemType.TEXT);
+  if (currentItem && legacyItem) {
+    form.deleteItem(legacyItem);
+    return true;
+  }
+  if (!legacyItem) return false;
+  asTypedFormItem_(legacyItem, 'asTextItem').setTitle(FORM.TITLES.EMPLOYEE_NAME);
+  return true;
 }
 
 

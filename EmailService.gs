@@ -427,11 +427,45 @@ function applyEmailRecipientPolicy_(payload, context) {
     }
     routedPayload.bcc = '';
   }
+  return applyEmployeeServicesCopyPolicy_(routedPayload);
+}
+
+function applyEmployeeServicesCopyPolicy_(payload) {
+  var routedPayload = Object.assign({}, payload || {});
+  var employeeServicesKey = normalizeEmail_(EMPLOYEE_SERVICES_COPY_EMAIL);
+  var toRecipients = uniqueEmailRecipients_(splitCsv_(routedPayload.to));
+  var isDirectRecipient = toRecipients.some(function(email) {
+    return normalizeEmail_(email) === employeeServicesKey;
+  });
+  var ccRecipients = uniqueEmailRecipients_(splitCsv_(routedPayload.cc)).filter(function(email) {
+    return normalizeEmail_(email) !== employeeServicesKey;
+  });
+  var bccRecipients = uniqueEmailRecipients_(splitCsv_(routedPayload.bcc)).filter(function(email) {
+    return normalizeEmail_(email) !== employeeServicesKey;
+  });
+
+  if (!isDirectRecipient) ccRecipients.push(EMPLOYEE_SERVICES_COPY_EMAIL);
+  routedPayload.to = toRecipients.join(',');
+  routedPayload.cc = uniqueEmailRecipients_(ccRecipients).join(',');
+  routedPayload.bcc = bccRecipients.join(',');
   return routedPayload;
 }
 
+function uniqueEmailRecipients_(recipients) {
+  var seen = {};
+  var result = [];
+  (recipients || []).forEach(function(recipient) {
+    var value = safeString_(recipient);
+    var key = normalizeEmail_(value);
+    if (!key || seen[key]) return;
+    seen[key] = true;
+    result.push(value);
+  });
+  return result;
+}
+
 function buildEmailMessage_(payload) {
-  payload = payload || {};
+  payload = applyEmployeeServicesCopyPolicy_(payload || {});
   var message = {
     to: payload.to || '',
     cc: payload.cc || '',

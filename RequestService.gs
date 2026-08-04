@@ -144,7 +144,9 @@ function createRequestRecordForRotationOption_(data, option, options) {
   record[H.RECORD.HOURS] = option.hours;
   record[H.RECORD.WORKING_DAYS] = option.workingDays;
   record[H.RECORD.TOTAL_HOURS] = option.totalHours;
-  record[H.RECORD.SUBMISSION_TOTAL_HOURS] = options.submissionTotalHours;
+  // Used by immediate emails only; underscore-prefixed properties are not
+  // persisted to سجل الطلبات.
+  record._submissionTotalHours = options.submissionTotalHours;
   record[H.RECORD.TYPE] = type;
   record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_PENDING;
   record[H.RECORD.FINAL_STATUS] = STATUS.FINAL_PENDING;

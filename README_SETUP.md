@@ -65,6 +65,12 @@ For an existing deployment receiving the section-head email enhancement, run
 `بريد رئيس القسم` to `إدارة الأقسام`, fills blank values with
 `M.ALAAMRI1@squ.edu.om`, and synchronizes the hidden reference sheet without
 opening or modifying either Google Form.
+
+For an existing development dashboard receiving the request-sheet cleanup, run
+`run19_applyRequestSheetAndFormUpdates()` once. It deletes the obsolete
+`إجمالي ساعات الطلب` column, hides internal request-control columns, and changes
+the main-form question to `اسم الموظف الثلاثي / Full Employee Name`. It does
+not rebuild form choices, branching, or the evaluation form.
 11. `run09_applyProtections()`
 12. `run10_finalizeSetupSummary()`
 13. Run `run13_verifyProductionCompatibility()` repeatedly until it reports `Complete`. This verifies the current production setup functions in smaller chunks after the bootstrap IDs have been written into the project settings sheet.

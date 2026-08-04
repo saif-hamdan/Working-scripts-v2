@@ -229,19 +229,38 @@ function applyStandardDateFormats_(sheet) {
   });
 }
 
+function removeLegacySubmissionTotalHoursColumn_(sheet) {
+  if (!sheet || sheet.getLastColumn() < 1) return false;
+  var column = getHeaderMap_(sheet)[LEGACY_SUBMISSION_TOTAL_HOURS_HEADER];
+  if (!column) return false;
+  sheet.deleteColumn(column);
+  return true;
+}
+
 function hideInternalColumns_(sheet) {
   var map = getHeaderMap_(sheet);
-  [
-    H.RECORD.TOKEN,
-    H.RECORD.APPROVER_EMAIL,
-    H.RECORD.FORM_RESPONSE_ID,
-    H.RECORD.FORM_RESPONSE_SOURCE_ID,
-    H.RECORD.LOCK_VERSION,
-    H.RECORD.EMAIL_RETRY_COUNT,
-    H.RECORD.LAST_ERROR
-  ].forEach(function(header) {
-    if (map[header]) sheet.hideColumns(map[header]);
+  var columns = INTERNAL_RECORD_HEADERS.map(function(header) {
+    return map[header] || 0;
+  }).filter(Boolean).sort(function(left, right) {
+    return left - right;
   });
+  if (!columns.length) return [];
+
+  // Hide adjacent internal columns in one call to reduce Spreadsheet service
+  // round trips on setup and schema repair.
+  var rangeStart = columns[0];
+  var previous = columns[0];
+  for (var i = 1; i <= columns.length; i++) {
+    var current = columns[i];
+    if (current === previous + 1) {
+      previous = current;
+      continue;
+    }
+    sheet.hideColumns(rangeStart, previous - rangeStart + 1);
+    rangeStart = current;
+    previous = current;
+  }
+  return columns;
 }
 
 function getRequestSourceIndex_() {

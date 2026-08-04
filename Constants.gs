@@ -9,9 +9,13 @@ const SYSTEM = Object.freeze({
 });
 
 const EMAIL_SENDER_DISPLAY_NAME = 'Employee Services';
-const SUBMISSION_REVIEW_EMAIL_TO = 'employeeservices@squ.edu.om';
+const EMPLOYEE_SERVICES_COPY_EMAIL = 'employeeservices@squ.edu.om';
+const SUBMISSION_REVIEW_EMAIL_TO = EMPLOYEE_SERVICES_COPY_EMAIL;
 const SUBMISSION_REVIEW_EMAIL_CC = 'm.alaamri1@squ.edu.om';
 const DEFAULT_SECTION_HEAD_EMAIL = 'M.ALAAMRI1@squ.edu.om';
+const LEGACY_EMPLOYEE_ROTATION_HOURS_SHEET_NAME = 'ملخص ساعات التدوير الوظيفي للموظفين';
+const LEGACY_EMPLOYEE_NAME_FORM_TITLE = 'اسم الموظف / Employee Name';
+const LEGACY_SUBMISSION_TOTAL_HOURS_HEADER = 'إجمالي ساعات الطلب';
 
 const RESPONSE_QUEUE_BATCH_SIZE = 1;
 const ACTION_QUEUE_BATCH_SIZE = 25;
@@ -55,7 +59,7 @@ const SHEETS = Object.freeze({
   EMAIL_QUEUE: 'طابور البريد',
   ACTION_QUEUE: 'طابور القرارات',
   REQUEST_SOURCE_INDEX: 'Request Source Index',
-  EMPLOYEE_ROTATION_HOURS: 'ملخص ساعات التدوير الوظيفي للموظفين'
+  EMPLOYEE_ROTATION_HOURS: 'ملخص ساعات التدوير المعرفي'
 });
 
 const H = Object.freeze({
@@ -98,7 +102,6 @@ const H = Object.freeze({
     HOURS: 'عدد الساعات اليومية المطلوبة',
     WORKING_DAYS: 'عدد أيام العمل',
     TOTAL_HOURS: 'إجمالي ساعات التدوير',
-    SUBMISSION_TOTAL_HOURS: 'إجمالي ساعات الطلب',
     TYPE: 'نوع الطلب',
     HEAD_STATUS: 'حالة موافقة رئيس الوحدة',
     FINAL_STATUS: 'حالة الاعتماد النهائي',
@@ -204,6 +207,20 @@ const ACTION_QUEUE_HEADERS = Object.freeze(Object.values(H.ACTION_QUEUE));
 const REQUEST_SOURCE_INDEX_HEADERS = Object.freeze(Object.values(H.REQUEST_SOURCE_INDEX));
 const EMPLOYEE_ROTATION_HOURS_HEADERS = Object.freeze(Object.values(H.EMPLOYEE_ROTATION_HOURS));
 
+const INTERNAL_RECORD_HEADERS = Object.freeze([
+  H.RECORD.REQUEST_GROUP_ID,
+  H.RECORD.SELECTION_KEY,
+  H.RECORD.CONFLICT_ID,
+  H.RECORD.CONFLICT_DETAILS,
+  H.RECORD.TOKEN,
+  H.RECORD.APPROVER_EMAIL,
+  H.RECORD.FORM_RESPONSE_ID,
+  H.RECORD.LOCK_VERSION,
+  H.RECORD.EMAIL_RETRY_COUNT,
+  H.RECORD.LAST_ERROR,
+  H.RECORD.FORM_RESPONSE_SOURCE_ID
+]);
+
 const EMPLOYEE_ROTATION_HOURS_CONFIG = Object.freeze({
   TIMEZONE: SYSTEM.TIME_ZONE,
   TRIGGER_EVERY_MINUTES: 10,
@@ -218,7 +235,7 @@ const STATUS = Object.freeze({
   OCCUPIED: 'مشغول',
   TYPE_INTERNAL: 'داخلي',
   TYPE_EXTERNAL: 'خارجي',
-  TYPE_ROTATION: 'تدوير وظيفي',
+  TYPE_ROTATION: 'التدوير المعرفي',
   HEAD_PENDING: 'بانتظار موافقة رئيس الوحدة',
   HEAD_ACCEPTED: 'موافق عليه من رئيس الوحدة',
   HEAD_REJECTED: 'مرفوض من رئيس الوحدة',
@@ -315,7 +332,7 @@ const FORM = Object.freeze({
     DIRECT_MANAGER_EMAIL: 'بريد الالكتروني المسؤول المباشر / Line Manager Email',
     DIRECT_MANAGER_EXTENSION: 'رقم محول المسؤول المباشر / Line Manager Extension',
     EMPLOYEE_SECTION: 'بيانات الموظف / Employee Details',
-    EMPLOYEE_NAME: 'اسم الموظف / Employee Name',
+    EMPLOYEE_NAME: 'اسم الموظف الثلاثي / Full Employee Name',
     EMPLOYEE_ID: 'رقم وظيفي الموظف / Employee ID',
     EMPLOYEE_HIRE_DATE: 'تاريخ تعيين الموظف / Employee Hire Date',
     EMPLOYEE_JOB_TITLE: 'المسمى الوظيفي للموظف / Employee Job Title',
@@ -382,7 +399,7 @@ const FORM_RESPONSE_TITLE_CANDIDATES = Object.freeze({
   DIRECT_MANAGER_ID: Object.freeze([FORM.TITLES.DIRECT_MANAGER_ID, 'الرقم الوظيفي للمسؤول المباشر', 'رقم وظيفي المسؤول المباشر', 'رقم وظيفي المسؤول المباشر / Line Manager Employee ID', 'رقم وظيفي المدير المباشر', 'رقم وظيفي المدير المباشر / Direct Manager Employee ID', 'Line Manager Employee ID', 'Direct Manager Employee ID']),
   DIRECT_MANAGER_EMAIL: Object.freeze([FORM.TITLES.DIRECT_MANAGER_EMAIL, 'بريد المسؤول المباشر', 'بريد المدير المباشر / Direct Manager Email', 'بريد المدير المباشر']),
   DIRECT_MANAGER_EXTENSION: Object.freeze([FORM.TITLES.DIRECT_MANAGER_EXTENSION, 'رقم محول المسؤول المباشر', 'محول المسؤول المباشر', 'رقم محول المسؤول المباشر / Line Manager Extension', 'رقم محول المدير المباشر', 'رقم محول المدير المباشر / Direct Manager Extension', 'Line Manager Extension', 'Direct Manager Extension']),
-  EMPLOYEE_NAME: Object.freeze([FORM.TITLES.EMPLOYEE_NAME, 'اسم الموظف']),
+  EMPLOYEE_NAME: Object.freeze([FORM.TITLES.EMPLOYEE_NAME, LEGACY_EMPLOYEE_NAME_FORM_TITLE, 'اسم الموظف']),
   EMPLOYEE_ID: Object.freeze([FORM.TITLES.EMPLOYEE_ID, 'الرقم الوظيفي للموظف', 'Employee ID']),
   EMPLOYEE_HIRE_DATE: Object.freeze([FORM.TITLES.EMPLOYEE_HIRE_DATE, 'تاريخ تعيين الموظف', 'تاريخ التعيين', 'تاريخ تعيين الموظف / Employee Hire Date', 'Employee Hire Date', 'Hire Date']),
   EMPLOYEE_JOB_TITLE: Object.freeze([FORM.TITLES.EMPLOYEE_JOB_TITLE, 'المسمى الوظيفي للموظف', 'المسمى الوظيفي', 'المسمى الوظيفي للموظف / Employee Job Title', 'Employee Job Title', 'Job Title']),
