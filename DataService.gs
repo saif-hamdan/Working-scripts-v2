@@ -28,7 +28,12 @@ function getSections_() {
         unitName: safeString_(row[H.SECTION.UNIT_NAME]),
         name: safeString_(row[H.SECTION.SECTION_NAME]),
         capacity: Math.max(1, toNumber_(row[H.SECTION.CAPACITY], 1)),
-        headEmail: normalizeEmailListForStorage_(row[H.SECTION.HEAD_EMAIL])
+        headEmail: normalizeEmailListForStorage_(row[H.SECTION.HEAD_EMAIL]),
+        headNameAr: safeString_(row[H.SECTION.HEAD_NAME_AR]),
+        headNameEn: safeString_(row[H.SECTION.HEAD_NAME_EN]),
+        headSalutationAr: safeString_(row[H.SECTION.HEAD_SALUTATION_AR]),
+        headJobTitleAr: safeString_(row[H.SECTION.HEAD_JOB_TITLE_AR]),
+        headJobTitleEn: safeString_(row[H.SECTION.HEAD_JOB_TITLE_EN])
       };
     })
     .filter(function(section) { return section.unitName && section.name; });
@@ -92,6 +97,7 @@ function syncReferenceDataFromAdminSheets_(options) {
     applyCleanTableFormatting_(adminSections, SECTION_HEADERS.length);
     applyCleanTableFormatting_(runtimeUnits, UNIT_HEADERS.length);
     applyCleanTableFormatting_(runtimeSections, SECTION_HEADERS.length);
+    applySectionHeadSalutationValidation_(adminSections);
   }
   try { runtimeUnits.hideSheet(); runtimeSections.hideSheet(); } catch (ignore) {}
   return {
@@ -120,6 +126,18 @@ function ensureDefaultSectionHeadEmails_(sheet) {
   }
   if (changed) sheet.getRange(2, headEmailColumn, rowCount, 1).setValues(emails);
   return changed;
+}
+
+function applySectionHeadSalutationValidation_(sheet) {
+  if (!sheet) return false;
+  var column = getHeaderMap_(sheet)[H.SECTION.HEAD_SALUTATION_AR];
+  if (!column) return false;
+  var rule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['المحترم', 'المحترمة'], true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(2, column, Math.max(sheet.getMaxRows() - 1, 1), 1).setDataValidation(rule);
+  return true;
 }
 
 
@@ -199,6 +217,11 @@ function normalizeAdminSectionRows_(rows, units) {
     section[H.SECTION.ACTIVE] = hasUnit && !hasActiveUnit ? STATUS.NO : (safeString_(row[H.SECTION.ACTIVE]) || STATUS.YES);
     section[H.SECTION.CAPACITY] = Math.max(1, toNumber_(row[H.SECTION.CAPACITY], 1));
     section[H.SECTION.HEAD_EMAIL] = normalizeEmailListForStorage_(row[H.SECTION.HEAD_EMAIL]);
+    section[H.SECTION.HEAD_NAME_AR] = safeString_(row[H.SECTION.HEAD_NAME_AR]);
+    section[H.SECTION.HEAD_NAME_EN] = safeString_(row[H.SECTION.HEAD_NAME_EN]);
+    section[H.SECTION.HEAD_SALUTATION_AR] = safeString_(row[H.SECTION.HEAD_SALUTATION_AR]);
+    section[H.SECTION.HEAD_JOB_TITLE_AR] = safeString_(row[H.SECTION.HEAD_JOB_TITLE_AR]);
+    section[H.SECTION.HEAD_JOB_TITLE_EN] = safeString_(row[H.SECTION.HEAD_JOB_TITLE_EN]);
     return section;
   }).filter(function(section) {
     return safeString_(section[H.SECTION.UNIT_NAME]) && safeString_(section[H.SECTION.SECTION_NAME]);

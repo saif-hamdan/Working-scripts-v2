@@ -585,6 +585,6 @@ function getDummySectionRows_() {
     ["مكتب نائب الرئيس للشؤون الاداريةوالمالية-قسم شؤون المجالس واللجان", "مكتب نائب الرئيس للشؤون الاداريةوالمالية", "مكتب نائب الرئيس للشؤون الاداريةوالمالية", "قسم شؤون المجالس واللجان", "نعم", 1]
   ];
   return rows.map(function(row) {
-    return row.concat([DEFAULT_SECTION_HEAD_EMAIL]);
+    return row.concat([DEFAULT_SECTION_HEAD_EMAIL, '', '', '', '', '']);
   });
 }

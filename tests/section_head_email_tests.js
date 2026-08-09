@@ -14,7 +14,8 @@ const state = {
   toasts: [],
   logs: [],
   throwOnSend: false,
-  revertedTo: undefined
+  revertedTo: undefined,
+  renderedData: null
 };
 
 const sheet = {
@@ -139,8 +140,11 @@ run(`
     Object.keys(updates).forEach(function(key) { testState.record[key] = updates[key]; });
   };
   refreshDashboard = function() {};
-  renderTemplate_ = function() { return '<html>final</html>'; };
-  buildTemplateData_ = function() { return {}; };
+  renderTemplate_ = function(_templateName, data) {
+    testState.renderedData = data;
+    return '<html>final</html>';
+  };
+  buildTemplateData_ = function(_record, extra) { return Object.assign({}, extra || {}); };
   logInfo_ = function(action, requestId, message) {
     testState.logs.push({ level: 'INFO', action: action, requestId: requestId, message: message });
   };
@@ -178,6 +182,7 @@ function reset(emailValue) {
   state.logs = [];
   state.throwOnSend = false;
   state.revertedTo = undefined;
+  state.renderedData = null;
 }
 
 const tests = [];
@@ -234,11 +239,38 @@ test('synchronization preserves and normalizes every valid address without addin
   section[H.SECTION.ACTIVE] = STATUS.YES;
   section[H.SECTION.CAPACITY] = 1;
   section[H.SECTION.HEAD_EMAIL] = ' head1@squ.edu.om, head2@squ.edu.om, HEAD1@squ.edu.om ';
+  section[H.SECTION.HEAD_NAME_AR] = 'الدكتورة مريم';
+  section[H.SECTION.HEAD_NAME_EN] = 'Dr Maryam';
+  section[H.SECTION.HEAD_SALUTATION_AR] = 'المحترمة';
+  section[H.SECTION.HEAD_JOB_TITLE_AR] = 'رئيسة القسم';
+  section[H.SECTION.HEAD_JOB_TITLE_EN] = 'Head of Section';
   context.referenceUnits = [unit];
   context.referenceSections = [section];
   const normalized = run('normalizeAdminSectionRows_(referenceSections, referenceUnits)');
   assert.strictEqual(normalized.length, 1);
   assert.strictEqual(normalized[0][H.SECTION.HEAD_EMAIL], 'head1@squ.edu.om,head2@squ.edu.om');
+  assert.strictEqual(normalized[0][H.SECTION.HEAD_NAME_AR], 'الدكتورة مريم');
+  assert.strictEqual(normalized[0][H.SECTION.HEAD_NAME_EN], 'Dr Maryam');
+  assert.strictEqual(normalized[0][H.SECTION.HEAD_SALUTATION_AR], 'المحترمة');
+  assert.strictEqual(normalized[0][H.SECTION.HEAD_JOB_TITLE_AR], 'رئيسة القسم');
+  assert.strictEqual(normalized[0][H.SECTION.HEAD_JOB_TITLE_EN], 'Head of Section');
+});
+
+test('section schema appends all five optional section-head letter fields', () => {
+  assert.deepStrictEqual(
+    Array.from(run('SECTION_HEADERS.slice(-5)')),
+    [
+      'اسم رئيس القسم بالعربية',
+      'اسم رئيس القسم بالإنجليزية',
+      'صيغة مخاطبة رئيس القسم',
+      'المسمى الوظيفي لرئيس القسم بالعربية',
+      'المسمى الوظيفي لرئيس القسم بالإنجليزية'
+    ]
+  );
+  assert.deepStrictEqual(
+    Array.from(run('BH.SECTIONS.slice(-5)')),
+    Array.from(run('SECTION_HEADERS.slice(-5)'))
+  );
 });
 
 test('reference validation accepts valid lists and rejects a row containing one invalid address', () => {
@@ -272,14 +304,71 @@ test('reference validation accepts valid lists and rejects a row containing one 
   assert.match(emailIssues[0].value, /bad-address/);
 });
 
-test('final-approved CC contains all valid section heads and excludes To duplicates', () => {
+test('final-approved To contains all valid section heads and removes duplicates', () => {
   reset('head1@squ.edu.om, manager@squ.edu.om, head2@squ.edu.om');
   context.finalRecord = state.record;
   const payload = run('buildFinalApprovedNotificationPayload_(finalRecord)');
-  assert.strictEqual(payload.cc, 'head1@squ.edu.om,head2@squ.edu.om');
+  assert.strictEqual(payload.cc, '');
   assert.match(payload.to, /employee@squ\.edu\.om/);
   assert.match(payload.to, /manager@squ\.edu\.om/);
   assert.match(payload.to, /unit-head@squ\.edu\.om/);
+  assert.match(payload.to, /head1@squ\.edu\.om/);
+  assert.match(payload.to, /head2@squ\.edu\.om/);
+  assert.strictEqual((payload.to.match(/manager@squ\.edu\.om/g) || []).length, 1);
+});
+
+test('final-approved letter uses dynamic section-head values', () => {
+  reset('head@squ.edu.om');
+  state.section = {
+    headEmail: 'head@squ.edu.om',
+    unitName: 'دائرة الموارد البشرية',
+    headNameAr: 'الفاضلة مريم البلوشية',
+    headNameEn: 'Ms Maryam Al Balushi',
+    headSalutationAr: 'المحترمة',
+    headJobTitleAr: 'رئيسة قسم التطوير',
+    headJobTitleEn: 'Head of Development Section'
+  };
+  context.finalRecord = state.record;
+  run('buildFinalApprovedNotificationPayload_(finalRecord)');
+  assert.deepStrictEqual(
+    JSON.parse(JSON.stringify(state.renderedData.sectionHeadLetter)),
+    {
+      nameAr: 'الفاضلة مريم البلوشية',
+      nameEn: 'Ms Maryam Al Balushi',
+      salutationAr: 'المحترمة',
+      jobTitleAr: 'رئيسة قسم التطوير',
+      jobTitleEn: 'Head of Development Section',
+      unitName: 'دائرة الموارد البشرية'
+    }
+  );
+});
+
+test('missing optional section-head values use generic text without blocking email', () => {
+  reset('head@squ.edu.om');
+  context.finalRecord = state.record;
+  const payload = run('buildFinalApprovedNotificationPayload_(finalRecord)');
+  assert.match(payload.to, /head@squ\.edu\.om/);
+  assert.strictEqual(state.renderedData.sectionHeadLetter.nameAr, 'رئيس القسم');
+  assert.strictEqual(state.renderedData.sectionHeadLetter.nameEn, 'Section Head');
+  assert.strictEqual(state.renderedData.sectionHeadLetter.salutationAr, 'المحترم/المحترمة');
+  assert.strictEqual(state.renderedData.sectionHeadLetter.jobTitleAr, 'رئيس القسم');
+  assert.strictEqual(state.renderedData.sectionHeadLetter.jobTitleEn, 'Head of Section');
+  assert.strictEqual(state.renderedData.sectionHeadLetter.unitName, 'Unit A');
+});
+
+test('the bilingual host letter exists only in the final-approved template', () => {
+  const finalTemplate = fs.readFileSync(path.join(root, 'Emails_FinalApproved.html'), 'utf8');
+  assert.match(finalTemplate, /انطلاقًا من توجهات جامعة السلطان قابوس/);
+  assert.match(finalTemplate, /In line with Sultan Qaboos University's commitment/);
+  assert.match(finalTemplate, /data\.sectionHeadLetter\.nameAr/);
+  assert.match(finalTemplate, /data\.sectionHeadLetter\.nameEn/);
+
+  fs.readdirSync(root)
+    .filter((file) => /^Emails_.*\.html$/.test(file) && file !== 'Emails_FinalApproved.html')
+    .forEach((file) => {
+      const source = fs.readFileSync(path.join(root, file), 'utf8');
+      assert.doesNotMatch(source, /data\.sectionHeadLetter|انطلاقًا من توجهات جامعة السلطان قابوس/);
+    });
 });
 
 test('final approval succeeds only after valid recipients are sent', () => {

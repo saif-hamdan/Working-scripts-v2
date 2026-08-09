@@ -147,7 +147,12 @@ function readSections_(ss, options) {
       name: String(row[3] || '').trim(),
       active: isActiveValue_(row[4]),
       capacity: Number(row[5] || 1) || 1,
-      headEmail: normalizeEmailListForStorage_(row[6])
+      headEmail: normalizeEmailListForStorage_(row[6]),
+      headNameAr: String(row[7] || '').trim(),
+      headNameEn: String(row[8] || '').trim(),
+      headSalutationAr: String(row[9] || '').trim(),
+      headJobTitleAr: String(row[10] || '').trim(),
+      headJobTitleEn: String(row[11] || '').trim()
     };
   });
 }
@@ -253,6 +258,7 @@ function applyReferenceAdminFormatting_(ss) {
     applyBasicSheetFormat_(adminSections, BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR);
     applyYesNoValidationByHeader_(adminSections, BH.SECTIONS, 'نشط');
     clearColumnValidationByHeader_(adminSections, BH.SECTIONS, 'بريد رئيس القسم');
+    applySectionHeadSalutationValidation_(adminSections);
     applyUnitIdValidation_(ss, adminSections);
   }
 }
@@ -374,6 +380,9 @@ function cascadeInactiveUnitSections_(sectionRows, unitRows) {
     var hasActiveUnit = (unitId && activeUnitById[unitId]) || (unitName && activeUnitByName[unitName]);
     if (hasUnit && !hasActiveUnit) copy[4] = 'لا';
     copy[6] = normalizeEmailListForStorage_(copy[6]);
+    for (var column = 7; column < BH.SECTIONS.length; column++) {
+      copy[column] = String(copy[column] || '').trim();
+    }
     return copy;
   });
 }

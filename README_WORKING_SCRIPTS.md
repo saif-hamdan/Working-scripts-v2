@@ -192,8 +192,13 @@ When diagnosing any stuck row, capture the row number, queue status, retry/attem
 
 ### `إدارة الأقسام`
 
-| معرف القسم | معرف الوحدة | اسم الوحدة | اسم القسم | نشط | السعة | بريد رئيس القسم |
-|---|---|---|---|---|---|---|
-| المكتبة الرئيسية-الاعارة | المكتبة الرئيسية | المكتبة الرئيسية | الاعارة | نعم | 1 | M.ALAAMRI1@squ.edu.om |
+| معرف القسم | معرف الوحدة | اسم الوحدة | اسم القسم | نشط | السعة | بريد رئيس القسم | اسم رئيس القسم بالعربية | اسم رئيس القسم بالإنجليزية | صيغة مخاطبة رئيس القسم | المسمى الوظيفي لرئيس القسم بالعربية | المسمى الوظيفي لرئيس القسم بالإنجليزية |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| المكتبة الرئيسية-الاعارة | المكتبة الرئيسية | المكتبة الرئيسية | الاعارة | نعم | 1 | M.ALAAMRI1@squ.edu.om |  |  | المحترم | رئيس قسم الإعارة | Head of Lending Section |
 
 Section capacity is retained for reporting compatibility but does not block another employee from rotating in the same section at the same time. The system blocks overlapping accepted rotations only for the same employee.
+
+The five section-head letter fields are used only in the final-approved email.
+They are optional: blank values use generic Arabic and English address text and
+do not block delivery. Valid section-head email addresses are included in the
+email's `To` recipients rather than `CC`.

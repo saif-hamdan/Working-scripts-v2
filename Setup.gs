@@ -88,9 +88,9 @@ function ensureReferenceSheets_(ss) {
   }
   if (adminSections.getLastRow() < 2) {
     adminSections.getRange(2, 1, 3, SECTION_HEADERS.length).setValues([
-      ['المكتبة الرئيسية-ادارة المكتبة الرئيسية', 'المكتبة الرئيسية', 'المكتبة الرئيسية', 'ادارة المكتبة الرئيسية', 'نعم', 1, DEFAULT_SECTION_HEAD_EMAIL],
-      ['المكتبة الرئيسية-الاعارة', 'المكتبة الرئيسية', 'المكتبة الرئيسية', 'الاعارة', 'نعم', 1, DEFAULT_SECTION_HEAD_EMAIL],
-      ['دائرة الإسكان-دائرة الإسكان', 'دائرة الإسكان', 'دائرة الإسكان', 'دائرة الإسكان', 'نعم', 1, DEFAULT_SECTION_HEAD_EMAIL]
+      ['المكتبة الرئيسية-ادارة المكتبة الرئيسية', 'المكتبة الرئيسية', 'المكتبة الرئيسية', 'ادارة المكتبة الرئيسية', 'نعم', 1, DEFAULT_SECTION_HEAD_EMAIL, '', '', '', '', ''],
+      ['المكتبة الرئيسية-الاعارة', 'المكتبة الرئيسية', 'المكتبة الرئيسية', 'الاعارة', 'نعم', 1, DEFAULT_SECTION_HEAD_EMAIL, '', '', '', '', ''],
+      ['دائرة الإسكان-دائرة الإسكان', 'دائرة الإسكان', 'دائرة الإسكان', 'دائرة الإسكان', 'نعم', 1, DEFAULT_SECTION_HEAD_EMAIL, '', '', '', '', '']
     ]);
   }
   applyCleanTableFormatting_(adminUnits, UNIT_HEADERS.length);

@@ -1294,6 +1294,11 @@ test('section-head email values stay explicit and email-only edits do not change
   unit[H.UNIT.HEAD_EMAIL] = 'unit-head-2@example.com';
   normalized[H.SECTION.HEAD_EMAIL] = 'section-head-2@example.com';
   normalized[H.SECTION.CAPACITY] = 99;
+  normalized[H.SECTION.HEAD_NAME_AR] = 'رئيس القسم';
+  normalized[H.SECTION.HEAD_NAME_EN] = 'Section Head';
+  normalized[H.SECTION.HEAD_SALUTATION_AR] = 'المحترم';
+  normalized[H.SECTION.HEAD_JOB_TITLE_AR] = 'رئيس قسم';
+  normalized[H.SECTION.HEAD_JOB_TITLE_EN] = 'Head of Section';
   const emailOnlyHash = run(
     'makeFormReferenceChecksum_(referenceUnits, normalizedReferenceSections)'
   );
@@ -1314,7 +1319,7 @@ test('section-head email values stay explicit and email-only edits do not change
   );
 });
 
-test('final approval CCs the selected section head but final rejection does not', () => {
+test('final approval sends To the selected section head but final rejection does not', () => {
   const record = {};
   record[H.RECORD.REQUEST_ID] = 'REQ-FINAL';
   record[H.RECORD.EMPLOYEE_EMAIL] = 'employee@example.com';
@@ -1346,7 +1351,7 @@ test('final approval CCs the selected section head but final rejection does not'
       'test'
     );
   `);
-  assert.strictEqual(context.finalApprovedPayload.cc, 'section-head@example.com');
+  assert.strictEqual(context.finalApprovedPayload.cc, '');
   assert.doesNotMatch(
     `${context.finalRejectedPayload.to},${context.finalRejectedPayload.cc || ''}`,
     /section-head@example\.com/
@@ -1354,6 +1359,7 @@ test('final approval CCs the selected section head but final rejection does not'
   assert.match(context.finalApprovedPayload.to, /employee@example\.com/);
   assert.match(context.finalApprovedPayload.to, /manager@example\.com/);
   assert.match(context.finalApprovedPayload.to, /current-head@example\.com/);
+  assert.match(context.finalApprovedPayload.to, /section-head@example\.com/);
   assert.strictEqual(
     context.employeeConflictPayload.to,
     'manager@example.com,employee@example.com'

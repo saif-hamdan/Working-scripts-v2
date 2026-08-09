@@ -280,33 +280,74 @@ function queueRejectedNotification(record) {
   return queueEmailForLater_(buildRejectedNotificationPayload_(record), { kind: 'rejected', requestId: record[H.RECORD.REQUEST_ID] });
 }
 
-function buildFinalApprovedNotificationPayload_(record, validatedSectionHeadEmails) {
-  var data = buildTemplateData_(record, {});
-  var html = renderTemplate_('Emails_FinalApproved', data);
-  var sectionHeadValidation = validatedSectionHeadEmails
-    ? validateEmailList_(Array.isArray(validatedSectionHeadEmails)
-      ? validatedSectionHeadEmails.join(',')
-      : validatedSectionHeadEmails)
-    : getRotationSectionHeadEmailValidation_(record);
-  if (!sectionHeadValidation.isValid) {
+function buildFinalApprovedNotificationPayload_(record, validatedSectionHeadContext) {
+  var sectionHeadContext = resolveRotationSectionHeadNotificationContext_(
+    record,
+    validatedSectionHeadContext
+  );
+  if (!sectionHeadContext.isValid) {
     throw new Error('Section-head email validation failed before final-approved payload construction.');
   }
+  var data = buildTemplateData_(record, {
+    sectionHeadLetter: sectionHeadContext.letter
+  });
+  var html = renderTemplate_('Emails_FinalApproved', data);
   var toRecipients = uniqueEmailRecipients_([
     record[H.RECORD.EMPLOYEE_EMAIL],
     record[H.RECORD.DIRECT_MANAGER_EMAIL],
     record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL]
-  ]);
-  var toLookup = {};
-  toRecipients.forEach(function(email) { toLookup[normalizeEmail_(email)] = true; });
-  var sectionHeadEmails = sectionHeadValidation.emails.filter(function(email) {
-    return !toLookup[normalizeEmail_(email)];
-  });
+  ].concat(sectionHeadContext.emails));
   return {
     to: toRecipients.join(','),
-    cc: sectionHeadEmails.join(','),
+    cc: '',
     subject: 'تم الاعتماد النهائي لطلب التدوير المعرفي / Knowledge Rotation Request Finally Approved - ' + record[H.RECORD.REQUEST_ID],
     htmlBody: html
   };
+}
+
+function buildSectionHeadLetterData_(record, section) {
+  section = section || {};
+  return {
+    nameAr: safeString_(section.headNameAr) || 'رئيس القسم',
+    nameEn: safeString_(section.headNameEn) || 'Section Head',
+    salutationAr: safeString_(section.headSalutationAr) || 'المحترم/المحترمة',
+    jobTitleAr: safeString_(section.headJobTitleAr) || 'رئيس القسم',
+    jobTitleEn: safeString_(section.headJobTitleEn) || 'Head of Section',
+    unitName: safeString_(section.unitName) ||
+      safeString_(record && record[H.RECORD.ROTATION_UNIT]) ||
+      'وحدة التدوير'
+  };
+}
+
+function resolveRotationSectionHeadNotificationContext_(record, suppliedContext) {
+  if (suppliedContext && typeof suppliedContext === 'object' &&
+      !Array.isArray(suppliedContext) && typeof suppliedContext.isValid === 'boolean') {
+    var trustedContext = suppliedContext;
+    trustedContext.section = trustedContext.section || findSectionByUnitAndName_(
+      record && record[H.RECORD.ROTATION_UNIT],
+      record && record[H.RECORD.SECTION]
+    );
+    trustedContext.letter = trustedContext.letter ||
+      buildSectionHeadLetterData_(record, trustedContext.section);
+    return trustedContext;
+  }
+
+  var resolvedContext = getRotationSectionHeadEmailValidation_(record);
+  if (suppliedContext === null || typeof suppliedContext === 'undefined') {
+    return resolvedContext;
+  }
+
+  var suppliedValidation = validateEmailList_(Array.isArray(suppliedContext)
+    ? suppliedContext.join(',')
+    : suppliedContext);
+  suppliedValidation.reason = suppliedValidation.isBlank
+    ? 'EMAIL_MISSING'
+    : (suppliedValidation.isValid ? '' : 'EMAIL_INVALID');
+  suppliedValidation.unitName = resolvedContext.unitName;
+  suppliedValidation.sectionName = resolvedContext.sectionName;
+  suppliedValidation.section = resolvedContext.section;
+  suppliedValidation.letter = resolvedContext.letter;
+  return suppliedValidation;
 }
 
 function getRotationSectionHeadEmailValidation_(record) {
@@ -326,7 +367,9 @@ function getRotationSectionHeadEmailValidation_(record) {
       emptyEntryPositions: [],
       hasEmptyEntries: false,
       isBlank: true,
-      normalized: ''
+      normalized: '',
+      section: null,
+      letter: buildSectionHeadLetterData_(record, null)
     };
   }
 
@@ -336,6 +379,8 @@ function getRotationSectionHeadEmailValidation_(record) {
     : (validation.isValid ? '' : 'EMAIL_INVALID');
   validation.unitName = unitName;
   validation.sectionName = sectionName;
+  validation.section = section;
+  validation.letter = buildSectionHeadLetterData_(record, section);
   return validation;
 }
 
@@ -344,12 +389,11 @@ function getRotationSectionHeadEmail_(record) {
   return validation.isValid ? validation.normalized : '';
 }
 
-function sendFinalApprovedNotification(record, validatedSectionHeadEmails) {
-  var validation = validatedSectionHeadEmails
-    ? validateEmailList_(Array.isArray(validatedSectionHeadEmails)
-      ? validatedSectionHeadEmails.join(',')
-      : validatedSectionHeadEmails)
-    : getRotationSectionHeadEmailValidation_(record);
+function sendFinalApprovedNotification(record, validatedSectionHeadContext) {
+  var validation = resolveRotationSectionHeadNotificationContext_(
+    record,
+    validatedSectionHeadContext
+  );
   if (!validation.isValid) {
     logError_(
       'sendFinalApprovedNotification:sectionHeadEmailValidation',
@@ -359,7 +403,7 @@ function sendFinalApprovedNotification(record, validatedSectionHeadEmails) {
     return false;
   }
   return sendEmailSafe_(
-    buildFinalApprovedNotificationPayload_(record, validation.emails),
+    buildFinalApprovedNotificationPayload_(record, validation),
     { kind: 'final_approved', requestId: record[H.RECORD.REQUEST_ID] }
   ) === true;
 }

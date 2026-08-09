@@ -138,7 +138,12 @@ const H = Object.freeze({
     SECTION_NAME: 'اسم القسم',
     ACTIVE: 'نشط',
     CAPACITY: 'السعة',
-    HEAD_EMAIL: 'بريد رئيس القسم'
+    HEAD_EMAIL: 'بريد رئيس القسم',
+    HEAD_NAME_AR: 'اسم رئيس القسم بالعربية',
+    HEAD_NAME_EN: 'اسم رئيس القسم بالإنجليزية',
+    HEAD_SALUTATION_AR: 'صيغة مخاطبة رئيس القسم',
+    HEAD_JOB_TITLE_AR: 'المسمى الوظيفي لرئيس القسم بالعربية',
+    HEAD_JOB_TITLE_EN: 'المسمى الوظيفي لرئيس القسم بالإنجليزية'
   }),
   SETTINGS: Object.freeze({
     KEY: 'المفتاح',

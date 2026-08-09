@@ -248,7 +248,7 @@ function applyFinalStatusChangeLocked_(rowNumber, targetStatus, userEmail, logAc
     return { success: false, message: 'الحالة النهائية مطابقة للإجراء المطلوب بالفعل. / Final status already matches the requested action.' };
   }
 
-  var validatedSectionHeadEmails = null;
+  var validatedSectionHeadContext = null;
   if (targetStatus === STATUS.FINAL_APPROVED) {
     var sectionHeadEmailValidation = getRotationSectionHeadEmailValidation_(record);
     if (!sectionHeadEmailValidation.isValid) {
@@ -262,12 +262,12 @@ function applyFinalStatusChangeLocked_(rowNumber, targetStatus, userEmail, logAc
         message: buildFinalApprovalSectionHeadEmailValidationMessage_(sectionHeadEmailValidation)
       };
     }
-    validatedSectionHeadEmails = sectionHeadEmailValidation.emails;
+    validatedSectionHeadContext = sectionHeadEmailValidation;
   }
 
   record[H.RECORD.FINAL_STATUS] = targetStatus;
   var sent = targetStatus === STATUS.FINAL_APPROVED
-    ? sendFinalApprovedNotification(record, validatedSectionHeadEmails)
+    ? sendFinalApprovedNotification(record, validatedSectionHeadContext)
     : sendFinalRejectedNotification(record);
   if (sent !== true) {
     logInfo_(

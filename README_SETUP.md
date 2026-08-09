@@ -62,9 +62,12 @@ Run these functions from Apps Script in order:
 
 For an existing deployment receiving the section-head email enhancement, run
 `run18_updateSectionHeadEmailSchema()` once after pushing the code. This adds
-`بريد رئيس القسم` to `إدارة الأقسام`, fills blank values with
-`M.ALAAMRI1@squ.edu.om`, and synchronizes the hidden reference sheet without
-opening or modifying either Google Form.
+the section-head email, Arabic and English names, Arabic salutation, and Arabic
+and English job-title columns to `إدارة الأقسام`. It fills blank section-head
+email values with `M.ALAAMRI1@squ.edu.om` and synchronizes the hidden reference
+sheet without opening or modifying either Google Form. The five letter fields
+are optional; when they are blank, the final-approved email uses generic
+bilingual address text and is still sent.
 
 For an existing development dashboard receiving the request-sheet cleanup, run
 `run19_applyRequestSheetAndFormUpdates()` once. It deletes the obsolete
