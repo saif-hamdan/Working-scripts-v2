@@ -337,8 +337,7 @@ test('final-approved letter uses dynamic section-head values', () => {
       nameEn: 'Ms Maryam Al Balushi',
       salutationAr: 'المحترمة',
       jobTitleAr: 'رئيسة قسم التطوير',
-      jobTitleEn: 'Head of Development Section',
-      unitName: 'دائرة الموارد البشرية'
+      jobTitleEn: 'Head of Development Section'
     }
   );
 });
@@ -353,7 +352,6 @@ test('missing optional section-head values use generic text without blocking ema
   assert.strictEqual(state.renderedData.sectionHeadLetter.salutationAr, 'المحترم/المحترمة');
   assert.strictEqual(state.renderedData.sectionHeadLetter.jobTitleAr, 'رئيس القسم');
   assert.strictEqual(state.renderedData.sectionHeadLetter.jobTitleEn, 'Head of Section');
-  assert.strictEqual(state.renderedData.sectionHeadLetter.unitName, 'Unit A');
 });
 
 test('the bilingual host letter exists only in the final-approved template', () => {
@@ -362,6 +360,11 @@ test('the bilingual host letter exists only in the final-approved template', () 
   assert.match(finalTemplate, /In line with Sultan Qaboos University's commitment/);
   assert.match(finalTemplate, /data\.sectionHeadLetter\.nameAr/);
   assert.match(finalTemplate, /data\.sectionHeadLetter\.nameEn/);
+  assert.doesNotMatch(finalTemplate, /data\.sectionHeadLetter\.unitName/);
+  assert.match(
+    finalTemplate,
+    /font-weight:bold;\"><\?= data\.sectionHeadLetter\.salutationAr \?><\/span>/
+  );
 
   fs.readdirSync(root)
     .filter((file) => /^Emails_.*\.html$/.test(file) && file !== 'Emails_FinalApproved.html')
