@@ -75,6 +75,14 @@ const context = {
       state.sent += 1;
       if (state.throwOnSend) throw new Error('Temporary MailApp failure');
     }
+  },
+  LockService: {
+    getScriptLock() {
+      return {
+        tryLock() { return true; },
+        releaseLock() {}
+      };
+    }
   }
 };
 vm.createContext(context);
@@ -282,6 +290,51 @@ test('final approval succeeds only after valid recipients are sent', () => {
   assert.strictEqual(state.queued, 0);
   assert.strictEqual(state.updates, 1);
   assert.strictEqual(state.record[H.RECORD.FINAL_STATUS], STATUS.FINAL_APPROVED);
+});
+
+test('admin dialog can reject while the unit-head decision is still pending', () => {
+  reset('head1@squ.edu.om');
+  state.record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_PENDING;
+  const result = run('confirmFinalStatusChange(2, STATUS.FINAL_REJECTED)');
+  assert.strictEqual(result.success, true);
+  assert.strictEqual(state.sent, 1);
+  assert.strictEqual(state.updates, 1);
+  assert.strictEqual(state.record[H.RECORD.HEAD_STATUS], STATUS.HEAD_PENDING);
+  assert.strictEqual(state.record[H.RECORD.FINAL_STATUS], STATUS.FINAL_REJECTED);
+});
+
+test('admin still cannot approve while the unit-head decision is pending', () => {
+  reset('head1@squ.edu.om');
+  state.record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_PENDING;
+  const result = run('confirmFinalStatusChange(2, STATUS.FINAL_APPROVED)');
+  assert.strictEqual(result.success, false);
+  assert.match(result.message, /Cannot change final approval status/);
+  assert.strictEqual(state.sent, 0);
+  assert.strictEqual(state.updates, 0);
+  assert.strictEqual(state.record[H.RECORD.FINAL_STATUS], STATUS.FINAL_PENDING);
+});
+
+test('direct sheet edit can reject while the unit-head decision is pending', () => {
+  reset('head1@squ.edu.om');
+  state.record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_PENDING;
+  const range = {
+    getSheet() { return sheet; },
+    getRow() { return 2; },
+    getColumn() { return 8; },
+    setValue(value) { state.revertedTo = value; },
+    clearContent() { state.revertedTo = null; }
+  };
+  context.pendingRejectionEditEvent = {
+    range,
+    value: STATUS.FINAL_REJECTED,
+    oldValue: STATUS.FINAL_PENDING,
+    user: { getEmail() { return 'admin@squ.edu.om'; } }
+  };
+  run('handleFinalStatusEdit(pendingRejectionEditEvent)');
+  assert.strictEqual(state.revertedTo, undefined);
+  assert.strictEqual(state.sent, 1);
+  assert.strictEqual(state.updates, 1);
+  assert.strictEqual(state.record[H.RECORD.FINAL_STATUS], STATUS.FINAL_REJECTED);
 });
 
 test('invalid or missing section configuration blocks send, queue, and status update', () => {

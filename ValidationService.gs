@@ -51,22 +51,22 @@ function handleFinalStatusEdit(e) {
     } catch (ignore) {}
 
     if (!isMeaningfulFinalStatusChange_(e)) return;
+    var targetStatus = safeString_(e.value);
 
-    if (headStatus === STATUS.HEAD_PENDING) {
+    if (targetStatus !== STATUS.FINAL_REJECTED && headStatus === STATUS.HEAD_PENDING) {
       revertEdit_(e);
       logInfo_('handleFinalStatusEdit:headPendingBlocked', requestId, 'Final status edit blocked while unit-head decision is pending.');
       SpreadsheetApp.getActive().toast(FINAL_STATUS_HEAD_PENDING_MESSAGE);
       return;
     }
 
-    if (headStatus !== STATUS.HEAD_ACCEPTED) {
+    if (targetStatus !== STATUS.FINAL_REJECTED && headStatus !== STATUS.HEAD_ACCEPTED) {
       revertEdit_(e);
       logInfo_('handleFinalStatusEdit:headNotAcceptedBlocked', requestId, 'Final status edit blocked because unit-head approval is required first.');
       SpreadsheetApp.getActive().toast('لا يمكن الاعتماد النهائي قبل موافقة رئيس الوحدة. / Unit-head approval is required first.');
       return;
     }
 
-    var targetStatus = safeString_(e.value);
     if (isSystemOwnedFinalStatus_(targetStatus)) {
       revertEdit_(e);
       logInfo_('handleFinalStatusEdit:systemOwnedStatusBlocked', requestId, 'Manual system-owned final status edit reverted.');
@@ -207,6 +207,27 @@ function describeFinalApprovalSectionHeadEmailValidation_(validation) {
 }
 
 function applyFinalStatusChange_(rowNumber, targetStatus, userEmail, logAction, currentFinalStatusOverride) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(25000)) {
+    return {
+      success: false,
+      message: 'النظام مشغول حالياً بمعالجة قرار آخر. يرجى إعادة المحاولة. / The system is processing another decision. Please try again.'
+    };
+  }
+  try {
+    return applyFinalStatusChangeLocked_(
+      rowNumber,
+      targetStatus,
+      userEmail,
+      logAction,
+      currentFinalStatusOverride
+    );
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function applyFinalStatusChangeLocked_(rowNumber, targetStatus, userEmail, logAction, currentFinalStatusOverride) {
   var ss = SpreadsheetApp.getActiveSpreadsheet() || openDashboardSpreadsheet_();
   var sheet = ss.getSheetByName(SHEETS.RECORDS) || getOrCreateSheet_(SHEETS.RECORDS);
   if (rowNumber > sheet.getLastRow()) return { success: false, message: 'الصف المحدد خارج نطاق البيانات. / Selected row is outside the data range.' };
@@ -214,10 +235,10 @@ function applyFinalStatusChange_(rowNumber, targetStatus, userEmail, logAction, 
   var record = getRecordFromSheetRow_(sheet, rowNumber);
   var requestId = safeString_(record[H.RECORD.REQUEST_ID]);
   if (!requestId) return { success: false, message: 'الصف المحدد لا يحتوي على رقم طلب. / Selected row has no request ID.' };
-  if (safeString_(record[H.RECORD.HEAD_STATUS]) === STATUS.HEAD_PENDING) {
+  if (targetStatus !== STATUS.FINAL_REJECTED && safeString_(record[H.RECORD.HEAD_STATUS]) === STATUS.HEAD_PENDING) {
     return { success: false, message: FINAL_STATUS_HEAD_PENDING_MESSAGE };
   }
-  if (safeString_(record[H.RECORD.HEAD_STATUS]) !== STATUS.HEAD_ACCEPTED) {
+  if (targetStatus !== STATUS.FINAL_REJECTED && safeString_(record[H.RECORD.HEAD_STATUS]) !== STATUS.HEAD_ACCEPTED) {
     return { success: false, message: 'لا يمكن الاعتماد النهائي قبل موافقة رئيس الوحدة. / Unit-head approval is required first.' };
   }
   var currentFinalStatus = currentFinalStatusOverride === undefined

@@ -3,9 +3,6 @@ function buildTemplateData_(record, extra) {
   extra = extra || {};
   var cfg = getConfig();
   var totalCompletedHours = getEmployeeTotalCompletedHours_(record);
-  var submissionTotalHours = extra.submissionTotalHours !== undefined
-    ? toNumber_(extra.submissionTotalHours, 0)
-    : getSubmissionTotalHoursForTemplate_(record);
   var rows = removeEmptyEmailRows_([
     { ar: 'رقم الطلب', en: 'Request ID', value: record[H.RECORD.REQUEST_ID] },
     { ar: 'معرف مجموعة الطلب', en: 'Request Group ID', value: record[H.RECORD.REQUEST_GROUP_ID] },
@@ -23,8 +20,7 @@ function buildTemplateData_(record, extra) {
     { ar: 'إلى تاريخ', en: 'End Date', value: formatDate_(record[H.RECORD.END_DATE]) },
     { ar: 'عدد ساعات التدوير اليومية المطلوبة', en: 'Required Daily Rotation Hours', value: record[H.RECORD.HOURS] },
     { ar: 'عدد أيام العمل', en: 'Working Days (Sun–Thu)', value: record[H.RECORD.WORKING_DAYS] },
-    { ar: 'إجمالي ساعات التدوير', en: 'Total Rotation Hours', value: record[H.RECORD.TOTAL_HOURS] },
-    { ar: 'إجمالي ساعات التدوير المطلوبة', en: 'Total Requested Rotation Hours', value: submissionTotalHours }
+    { ar: 'إجمالي ساعات التدوير', en: 'Total Rotation Hours', value: record[H.RECORD.TOTAL_HOURS] }
   ]);
   var data = {
     record: record,
@@ -41,27 +37,6 @@ function buildTemplateData_(record, extra) {
   return data;
 }
 
-function getSubmissionTotalHoursForTemplate_(record) {
-  record = record || {};
-  if (record._submissionTotalHours !== undefined) {
-    return Math.max(0, toNumber_(record._submissionTotalHours, 0));
-  }
-
-  var groupId = safeString_(record[H.RECORD.REQUEST_GROUP_ID]);
-  if (groupId) {
-    var sheet = getSheet_(SHEETS.RECORDS);
-    var groupRecords = sheet
-      ? findObjectsByValue_(sheet, H.RECORD.REQUEST_GROUP_ID, groupId, FORM.MAX_ROTATION_OPTIONS || 3)
-      : [];
-    if (groupRecords.length) {
-      return groupRecords.reduce(function(total, groupedRecord) {
-        return total + Math.max(0, toNumber_(groupedRecord[H.RECORD.TOTAL_HOURS], 0));
-      }, 0);
-    }
-  }
-  return Math.max(0, toNumber_(record[H.RECORD.TOTAL_HOURS], 0));
-}
-
 function buildGroupedRequestTemplateData_(records, extra) {
   records = (records || []).slice().sort(function(left, right) {
     return toNumber_(left[H.RECORD.OPTION_ORDER], 0) - toNumber_(right[H.RECORD.OPTION_ORDER], 0);
@@ -69,12 +44,8 @@ function buildGroupedRequestTemplateData_(records, extra) {
   if (!records.length) throw new Error('At least one request record is required for a grouped email.');
 
   var first = records[0];
-  var submissionTotalHours = records.reduce(function(total, record) {
-    return total + Math.max(0, toNumber_(record[H.RECORD.TOTAL_HOURS], 0));
-  }, 0);
   var groupedExtra = {};
   Object.keys(extra || {}).forEach(function(key) { groupedExtra[key] = extra[key]; });
-  groupedExtra.submissionTotalHours = submissionTotalHours;
   var data = buildTemplateData_(first, groupedExtra);
   var totalCompletedHoursRow = data.rows.filter(function(row) {
     return row.en === 'Total Completed Rotation Hours';
@@ -88,8 +59,7 @@ function buildGroupedRequestTemplateData_(records, extra) {
     { ar: 'المسؤول المباشر', en: 'Line Manager', value: first[H.RECORD.DIRECT_MANAGER_NAME] },
     { ar: 'الوحدة الحالية', en: 'Current Unit', value: first[H.RECORD.CURRENT_UNIT] },
     { ar: 'القسم الحالي للموظف', en: 'Current Employee Section', value: first[H.RECORD.CURRENT_DEPARTMENT] },
-    { ar: 'عدد اختيارات التدوير', en: 'Rotation Selection Count', value: records.length },
-    { ar: 'إجمالي ساعات التدوير المطلوبة', en: 'Total Requested Rotation Hours', value: submissionTotalHours }
+    { ar: 'عدد اختيارات التدوير', en: 'Rotation Selection Count', value: records.length }
   ].filter(Boolean));
   data.requests = records.map(function(record) {
     return {

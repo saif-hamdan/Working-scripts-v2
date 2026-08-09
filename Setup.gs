@@ -49,11 +49,13 @@ function setupSheets() {
 }
 
 function ensureMainSheets_(ss) {
-  setSheetHeaders_(ensureSheet_(ss, SHEETS.DASHBOARD), DASHBOARD_HEADERS);
+  var dashboardSheet = ensureSheet_(ss, SHEETS.DASHBOARD);
+  removeDashboardSectionStatusColumn_(dashboardSheet);
+  setSheetHeaders_(dashboardSheet, DASHBOARD_HEADERS);
   var recordsSheet = ensureSheet_(ss, SHEETS.RECORDS);
   removeLegacySubmissionTotalHoursColumn_(recordsSheet);
   setSheetHeaders_(recordsSheet, RECORD_HEADERS);
-  applyCleanTableFormatting_(ss.getSheetByName(SHEETS.DASHBOARD), DASHBOARD_HEADERS.length);
+  applyCleanTableFormatting_(dashboardSheet, DASHBOARD_HEADERS.length);
   applyCleanTableFormatting_(recordsSheet, RECORD_HEADERS.length);
   var employeeHoursSheet = getEmployeeRotationHoursSheet_(ss);
   setSheetHeaders_(employeeHoursSheet, EMPLOYEE_ROTATION_HOURS_HEADERS);

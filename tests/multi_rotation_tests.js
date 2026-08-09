@@ -356,9 +356,8 @@ test('employee-ID completed hours count only approved rotations whose end date h
   assert.ok(context.emailHoursData.rows.some(
     (row) => row.ar === 'إجمالي ساعات التدوير' && row.en === 'Total Rotation Hours'
   ));
-  assert.ok(context.emailHoursData.rows.some(
-    (row) => row.ar === 'إجمالي ساعات التدوير المطلوبة' &&
-      row.en === 'Total Requested Rotation Hours'
+  assert.ok(context.emailHoursData.rows.every(
+    (row) => row.en !== 'Total Requested Rotation Hours'
   ));
   assert.ok(context.emailHoursData.rows.every(
     (row) => !String(row.en).includes('(Employee ID)')
@@ -830,9 +829,8 @@ test('one submission sends one grouped approval email to the unit head', () => {
   assert.ok(context.groupedTemplateData.rows.some(
     (row) => row.ar === 'اسم الموظف' && row.en === 'Employee Name'
   ));
-  assert.ok(context.groupedTemplateData.rows.some(
-    (row) => row.ar === 'إجمالي ساعات التدوير المطلوبة' &&
-      row.en === 'Total Requested Rotation Hours'
+  assert.ok(context.groupedTemplateData.rows.every(
+    (row) => row.en !== 'Total Requested Rotation Hours'
   ));
   context.groupedTemplateData.requests.forEach((request, index) => {
     assert.match(request.approveUrl, new RegExp(`approve/TOKEN-${index + 1}`));
@@ -1107,6 +1105,61 @@ test('one rotation approval button updates only its own rotation', () => {
   );
 });
 
+test('unit-head approval cannot overwrite an earlier admin rejection', () => {
+  context.individualDecisionRecords = context.groupedApprovalRecords.map((record) => Object.assign({}, record));
+  context.individualDecisionRecords[0][H.RECORD.FINAL_STATUS] = STATUS.FINAL_REJECTED;
+  context.individualDecisionUpdates = [];
+  run(`
+    getRequestByToken_ = function(token) {
+      return individualDecisionRecords.filter(function(record) {
+        return record[H.RECORD.TOKEN] === token;
+      })[0] || null;
+    };
+    findConflicts = function() {
+      throw new Error('A rejected request must not reach conflict validation.');
+    };
+    updateRequestByRow_ = function(rowNumber, updates) {
+      individualDecisionUpdates.push({ rowNumber: rowNumber, updates: updates });
+    };
+    processQueuedApproveAction_('TOKEN-1');
+  `);
+
+  assert.strictEqual(context.individualDecisionUpdates.length, 0);
+  assert.strictEqual(
+    context.individualDecisionRecords[0][H.RECORD.FINAL_STATUS],
+    STATUS.FINAL_REJECTED
+  );
+});
+
+test('group approval skips an admin-rejected rotation and approves only pending rotations', () => {
+  context.groupDecisionRecords = context.groupedApprovalRecords.map((record) => Object.assign({}, record));
+  context.groupDecisionRecords[0][H.RECORD.FINAL_STATUS] = STATUS.FINAL_REJECTED;
+  context.groupDecisionUpdates = [];
+  run(`
+    getRequestByToken_ = function(token) {
+      return groupDecisionRecords.filter(function(record) {
+        return record[H.RECORD.TOKEN] === token;
+      })[0] || null;
+    };
+    getOrCreateSheet_ = function() { return {}; };
+    findObjectsByValue_ = function() { return groupDecisionRecords.slice(); };
+    getEmployeeConflictCandidateRecords_ = function() { return groupDecisionRecords.slice(); };
+    findConflicts = function() { return null; };
+    updateRequestByRow_ = function(rowNumber, updates) {
+      groupDecisionUpdates.push({ rowNumber: rowNumber, updates: updates });
+    };
+    queueConflictNotification = function() {
+      throw new Error('No conflict notification was expected.');
+    };
+    now_ = function() { return new Date('2026-08-09T08:00:00'); };
+    processQueuedApproveGroupAction_('TOKEN-1');
+  `);
+
+  assert.strictEqual(context.groupDecisionUpdates.length, 2);
+  assert.ok(context.groupDecisionUpdates.every((entry) => entry.rowNumber !== 2));
+  assert.strictEqual(context.groupDecisionRecords[0][H.RECORD.FINAL_STATUS], STATUS.FINAL_REJECTED);
+});
+
 test('one rotation rejection button updates only its own rotation', () => {
   context.individualDecisionRecords = context.groupedApprovalRecords.map((record) => Object.assign({}, record));
   context.individualDecisionUpdates = [];
@@ -1353,13 +1406,32 @@ test('request-sheet schema removes the submission total, uses the new type, and 
   assert.match(requestSource, /record\._submissionTotalHours = options\.submissionTotalHours/);
 
   const templateSource = fs.readFileSync(path.join(root, 'TemplateService.gs'), 'utf8');
-  assert.match(templateSource, /findObjectsByValue_\([\s\S]*H\.RECORD\.REQUEST_GROUP_ID[\s\S]*FORM\.MAX_ROTATION_OPTIONS/);
+  assert.doesNotMatch(templateSource, /Total Requested Rotation Hours|إجمالي ساعات التدوير المطلوبة/);
 
   const migrationSource = fs.readFileSync(path.join(root, 'Step19_RequestSheetAndFormLabels.gs'), 'utf8');
   assert.match(migrationSource, /removeLegacySubmissionTotalHoursColumn_/);
   assert.match(migrationSource, /hideInternalColumns_/);
   assert.match(migrationSource, /updateMainFormEmployeeNameTitle_/);
   assert.doesNotMatch(migrationSource, /rebuildMainForm|initializeMultiRotationFormBuild_|rebuildEvaluationForm/);
+});
+
+test('section dashboard schema permanently removes the section-status column', () => {
+  assert.strictEqual(run('DASHBOARD_HEADERS.indexOf(LEGACY_DASHBOARD_SECTION_STATUS_HEADER)'), -1);
+
+  const bootstrapConfigSource = fs.readFileSync(path.join(root, 'BootstrapConfig.gs'), 'utf8');
+  const dashboardSource = fs.readFileSync(path.join(root, 'DashboardService.gs'), 'utf8');
+  const sheetSource = fs.readFileSync(path.join(root, 'SheetService.gs'), 'utf8');
+  const stagedDashboardSource = fs.readFileSync(path.join(root, 'Step08_DashboardVisuals.gs'), 'utf8');
+  const bootstrapDashboardHeaders = bootstrapConfigSource.split('\n').find(
+    (line) => line.includes("DASHBOARD: ['")
+  );
+  assert.ok(bootstrapDashboardHeaders);
+  assert.doesNotMatch(bootstrapDashboardHeaders, /حالة القسم/);
+  assert.doesNotMatch(dashboardSource, /H\.DASHBOARD\.STATUS|applyDashboardConditionalFormatting_/);
+  assert.match(sheetSource, /function removeDashboardSectionStatusColumn_\(sheet\)/);
+  assert.match(sheetSource, /sheet\.deleteColumn\(column\)/);
+  assert.match(stagedDashboardSource, /removeDashboardSectionStatusColumn_\(dashboard\)/);
+  assert.doesNotMatch(stagedDashboardSource, /Occupied|Available/);
 });
 
 test('dates render DD/MM/YYYY and sender/final recipients remain forced', () => {

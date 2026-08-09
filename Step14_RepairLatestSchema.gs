@@ -5,6 +5,7 @@ function run14_repairExistingResourcesFromLatestScript() {
   var mainForm = openMainFormFromProperties_();
   var evaluationForm = openEvaluationFormFromProperties_();
 
+  removeDashboardSectionStatusColumn_(ss.getSheetByName(BS.DASHBOARD));
   repairBootstrapSheetSchema_(ss, BS.DASHBOARD, BH.DASHBOARD);
   repairBootstrapSheetSchema_(ss, BS.RECORDS, BH.RECORDS);
   repairBootstrapSheetSchema_(ss, BS.ADMIN_UNITS, BH.UNITS);

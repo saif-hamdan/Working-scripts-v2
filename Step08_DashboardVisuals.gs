@@ -11,6 +11,7 @@ function refreshDashboardSectionSummary_(ss) {
   var records = ss.getSheetByName(BS.RECORDS);
   if (!dashboard || !records) throw new Error('Dashboard and records sheets must exist before building summaries.');
 
+  removeDashboardSectionStatusColumn_(dashboard);
   bsSetHeaders_(dashboard, BH.DASHBOARD);
   bsClearDataBelowHeader_(dashboard);
 
@@ -66,14 +67,13 @@ function refreshDashboardSectionSummary_(ss) {
       recordsName + '!$' + requestedSectionCol + ':$' + requestedSectionCol + '=$B' + row + ',' +
       recordsName + '!$' + headApprovalCol + ':$' + headApprovalCol + '="' + approvedStatus + '")),"")';
 
-    var status = '=IF(E' + row + '>0,"مشغول / Occupied","متاح / Available")';
     var totalHours = '=IFERROR(SUM(FILTER(' +
       recordsName + '!$' + totalHoursCol + ':$' + totalHoursCol + ',' +
       recordsName + '!$' + requestedUnitCol + ':$' + requestedUnitCol + '=$A' + row + ',' +
       recordsName + '!$' + requestedSectionCol + ':$' + requestedSectionCol + '=$B' + row + ',' +
       recordsName + '!$' + headApprovalCol + ':$' + headApprovalCol + '="' + approvedStatus + '")),0)';
 
-    return [unit.name, section.name, unit.headName, unit.headEmail, activeCount, activeEmployeeIds, allNames, lastRotation, status, totalHours];
+    return [unit.name, section.name, unit.headName, unit.headEmail, activeCount, activeEmployeeIds, allNames, lastRotation, totalHours];
   });
 
   if (rows.length) dashboard.getRange(2, 1, rows.length, BH.DASHBOARD.length).setValues(rows);

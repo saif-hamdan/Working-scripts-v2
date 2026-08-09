@@ -7,9 +7,9 @@ function refreshDashboard(skipReferenceSync, rows) {
 function renderDashboardRows_(rows) {
   var ss = openDashboardSpreadsheet_();
   var sheet = ensureSheet_(ss, SHEETS.DASHBOARD);
+  removeDashboardSectionStatusColumn_(sheet);
   clearAndWriteObjects_(sheet, DASHBOARD_HEADERS, rows || []);
   applyCleanTableFormatting_(sheet, DASHBOARD_HEADERS.length);
-  applyDashboardConditionalFormatting_(sheet);
 }
 
 function calculateSectionSummary_(records) {
@@ -51,7 +51,6 @@ function calculateOneSectionSummary_(unitName, sectionName, unit, records) {
   row[H.DASHBOARD.ACTIVE_TRAINEES] = uniqueNonEmpty_(activeRecords.map(function(record) { return record[H.RECORD.EMPLOYEE_ID]; })).join('، ');
   row[H.DASHBOARD.ALL_TRAINEES] = uniqueNonEmpty_(allTrained.map(function(record) { return record[H.RECORD.EMPLOYEE_NAME]; })).join('، ');
   row[H.DASHBOARD.LAST_ROTATION] = lastDate ? formatDate_(lastDate) : '';
-  row[H.DASHBOARD.STATUS] = activeRecords.length > 0 ? STATUS.OCCUPIED : STATUS.AVAILABLE;
   row[H.DASHBOARD.TOTAL_HOURS] = allTrained.reduce(function(total, record) {
     return total + calculateRecordRotationHours_(record);
   }, 0);
@@ -66,6 +65,7 @@ function refreshDashboardForRecords_(records) {
   units.forEach(function(unit) { unitByName[normalizeKey_(unit.name)] = unit; });
   var recordsSheet = getSheet_(SHEETS.RECORDS);
   var dashboardSheet = ensureSheet_(openDashboardSpreadsheet_(), SHEETS.DASHBOARD);
+  removeDashboardSectionStatusColumn_(dashboardSheet);
   setSheetHeaders_(dashboardSheet, DASHBOARD_HEADERS);
   var pairLookup = {};
   var updatedRows = [];
@@ -96,7 +96,6 @@ function refreshDashboardForRecords_(records) {
   });
 
   applyCleanTableFormatting_(dashboardSheet, DASHBOARD_HEADERS.length);
-  applyDashboardConditionalFormatting_(dashboardSheet);
   refreshEmployeeRotationHoursForRecords_(records);
   return updatedRows;
 }
@@ -108,22 +107,4 @@ function findDashboardRow_(sheet, unitName, sectionName) {
     if (normalizeKey_(candidates[i][H.DASHBOARD.UNIT]) === unitKey) return candidates[i]._rowNumber;
   }
   return null;
-}
-
-function applyDashboardConditionalFormatting_(sheet) {
-  var map = getHeaderMap_(sheet);
-  if (!map[H.DASHBOARD.STATUS]) return;
-  var statusRange = sheet.getRange(2, map[H.DASHBOARD.STATUS], Math.max(sheet.getLastRow() - 1, 1), 1);
-  var rules = [];
-  rules.push(SpreadsheetApp.newConditionalFormatRule()
-    .whenTextEqualTo(STATUS.AVAILABLE)
-    .setBackground('#EAF5EA')
-    .setRanges([statusRange])
-    .build());
-  rules.push(SpreadsheetApp.newConditionalFormatRule()
-    .whenTextEqualTo(STATUS.OCCUPIED)
-    .setBackground('#F9E7E7')
-    .setRanges([statusRange])
-    .build());
-  sheet.setConditionalFormatRules(rules);
 }

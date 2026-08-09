@@ -16,6 +16,7 @@ const DEFAULT_SECTION_HEAD_EMAIL = 'M.ALAAMRI1@squ.edu.om';
 const LEGACY_EMPLOYEE_ROTATION_HOURS_SHEET_NAME = 'ملخص ساعات التدوير الوظيفي للموظفين';
 const LEGACY_EMPLOYEE_NAME_FORM_TITLE = 'اسم الموظف / Employee Name';
 const LEGACY_SUBMISSION_TOTAL_HOURS_HEADER = 'إجمالي ساعات الطلب';
+const LEGACY_DASHBOARD_SECTION_STATUS_HEADER = 'حالة القسم';
 
 const RESPONSE_QUEUE_BATCH_SIZE = 1;
 const ACTION_QUEUE_BATCH_SIZE = 25;
@@ -72,7 +73,6 @@ const H = Object.freeze({
     ACTIVE_TRAINEES: 'الأرقام الوظيفية للموظفين في التدوير النشط',
     ALL_TRAINEES: 'جميع من أتموا التدوير في القسم',
     LAST_ROTATION: 'آخر تاريخ تدوير',
-    STATUS: 'حالة القسم',
     TOTAL_HOURS: 'إجمالي ساعات التدوير'
   }),
   RECORD: Object.freeze({

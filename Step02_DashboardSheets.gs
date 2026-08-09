@@ -17,7 +17,9 @@ function run02_loadDummyReferenceData() {
 }
 
 function setupDashboardSheetsStaged_(ss, mainForm, evaluationForm) {
-  bsSetHeaders_(bsEnsureSheet_(ss, BS.DASHBOARD), BH.DASHBOARD);
+  var dashboardSheet = bsEnsureSheet_(ss, BS.DASHBOARD);
+  removeDashboardSectionStatusColumn_(dashboardSheet);
+  bsSetHeaders_(dashboardSheet, BH.DASHBOARD);
   var recordsSheet = bsEnsureSheet_(ss, BS.RECORDS);
   removeLegacySubmissionTotalHoursColumn_(recordsSheet);
   bsSetHeaders_(recordsSheet, BH.RECORDS);

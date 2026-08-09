@@ -237,6 +237,14 @@ function removeLegacySubmissionTotalHoursColumn_(sheet) {
   return true;
 }
 
+function removeDashboardSectionStatusColumn_(sheet) {
+  if (!sheet || sheet.getLastColumn() < 1) return false;
+  var column = getHeaderMap_(sheet)[LEGACY_DASHBOARD_SECTION_STATUS_HEADER];
+  if (!column) return false;
+  sheet.deleteColumn(column);
+  return true;
+}
+
 function hideInternalColumns_(sheet) {
   var map = getHeaderMap_(sheet);
   var columns = INTERNAL_RECORD_HEADERS.map(function(header) {
