@@ -51,22 +51,22 @@ function handleFinalStatusEdit(e) {
     } catch (ignore) {}
 
     if (!isMeaningfulFinalStatusChange_(e)) return;
+    var targetStatus = safeString_(e.value);
 
-    if (headStatus === STATUS.HEAD_PENDING) {
+    if (targetStatus !== STATUS.FINAL_REJECTED && headStatus === STATUS.HEAD_PENDING) {
       revertEdit_(e);
       logInfo_('handleFinalStatusEdit:headPendingBlocked', requestId, 'Final status edit blocked while unit-head decision is pending.');
       SpreadsheetApp.getActive().toast(FINAL_STATUS_HEAD_PENDING_MESSAGE);
       return;
     }
 
-    if (headStatus !== STATUS.HEAD_ACCEPTED) {
+    if (targetStatus !== STATUS.FINAL_REJECTED && headStatus !== STATUS.HEAD_ACCEPTED) {
       revertEdit_(e);
       logInfo_('handleFinalStatusEdit:headNotAcceptedBlocked', requestId, 'Final status edit blocked because unit-head approval is required first.');
       SpreadsheetApp.getActive().toast('لا يمكن الاعتماد النهائي قبل موافقة رئيس الوحدة. / Unit-head approval is required first.');
       return;
     }
 
-    var targetStatus = safeString_(e.value);
     if (isSystemOwnedFinalStatus_(targetStatus)) {
       revertEdit_(e);
       logInfo_('handleFinalStatusEdit:systemOwnedStatusBlocked', requestId, 'Manual system-owned final status edit reverted.');
@@ -172,7 +172,62 @@ function confirmFinalStatusChange(rowNumber, targetStatus) {
   }
 }
 
+function buildFinalApprovalSectionHeadEmailValidationMessage_(validation) {
+  var unitName = safeString_(validation && validation.unitName);
+  var sectionName = safeString_(validation && validation.sectionName);
+  if (validation && validation.reason === 'SECTION_NOT_FOUND') {
+    return 'تعذر الاعتماد النهائي لأن مرجع وحدة التدوير «' + unitName + '» وقسم التدوير «' + sectionName + '» غير موجود في ورقة «إدارة الأقسام». يرجى تصحيح بيانات القسم ثم إعادة المحاولة. / ' +
+      'Final approval could not be completed because the rotation unit/section reference could not be found for section "' + sectionName + '" in unit "' + unitName + '". Correct the section reference in the «إدارة الأقسام» sheet and try again.';
+  }
+  if (validation && validation.isBlank) {
+    return 'تعذر الاعتماد النهائي لأن بريد رئيس القسم مفقود للقسم «' + sectionName + '» في وحدة «' + unitName + '». يرجى تعبئة حقل «بريد رئيس القسم» في ورقة «إدارة الأقسام» ثم إعادة المحاولة. / ' +
+      'Final approval could not be completed because the section-head email is missing for section "' + sectionName + '" in unit "' + unitName + '". Complete «بريد رئيس القسم» in the «إدارة الأقسام» sheet and try again.';
+  }
+
+  var message = 'تعذر الاعتماد النهائي لأن بريد رئيس القسم غير صحيح للقسم «' + sectionName + '» في وحدة «' + unitName + '». يرجى تصحيح حقل «بريد رئيس القسم» في ورقة «إدارة الأقسام»، واستخدام الفاصلة الإنجليزية (,) بين عناوين البريد، ثم إعادة المحاولة. / ' +
+    'Final approval could not be completed because the section-head email is invalid for section "' + sectionName + '" in unit "' + unitName + '". Correct «بريد رئيس القسم» in the «إدارة الأقسام» sheet, using an English comma (,) between addresses, and try again.';
+  if (validation && validation.invalidEmails && validation.invalidEmails.length) {
+    message += '\nالعناوين غير الصحيحة: ' + validation.invalidEmails.join(', ') + ' / Invalid addresses: ' + validation.invalidEmails.join(', ');
+  }
+  if (validation && validation.hasEmptyEntries) {
+    message += '\nتحتوي قائمة البريد على خانة فارغة. / The email list contains an empty entry.';
+  }
+  return message;
+}
+
+function describeFinalApprovalSectionHeadEmailValidation_(validation) {
+  return JSON.stringify({
+    reason: validation && validation.reason,
+    unitName: validation && validation.unitName,
+    sectionName: validation && validation.sectionName,
+    raw: validation && validation.raw,
+    invalidEmails: validation && validation.invalidEmails,
+    emptyEntryPositions: validation && validation.emptyEntryPositions
+  });
+}
+
 function applyFinalStatusChange_(rowNumber, targetStatus, userEmail, logAction, currentFinalStatusOverride) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(25000)) {
+    return {
+      success: false,
+      message: 'النظام مشغول حالياً بمعالجة قرار آخر. يرجى إعادة المحاولة. / The system is processing another decision. Please try again.'
+    };
+  }
+  try {
+    return applyFinalStatusChangeLocked_(
+      rowNumber,
+      targetStatus,
+      userEmail,
+      logAction,
+      currentFinalStatusOverride
+    );
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function applyFinalStatusChangeLocked_(rowNumber, targetStatus, userEmail, logAction, currentFinalStatusOverride) {
   var ss = SpreadsheetApp.getActiveSpreadsheet() || openDashboardSpreadsheet_();
   var sheet = ss.getSheetByName(SHEETS.RECORDS) || getOrCreateSheet_(SHEETS.RECORDS);
   if (rowNumber > sheet.getLastRow()) return { success: false, message: 'الصف المحدد خارج نطاق البيانات. / Selected row is outside the data range.' };
@@ -180,10 +235,10 @@ function applyFinalStatusChange_(rowNumber, targetStatus, userEmail, logAction, 
   var record = getRecordFromSheetRow_(sheet, rowNumber);
   var requestId = safeString_(record[H.RECORD.REQUEST_ID]);
   if (!requestId) return { success: false, message: 'الصف المحدد لا يحتوي على رقم طلب. / Selected row has no request ID.' };
-  if (safeString_(record[H.RECORD.HEAD_STATUS]) === STATUS.HEAD_PENDING) {
+  if (targetStatus !== STATUS.FINAL_REJECTED && safeString_(record[H.RECORD.HEAD_STATUS]) === STATUS.HEAD_PENDING) {
     return { success: false, message: FINAL_STATUS_HEAD_PENDING_MESSAGE };
   }
-  if (safeString_(record[H.RECORD.HEAD_STATUS]) !== STATUS.HEAD_ACCEPTED) {
+  if (targetStatus !== STATUS.FINAL_REJECTED && safeString_(record[H.RECORD.HEAD_STATUS]) !== STATUS.HEAD_ACCEPTED) {
     return { success: false, message: 'لا يمكن الاعتماد النهائي قبل موافقة رئيس الوحدة. / Unit-head approval is required first.' };
   }
   var currentFinalStatus = currentFinalStatusOverride === undefined
@@ -193,9 +248,26 @@ function applyFinalStatusChange_(rowNumber, targetStatus, userEmail, logAction, 
     return { success: false, message: 'الحالة النهائية مطابقة للإجراء المطلوب بالفعل. / Final status already matches the requested action.' };
   }
 
+  var validatedSectionHeadContext = null;
+  if (targetStatus === STATUS.FINAL_APPROVED) {
+    var sectionHeadEmailValidation = getRotationSectionHeadEmailValidation_(record);
+    if (!sectionHeadEmailValidation.isValid) {
+      logError_(
+        logAction + ':sectionHeadEmailValidation',
+        requestId,
+        new Error(describeFinalApprovalSectionHeadEmailValidation_(sectionHeadEmailValidation))
+      );
+      return {
+        success: false,
+        message: buildFinalApprovalSectionHeadEmailValidationMessage_(sectionHeadEmailValidation)
+      };
+    }
+    validatedSectionHeadContext = sectionHeadEmailValidation;
+  }
+
   record[H.RECORD.FINAL_STATUS] = targetStatus;
   var sent = targetStatus === STATUS.FINAL_APPROVED
-    ? sendFinalApprovedNotification(record)
+    ? sendFinalApprovedNotification(record, validatedSectionHeadContext)
     : sendFinalRejectedNotification(record);
   if (sent !== true) {
     logInfo_(
@@ -233,13 +305,17 @@ function handleAdminReferenceEdit_(e) {
   try {
     syncReferenceDataFromAdminSheets_({ forceFormat: true });
     var bootstrapSync = syncAdminReferenceData_(openDashboardFromProperties_());
-    var queued = markMainFormReferenceDataDirty_(bootstrapSync.hash);
+    var queued = markMainFormReferenceDataDirty_(
+      bootstrapSync.formHash || bootstrapSync.hash
+    );
     refreshDashboard(true);
     logInfo_(
       'handleAdminReferenceEdit_',
       '',
       'Reference data synced from ' + sheet.getName() + '. ' +
-        (queued ? 'A change-driven form refresh was queued for syncSystem.' : 'The final data matches the published form; no rebuild was queued.')
+        (queued
+          ? 'Form-choice data changed; a change-driven form refresh was queued for syncSystem.'
+          : 'Only non-form data changed, or the choices already match; no form rebuild was queued.')
     );
   } catch (err) {
     logError_('handleAdminReferenceEdit_', '', err);

@@ -9,13 +9,13 @@
     <div class="card">
       <div class="header" style="background:<?= data.brand.primaryColor ?>;">
         <? if (data.brand.logoUrl) { ?><img class="logo" src="<?= data.brand.logoUrl ?>" alt="Employees and Retirees Services Section / قسم خدمات الموظفين والمتقاعدين Logo"><? } ?>
-        <div class="title-ar">طلب موافقة على التدوير الوظيفي</div>
-        <div class="title-en">Job Rotation Approval Request</div>
+        <div class="title-ar">طلب موافقة على التدوير المعرفي</div>
+        <div class="title-en">Knowledge Rotation Approval Request</div>
       </div>
       <div class="content">
-        <div class="intro-ar">يرجى مراجعة طلب التدوير الوظيفي واختيار موافقة أو رفض.</div>
-        <div class="intro-en">Please review the job rotation request, then approve or reject.</div>
-        
+        <div class="intro-ar">يرجى مراجعة جميع اختيارات التدوير في هذا الطلب واتخاذ قرار مستقل لكل اختيار.</div>
+        <div class="intro-en">Please review all rotation selections in this submission and decide on each selection separately.</div>
+
 <table class="details">
   <tr><th>البيان / Field</th><th>القيمة / Value</th></tr>
   <? for (var i = 0; i < data.rows.length; i++) { ?>
@@ -26,11 +26,29 @@
   <? } ?>
 </table>
 
-        
-        <div class="buttons">
-          <a class="btn btn-approve" href="<?= data.approveUrl ?>">موافقة / Approve</a>
-          <a class="btn btn-reject" href="<?= data.rejectUrl ?>">رفض / Reject</a>
-        </div>
+        <? if (data.requests && data.requests.length) { ?>
+          <? for (var requestIndex = 0; requestIndex < data.requests.length; requestIndex++) { var request = data.requests[requestIndex]; ?>
+            <h3>اختيار التدوير <?= request.selectionNumber ?> / Rotation Selection <?= request.selectionNumber ?></h3>
+            <table class="details">
+              <tr><th>البيان / Field</th><th>القيمة / Value</th></tr>
+              <? for (var requestRowIndex = 0; requestRowIndex < request.rows.length; requestRowIndex++) { ?>
+                <tr>
+                  <th><?= request.rows[requestRowIndex].ar ?> / <?= request.rows[requestRowIndex].en ?></th>
+                  <td><?= request.rows[requestRowIndex].value ?></td>
+                </tr>
+              <? } ?>
+            </table>
+            <div class="buttons">
+              <a class="btn btn-approve" href="<?= request.approveUrl ?>">موافقة / Approve</a>
+              <a class="btn btn-reject" href="<?= request.rejectUrl ?>">رفض / Reject</a>
+            </div>
+          <? } ?>
+        <? } else { ?>
+          <div class="buttons">
+            <a class="btn btn-approve" href="<?= data.approveUrl ?>">موافقة / Approve</a>
+            <a class="btn btn-reject" href="<?= data.rejectUrl ?>">رفض / Reject</a>
+          </div>
+        <? } ?>
       </div>
       <div class="footer">
         <div dir="rtl">رسالة آلية من <?= data.orgAr ?>. يرجى عدم الرد.</div>

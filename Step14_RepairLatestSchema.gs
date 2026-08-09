@@ -5,6 +5,7 @@ function run14_repairExistingResourcesFromLatestScript() {
   var mainForm = openMainFormFromProperties_();
   var evaluationForm = openEvaluationFormFromProperties_();
 
+  removeDashboardSectionStatusColumn_(ss.getSheetByName(BS.DASHBOARD));
   repairBootstrapSheetSchema_(ss, BS.DASHBOARD, BH.DASHBOARD);
   repairBootstrapSheetSchema_(ss, BS.RECORDS, BH.RECORDS);
   repairBootstrapSheetSchema_(ss, BS.ADMIN_UNITS, BH.UNITS);
@@ -42,6 +43,7 @@ function run14_repairExistingResourcesFromLatestScript() {
     applyBasicSheetFormat_(ss.getSheetByName(name), BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR);
   });
   applyReferenceAdminFormatting_(ss);
+  hideInternalColumns_(ss.getSheetByName(BS.RECORDS));
   try { ss.getSheetByName(BS.UNITS).hideSheet(); } catch (ignore) {}
   try { ss.getSheetByName(BS.SECTIONS).hideSheet(); } catch (ignore2) {}
   try { ss.getSheetByName(BS.SETTINGS).hideSheet(); } catch (ignore3) {}

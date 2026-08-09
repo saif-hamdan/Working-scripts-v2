@@ -16,6 +16,58 @@ function splitCsv_(value) {
     .filter(function(part) { return part !== ''; });
 }
 
+function isValidEmailAddress_(value) {
+  var email = safeString_(value);
+  return Boolean(email) && /^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/.test(email);
+}
+
+function parseEmailList_(value) {
+  var raw = value === null || value === undefined ? '' : String(value);
+  var isBlank = safeString_(raw) === '';
+  var parts = isBlank ? [] : raw.split(',');
+  var emails = [];
+  var invalidEmails = [];
+  var emptyEntryPositions = [];
+  var seen = {};
+
+  parts.forEach(function(part, index) {
+    var email = safeString_(part);
+    if (!email) {
+      emptyEntryPositions.push(index + 1);
+      return;
+    }
+    if (!isValidEmailAddress_(email)) {
+      invalidEmails.push(email);
+      return;
+    }
+    var key = normalizeEmail_(email);
+    if (seen[key]) return;
+    seen[key] = true;
+    emails.push(email);
+  });
+
+  return {
+    raw: raw,
+    emails: emails,
+    validEmails: emails,
+    invalidEmails: invalidEmails,
+    emptyEntryPositions: emptyEntryPositions,
+    hasEmptyEntries: emptyEntryPositions.length > 0,
+    isBlank: isBlank,
+    isValid: !isBlank && !invalidEmails.length && !emptyEntryPositions.length && emails.length > 0,
+    normalized: emails.join(',')
+  };
+}
+
+function validateEmailList_(value) {
+  return parseEmailList_(value);
+}
+
+function normalizeEmailListForStorage_(value) {
+  var validation = validateEmailList_(value);
+  return validation.isValid ? validation.normalized : safeString_(value);
+}
+
 function uniqueNonEmpty_(values) {
   var seen = {};
   var out = [];
@@ -54,14 +106,27 @@ function makeFormResponseSourceId_(data) {
   if (sourceTimestamp instanceof Date && !isNaN(sourceTimestamp.getTime())) {
     sourceTimestamp = Utilities.formatDate(sourceTimestamp, SYSTEM.TIME_ZONE, "yyyy-MM-dd'T'HH:mm:ss.SSS");
   }
+  var rotations = (data && data.rotationOptions || []).map(function(option) {
+    return [
+      option.optionOrder,
+      option.rotationUnit,
+      option.section,
+      option.fromDate instanceof Date ? formatDate_(option.fromDate) : option.fromDate,
+      option.toDate instanceof Date ? formatDate_(option.toDate) : option.toDate,
+      option.hours
+    ].join('\u001e');
+  }).join('\u001d');
   return makeStableSourceKey_([
     sourceTimestamp,
     data && data.submitterEmail,
     data && data.employeeId,
-    data && data.startDate,
-    data && data.endDate,
-    data && data.rotationUnit,
-    data && data.section
+    rotations || [
+      data && data.startDate,
+      data && data.endDate,
+      data && data.rotationUnit,
+      data && data.section,
+      data && data.hours
+    ].join('\u001e')
   ]);
 }
 
@@ -79,14 +144,14 @@ function formatDate_(date) {
   if (!date) return '';
   var d = parseDateFlexible_(date);
   if (!d) return '';
-  return Utilities.formatDate(d, SYSTEM.TIME_ZONE, 'yyyy-MM-dd');
+  return Utilities.formatDate(d, SYSTEM.TIME_ZONE, 'dd/MM/yyyy');
 }
 
 function formatDateTime_(date) {
   if (!date) return '';
   var d = parseDateFlexible_(date);
   if (!d) return '';
-  return Utilities.formatDate(d, SYSTEM.TIME_ZONE, 'yyyy-MM-dd HH:mm:ss');
+  return Utilities.formatDate(d, SYSTEM.TIME_ZONE, 'dd/MM/yyyy HH:mm:ss');
 }
 
 function parseDateFlexible_(value) {
@@ -96,17 +161,23 @@ function parseDateFlexible_(value) {
   if (!s) return null;
 
   var iso = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
-  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+  if (iso) {
+    var isoYear = Number(iso[1]);
+    var isoMonth = Number(iso[2]);
+    var isoDay = Number(iso[3]);
+    var isoDate = new Date(isoYear, isoMonth - 1, isoDay);
+    if (isoDate.getFullYear() === isoYear && isoDate.getMonth() === isoMonth - 1 && isoDate.getDate() === isoDay) return isoDate;
+    return null;
+  }
 
   var dmy = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
   if (dmy) {
-    var a = Number(dmy[1]);
-    var b = Number(dmy[2]);
+    var day = Number(dmy[1]);
+    var month = Number(dmy[2]);
     var y = Number(dmy[3]);
-    // If the first part is greater than 12, it is definitely day/month/year.
-    if (a > 12) return new Date(y, b - 1, a);
-    // Google Forms often returns month/day/year in English locales. This fallback is acceptable because setup uses yyyy-MM-dd formatting in dashboards.
-    return new Date(y, a - 1, b);
+    var dmyDate = new Date(y, month - 1, day);
+    if (dmyDate.getFullYear() === y && dmyDate.getMonth() === month - 1 && dmyDate.getDate() === day) return dmyDate;
+    return null;
   }
 
   var parsed = new Date(s);
@@ -147,6 +218,16 @@ function makeRequestId_() {
   var next = Number(props.getProperty(key) || '0') + 1;
   props.setProperty(key, String(next));
   return SYSTEM.REQUEST_PREFIX + '-' + year + '-' + ('000000' + next).slice(-6);
+}
+
+function makeRequestGroupId_(stableResponseId) {
+  var stable = safeString_(stableResponseId);
+  if (!stable) stable = Utilities.getUuid();
+  return 'GRP-' + makeStableSourceKey_([stable]).substring(0, 24);
+}
+
+function makeSelectionIdempotencyKey_(stableResponseId, selectionNumber) {
+  return safeString_(stableResponseId) + ':' + String(Number(selectionNumber) || 0);
 }
 
 function makeWebAppUrl_(action, token) {

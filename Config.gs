@@ -26,6 +26,7 @@ function getConfig() {
     RESPONSE_QUEUE_BATCH_SIZE: responseQueueLimits.batchSize,
     QUEUE_SCAN_WINDOW_ROWS: responseQueueLimits.scanWindowRows,
     ACTION_QUEUE_MAX_RETRIES: Math.max(1, toNumber_(value(SETTINGS_KEYS.ACTION_QUEUE_MAX_RETRIES, '3'), 3)),
+    EVALUATION_FORM_ID: value(SETTINGS_KEYS.EVALUATION_FORM_ID, ''),
     EVALUATION_FORM_URL: value(SETTINGS_KEYS.EVALUATION_FORM_URL, ''),
     WEB_APP_URL: resolveConfiguredWebAppUrl_(
       settings[SETTINGS_KEYS.WEB_APP_URL],
@@ -94,6 +95,7 @@ function writeSettingsFromConfig_(ss) {
   defaults[SETTINGS_KEYS.RESPONSE_QUEUE_BATCH_SIZE] = String(RESPONSE_QUEUE_BATCH_SIZE);
   defaults[SETTINGS_KEYS.QUEUE_SCAN_WINDOW_ROWS] = String(QUEUE_SCAN_WINDOW_ROWS);
   defaults[SETTINGS_KEYS.ACTION_QUEUE_MAX_RETRIES] = '3';
+  defaults[SETTINGS_KEYS.EVALUATION_FORM_ID] = '';
   defaults[SETTINGS_KEYS.EVALUATION_FORM_URL] = '';
   defaults[SETTINGS_KEYS.WEB_APP_URL] = '';
   defaults[SETTINGS_KEYS.OWNER_EMAIL] = 'employeeservices@squ.edu.om';

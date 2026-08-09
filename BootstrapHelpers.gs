@@ -146,7 +146,13 @@ function readSections_(ss, options) {
       unitName: String(row[2] || '').trim(),
       name: String(row[3] || '').trim(),
       active: isActiveValue_(row[4]),
-      capacity: Number(row[5] || 1) || 1
+      capacity: Number(row[5] || 1) || 1,
+      headEmail: normalizeEmailListForStorage_(row[6]),
+      headNameAr: String(row[7] || '').trim(),
+      headNameEn: String(row[8] || '').trim(),
+      headSalutationAr: String(row[9] || '').trim(),
+      headJobTitleAr: String(row[10] || '').trim(),
+      headJobTitleEn: String(row[11] || '').trim()
     };
   });
 }
@@ -251,6 +257,8 @@ function applyReferenceAdminFormatting_(ss) {
   if (adminSections) {
     applyBasicSheetFormat_(adminSections, BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR);
     applyYesNoValidationByHeader_(adminSections, BH.SECTIONS, 'نشط');
+    clearColumnValidationByHeader_(adminSections, BH.SECTIONS, 'بريد رئيس القسم');
+    applySectionHeadSalutationValidation_(adminSections);
     applyUnitIdValidation_(ss, adminSections);
   }
 }
@@ -301,7 +309,9 @@ function syncAdminReferenceData_(ss) {
     unitRows
   );
   var hash = hashReferenceRows_(unitRows, sectionRows);
+  var formHash = hashFormReferenceRows_(unitRows, sectionRows);
   var previousHash = getBootstrapProperty_(BSPROP.REFERENCE_DATA_HASH, '');
+  var previousFormHash = getBootstrapProperty_(BSPROP.REFERENCE_FORM_HASH, '');
   var changed = hash !== previousHash;
   var runtimeDataMissing = (unitRows.length && systemUnits.getLastRow() < 2) ||
     (sectionRows.length && systemSections.getLastRow() < 2);
@@ -320,11 +330,31 @@ function syncAdminReferenceData_(ss) {
     try { systemSections.hideSheet(); } catch (ignore2) {}
   }
 
-  setBootstrapProperties_({
+  var syncProperties = {
     [BSPROP.REFERENCE_DATA_HASH]: hash,
+    [BSPROP.REFERENCE_FORM_HASH]: formHash,
     [BSPROP.LAST_REFERENCE_SYNC]: new Date().toISOString()
-  });
-  return { unitCount: unitRows.length, sectionCount: sectionRows.length, hash: hash, changed: changed };
+  };
+  // Migrate an existing published baseline from the old full-data hash to the
+  // form-only hash. Head-name/email and capacity changes must never trigger a
+  // form rebuild.
+  if (!previousFormHash && previousHash) {
+    if (getBootstrapProperty_(BSPROP.BRANCH_PUBLISHED_HASH, '') === previousHash) {
+      syncProperties[BSPROP.BRANCH_PUBLISHED_HASH] = formHash;
+    }
+    if (getBootstrapProperty_(BSPROP.BRANCH_TARGET_HASH, '') === previousHash) {
+      syncProperties[BSPROP.BRANCH_TARGET_HASH] = formHash;
+    }
+  }
+  setBootstrapProperties_(syncProperties);
+  return {
+    unitCount: unitRows.length,
+    sectionCount: sectionRows.length,
+    hash: hash,
+    formHash: formHash,
+    changed: changed,
+    formChoicesChanged: Boolean(previousFormHash && formHash !== previousFormHash)
+  };
 }
 
 function cascadeInactiveUnitSections_(sectionRows, unitRows) {
@@ -349,6 +379,10 @@ function cascadeInactiveUnitSections_(sectionRows, unitRows) {
     var hasUnit = (unitId && unitById[unitId]) || (unitName && unitByName[unitName]);
     var hasActiveUnit = (unitId && activeUnitById[unitId]) || (unitName && activeUnitByName[unitName]);
     if (hasUnit && !hasActiveUnit) copy[4] = 'لا';
+    copy[6] = normalizeEmailListForStorage_(copy[6]);
+    for (var column = 7; column < BH.SECTIONS.length; column++) {
+      copy[column] = String(copy[column] || '').trim();
+    }
     return copy;
   });
 }
@@ -360,6 +394,16 @@ function hashReferenceRows_(unitRows, sectionRows) {
     var value = byte < 0 ? byte + 256 : byte;
     return ('0' + value.toString(16)).slice(-2);
   }).join('');
+}
+
+function hashFormReferenceRows_(unitRows, sectionRows) {
+  var formUnitRows = (unitRows || []).map(function(row) {
+    return [row[0], row[1], row[5]];
+  });
+  var formSectionRows = (sectionRows || []).map(function(row) {
+    return [row[0], row[1], row[2], row[3], row[4]];
+  });
+  return hashReferenceRows_(formUnitRows, formSectionRows);
 }
 
 function writeSettings_(ss, mainForm, evaluationForm) {
@@ -385,6 +429,7 @@ function writeSettings_(ss, mainForm, evaluationForm) {
   values[SETTINGS_KEYS.RESPONSE_QUEUE_BATCH_SIZE] = String(RESPONSE_QUEUE_BATCH_SIZE);
   values[SETTINGS_KEYS.QUEUE_SCAN_WINDOW_ROWS] = String(QUEUE_SCAN_WINDOW_ROWS);
   values[SETTINGS_KEYS.ACTION_QUEUE_MAX_RETRIES] = '3';
+  values[SETTINGS_KEYS.EVALUATION_FORM_ID] = evaluationForm ? evaluationForm.getId() : getBootstrapProperty_(BSPROP.EVALUATION_FORM_ID, '');
   values[SETTINGS_KEYS.EVALUATION_FORM_URL] = evaluationForm ? evaluationForm.getPublishedUrl() : getBootstrapProperty_(BSPROP.EVALUATION_FORM_PUBLISHED_URL, '');
   values[SETTINGS_KEYS.WEB_APP_URL] = preservedWebAppUrl;
   values[SETTINGS_KEYS.OWNER_EMAIL] = owner;
@@ -521,6 +566,7 @@ function writeSetupSummary_(ss, mainForm, evaluationForm) {
     ['Main form repair active', getBootstrapProperty_(BSPROP.BRANCH_REPAIR_ACTIVE, 'false')],
     ['Validation status', getBootstrapProperty_(BSPROP.VALIDATION_STATUS, BSTATUS.NOT_STARTED)],
     ['Reference data hash', getBootstrapProperty_(BSPROP.REFERENCE_DATA_HASH, '')],
+    ['Form reference hash', getBootstrapProperty_(BSPROP.REFERENCE_FORM_HASH, '')],
     ['Reference data dirty', getBootstrapProperty_(BSPROP.REFERENCE_DIRTY, 'false')],
     ['Last reference sync', getBootstrapProperty_(BSPROP.LAST_REFERENCE_SYNC, '')],
     ['Production compatibility status', getBootstrapProperty_(BSPROP.PRODUCTION_COMPATIBILITY_STATUS, BSTATUS.NOT_STARTED)],
@@ -574,7 +620,7 @@ function saveValidationIssues_(issues) {
 }
 
 function validEmail_(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+  return isValidEmailAddress_(email);
 }
 
 function removeSetupProtections_(sheet) {

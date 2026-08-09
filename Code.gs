@@ -20,6 +20,8 @@ function onOpen() {
       .addItem('13 - Verify production compatibility', 'run13_verifyProductionCompatibility')
       .addItem('14 - Repair existing resources from latest script', 'run14_repairExistingResourcesFromLatestScript')
       .addItem('17 - Repair main form branching once', 'run17_repairMainFormBranching')
+      .addItem('18 - Add section-head emails without form changes', 'run18_updateSectionHeadEmailSchema')
+      .addItem('19 - Apply request-sheet layout and employee-name label', 'run19_applyRequestSheetAndFormUpdates')
       .addSeparator()
       .addItem('11 - Refresh main form from admin sheets', 'run11_refreshMainFormFromAdminSheets')
       .addItem('12 - Use syncSystem for form refresh', 'run12_createFiveMinuteFormRefreshTrigger')
@@ -31,7 +33,7 @@ function onOpen() {
       .addItem('إعداد/تحديث النظام', 'setupAllFromMenu')
       .addItem('Production setupAll', 'setupAll')
       .addItem('تحديث لوحة الأقسام', 'refreshDashboard')
-      .addItem('تحديث ملخص ساعات التدوير الوظيفي للموظفين', 'refreshEmployeeRotationHoursSummary')
+      .addItem('تحديث ملخص ساعات التدوير المعرفي', 'refreshEmployeeRotationHoursSummary')
       .addItem('تحديث القوائم في النموذج', 'refreshFormChoices')
       .addItem('معالجة الطلبات غير المعالجة', 'processResponseQueueOnce')
       .addItem('إعادة بناء فهرس مصادر الطلبات', 'rebuildRequestSourceIndex')
@@ -249,13 +251,20 @@ function syncSystem() {
 
     var nowMs = Date.now();
     var queueChanged = hasSyncQueueChanges_(responseQueueStats, approvalActionQueueStats, emailQueueStats);
+    var approvalRecordsChanged = toNumber_(approvalActionQueueStats && approvalActionQueueStats.processed, 0) > 0;
     var referenceChanged = Boolean(referenceSyncStats && referenceSyncStats.changed);
+    var formChoicesChanged = Boolean(
+      referenceSyncStats && referenceSyncStats.formChoicesChanged
+    );
     var dashboardRefreshDue = shouldRunScheduledDashboardRefresh_(nowMs);
-    var needsDashboardRefresh = queueChanged || referenceChanged || dashboardRefreshDue;
+    // Newly created response records update only their affected dashboard rows.
+    // A full records scan remains scheduled, and is also used after approvals or
+    // reference-data changes that can affect many rows.
+    var needsDashboardRefresh = approvalRecordsChanged || referenceChanged || dashboardRefreshDue;
     // Form choices now depend only on unit/section reference data. Request and
     // approval status changes do not require rebuilding the Google Form.
     var stagedBranchingInProgress = typeof mainFormBranchingInProgress_ === 'function' && mainFormBranchingInProgress_();
-    var needsFormRefresh = referenceChanged ||
+    var needsFormRefresh = formChoicesChanged ||
       (typeof mainFormNeedsRefresh_ === 'function' && mainFormNeedsRefresh_());
 
     if (needsDashboardRefresh || needsFormRefresh) {
@@ -264,12 +273,12 @@ function syncSystem() {
       if (shouldStopSync_(startedAt)) return;
       if (needsDashboardRefresh) {
         dashboardRows = refreshDashboardFromSync_(records);
-        logInfo_('syncSystem', '', 'Dashboard refresh completed; reason: ' + (queueChanged ? 'queue changes' : (referenceChanged ? 'reference data changes' : 'scheduled interval')) + '.');
+        logInfo_('syncSystem', '', 'Dashboard refresh completed; reason: ' + (approvalRecordsChanged ? 'approval changes' : (referenceChanged ? 'reference data changes' : 'scheduled interval')) + '.');
       }
       if (shouldStopSync_(startedAt)) return;
       if (needsFormRefresh) {
-        refreshFormChoicesFromSync_(startedAt, referenceChanged);
-        logInfo_('syncSystem', '', 'Change-driven form refresh checked; reason: ' + (referenceChanged ? 'reference data changes' : (stagedBranchingInProgress ? 'staged branching progress' : 'queued reference edit')) + '.');
+        refreshFormChoicesFromSync_(startedAt, formChoicesChanged);
+        logInfo_('syncSystem', '', 'Change-driven form refresh checked; reason: ' + (formChoicesChanged ? 'unit/section choice changes' : (stagedBranchingInProgress ? 'staged branching progress' : 'queued reference edit')) + '.');
       }
     } else {
       logInfo_('syncSystem', '', 'Refresh phases skipped: no queue/reference changes and scheduled intervals have not elapsed.');

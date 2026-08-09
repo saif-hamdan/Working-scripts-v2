@@ -3,6 +3,8 @@ function handleWebGet(e) {
   var action = e && e.parameter ? safeString_(e.parameter.action) : '';
   var token = e && e.parameter ? safeString_(e.parameter.token) : '';
   try {
+    if (action === 'approveGroup') return handleApproveGroup_(token);
+    if (action === 'rejectGroup') return showRejectGroupPage_(token);
     if (action === 'approve') return handleApprove_(token);
     if (action === 'reject') return showRejectPage_(token);
     return renderMessagePage_('طلب غير معروف', 'Unknown request', 'الرابط غير صحيح أو ناقص. / The link is invalid or incomplete.', false);
@@ -15,6 +17,11 @@ function handleWebGet(e) {
 function handleWebPost(e) {
   var action = e && e.parameter ? safeString_(e.parameter.action) : '';
   try {
+    if (action === 'rejectGroup') {
+      var groupToken = safeString_(e.parameter.token);
+      var groupReason = safeString_(e.parameter.reason);
+      return handleRejectGroupSubmit_(groupToken, groupReason);
+    }
     if (action === 'reject') {
       var token = safeString_(e.parameter.token);
       var reason = safeString_(e.parameter.reason);
@@ -40,6 +47,153 @@ function handleApprove_(token) {
   return renderDecisionQueuedPage_();
 }
 
+function getUnitHeadDecisionGroupByToken_(token) {
+  throwIfMissing_(token, 'Missing approval token.');
+  var seedRecord = getRequestByToken_(token);
+  if (!seedRecord) return [];
+
+  var groupId = safeString_(seedRecord[H.RECORD.REQUEST_GROUP_ID]);
+  var maxGroupSize = FORM.MAX_ROTATION_OPTIONS || 3;
+  var records = groupId
+    ? findObjectsByValue_(
+        getOrCreateSheet_(SHEETS.RECORDS),
+        H.RECORD.REQUEST_GROUP_ID,
+        groupId,
+        maxGroupSize + 1
+      )
+    : [seedRecord];
+  if (records.length > maxGroupSize) {
+    throw new Error(
+      'Submission ' + groupId + ' has more than the supported ' + maxGroupSize +
+      ' rotations. No unit-head decision was applied.'
+    );
+  }
+
+  // Grouped approval emails are partitioned by recipient. Keep the action
+  // within the same recipient scope even if approver configuration changes.
+  var approverKey = normalizeKey_(seedRecord[H.RECORD.APPROVER_EMAIL]);
+  records = records.filter(function(record) {
+    return normalizeKey_(record[H.RECORD.APPROVER_EMAIL]) === approverKey;
+  });
+  return records.sort(function(left, right) {
+    return toNumber_(left[H.RECORD.OPTION_ORDER], 0) -
+      toNumber_(right[H.RECORD.OPTION_ORDER], 0);
+  });
+}
+
+function getPendingUnitHeadDecisionRecords_(records) {
+  return (records || []).filter(isRequestAwaitingUnitHeadDecision_);
+}
+
+function handleApproveGroup_(token) {
+  var records = getUnitHeadDecisionGroupByToken_(token);
+  if (!records.length) {
+    return renderMessagePage_(
+      'رابط غير صالح',
+      'Invalid link',
+      'لم يتم العثور على الطلب. / Request was not found.',
+      false
+    );
+  }
+  if (!getPendingUnitHeadDecisionRecords_(records).length) {
+    return renderAlreadyProcessedPage_(records[0]);
+  }
+  queueApprovalAction_(token, APPROVAL_ACTIONS.APPROVE_GROUP, '');
+  return renderDecisionQueuedPage_();
+}
+
+function processQueuedApproveGroupAction_(token) {
+  var records = getUnitHeadDecisionGroupByToken_(token);
+  if (!records.length) throw new Error('Submission was not found for approval token.');
+
+  var pendingRecords = getPendingUnitHeadDecisionRecords_(records);
+  var groupId = safeString_(records[0][H.RECORD.REQUEST_GROUP_ID]);
+  if (!pendingRecords.length) {
+    logInfo_(
+      'processQueuedApproveGroupAction_',
+      groupId,
+      'Queued group approval skipped because every rotation was already processed.'
+    );
+    return;
+  }
+
+  // All rotations in one submission belong to the same employee. Load only
+  // that employee's rows once, then reuse them for the bounded group.
+  var conflictCandidates = getEmployeeConflictCandidateRecords_(
+    pendingRecords[0][H.RECORD.EMPLOYEE_ID],
+    pendingRecords[0][H.RECORD.EMPLOYEE_NAME],
+    1000
+  );
+  var outcomes = pendingRecords.map(function(record) {
+    var requestId = safeString_(record[H.RECORD.REQUEST_ID]);
+    return {
+      record: record,
+      conflict: findConflicts({
+        employeeId: record[H.RECORD.EMPLOYEE_ID],
+        employeeName: record[H.RECORD.EMPLOYEE_NAME],
+        startDate: record[H.RECORD.START_DATE],
+        endDate: record[H.RECORD.END_DATE],
+        excludeRequestId: requestId
+      }, conflictCandidates)
+    };
+  });
+  var decisionDate = now_();
+  var conflictNotifications = [];
+
+  try {
+    outcomes.forEach(function(outcome) {
+      var record = outcome.record;
+      var requestId = safeString_(record[H.RECORD.REQUEST_ID]);
+      if (outcome.conflict) {
+        var conflictDetails = formatConflictDetails_(outcome.conflict);
+        updateRequestByRow_(record._rowNumber, {
+          [H.RECORD.HEAD_STATUS]: STATUS.HEAD_CONFLICT,
+          [H.RECORD.FINAL_STATUS]: STATUS.FINAL_CONFLICT,
+          [H.RECORD.CONFLICT_ID]: outcome.conflict[H.RECORD.REQUEST_ID],
+          [H.RECORD.CONFLICT_DETAILS]: conflictDetails,
+          [H.RECORD.DECISION_DATE]: decisionDate
+        });
+        var conflictedRecord = Object.assign({}, record);
+        conflictedRecord[H.RECORD.HEAD_STATUS] = STATUS.HEAD_CONFLICT;
+        conflictedRecord[H.RECORD.FINAL_STATUS] = STATUS.FINAL_CONFLICT;
+        conflictedRecord[H.RECORD.CONFLICT_ID] = outcome.conflict[H.RECORD.REQUEST_ID];
+        conflictedRecord[H.RECORD.CONFLICT_DETAILS] = conflictDetails;
+        conflictedRecord[H.RECORD.DECISION_DATE] = decisionDate;
+        conflictNotifications.push({
+          record: conflictedRecord,
+          conflict: outcome.conflict,
+          source: 'late_group_approval'
+        });
+        logInfo_(
+          'processQueuedApproveGroupAction_:conflict',
+          requestId,
+          'Group approval was blocked for this rotation because of a conflict.'
+        );
+        return;
+      }
+
+      updateRequestByRow_(record._rowNumber, {
+        [H.RECORD.HEAD_STATUS]: STATUS.HEAD_ACCEPTED,
+        [H.RECORD.FINAL_STATUS]: STATUS.FINAL_PENDING,
+        [H.RECORD.DECISION_DATE]: decisionDate
+      });
+      logInfo_(
+        'processQueuedApproveGroupAction_',
+        requestId,
+        'Unit head approved this rotation through the submission-level decision; final admin approval remains pending.'
+      );
+    });
+  } finally {
+    conflictNotifications.forEach(function(notification) {
+      queueConflictNotification(
+        notification.record,
+        notification.conflict,
+        notification.source
+      );
+    });
+  }
+}
+
 function processQueuedApproveAction_(token) {
   throwIfMissing_(token, 'Missing approval token.');
 
@@ -49,7 +203,6 @@ function processQueuedApproveAction_(token) {
   try {
     var record = getRequestByToken_(token);
     if (!record) throw new Error('Request was not found for approval token.');
-
     requestId = safeString_(record[H.RECORD.REQUEST_ID]);
     if (safeString_(record[H.RECORD.HEAD_STATUS]) !== STATUS.HEAD_PENDING || safeString_(record[H.RECORD.FINAL_STATUS]) !== STATUS.FINAL_PENDING) {
       logInfo_('processQueuedApproveAction_', requestId, 'Queued approval skipped because the request was already processed. Current final status: ' + safeString_(record[H.RECORD.FINAL_STATUS]));
@@ -57,8 +210,8 @@ function processQueuedApproveAction_(token) {
     }
 
     var conflict = findConflicts({
-      rotationUnit: record[H.RECORD.ROTATION_UNIT],
-      section: record[H.RECORD.SECTION],
+      employeeId: record[H.RECORD.EMPLOYEE_ID],
+      employeeName: record[H.RECORD.EMPLOYEE_NAME],
       startDate: record[H.RECORD.START_DATE],
       endDate: record[H.RECORD.END_DATE],
       excludeRequestId: requestId
@@ -113,14 +266,52 @@ function showRejectPage_(token) {
   return template.evaluate().setTitle('رفض الطلب / Reject Request');
 }
 
+function showRejectGroupPage_(token) {
+  var records = getUnitHeadDecisionGroupByToken_(token);
+  if (!records.length) {
+    return renderMessagePage_(
+      'رابط غير صالح',
+      'Invalid link',
+      'لم يتم العثور على الطلب. / Request was not found.',
+      false
+    );
+  }
+  var pendingRecords = getPendingUnitHeadDecisionRecords_(records);
+  if (!pendingRecords.length) return renderAlreadyProcessedPage_(records[0]);
+
+  var actionUrlStatus = getValidatedWebAppUrlStatus_();
+  if (!actionUrlStatus.ok) {
+    return renderMessagePage_(
+      'خطأ في إعداد رابط التطبيق',
+      'Web App URL Configuration Error',
+      actionUrlStatus.message,
+      false
+    );
+  }
+  var template = HtmlService.createTemplateFromFile('RejectPage');
+  template.data = buildGroupedRequestTemplateData_(pendingRecords, {
+    token: token,
+    actionUrl: actionUrlStatus.url,
+    rejectAction: 'rejectGroup'
+  });
+  return template.evaluate().setTitle('رفض الطلب / Reject Request');
+}
+
 function handleRejectSubmit_(token, reason) {
   var result = rejectRequest_(token, reason);
   return renderMessagePage_(result.titleAr, result.titleEn, result.message, result.success);
 }
 
-function rejectRequestFromPage(token, reason) {
+function handleRejectGroupSubmit_(token, reason) {
+  var result = rejectGroupRequest_(token, reason);
+  return renderMessagePage_(result.titleAr, result.titleEn, result.message, result.success);
+}
+
+function rejectRequestFromPage(token, reason, action) {
   try {
-    return rejectRequest_(token, reason);
+    return safeString_(action) === 'rejectGroup'
+      ? rejectGroupRequest_(token, reason)
+      : rejectRequest_(token, reason);
   } catch (err) {
     logError_('rejectRequestFromPage', '', err);
     return {
@@ -181,6 +372,25 @@ function rejectRequest_(token, reason) {
   return buildDecisionQueuedResult_();
 }
 
+function rejectGroupRequest_(token, reason) {
+  throwIfMissing_(token, 'Missing rejection token.');
+  throwIfMissing_(reason, 'Rejection reason is required.');
+  var records = getUnitHeadDecisionGroupByToken_(token);
+  if (!records.length) {
+    return {
+      titleAr: 'رابط غير صالح',
+      titleEn: 'Invalid link',
+      message: 'لم يتم العثور على الطلب. / Request was not found.',
+      success: false
+    };
+  }
+  if (!getPendingUnitHeadDecisionRecords_(records).length) {
+    return buildAlreadyProcessedResult_(records[0]);
+  }
+  queueApprovalAction_(token, APPROVAL_ACTIONS.REJECT_GROUP, reason);
+  return buildDecisionQueuedResult_();
+}
+
 function processQueuedRejectAction_(token, reason) {
   throwIfMissing_(token, 'Missing rejection token.');
   throwIfMissing_(reason, 'Rejection reason is required.');
@@ -223,6 +433,55 @@ function processQueuedRejectAction_(token, reason) {
   }
 }
 
+function processQueuedRejectGroupAction_(token, reason) {
+  throwIfMissing_(token, 'Missing rejection token.');
+  throwIfMissing_(reason, 'Rejection reason is required.');
+
+  var records = getUnitHeadDecisionGroupByToken_(token);
+  if (!records.length) throw new Error('Submission was not found for rejection token.');
+  var pendingRecords = getPendingUnitHeadDecisionRecords_(records);
+  var groupId = safeString_(records[0][H.RECORD.REQUEST_GROUP_ID]);
+  if (!pendingRecords.length) {
+    logInfo_(
+      'processQueuedRejectGroupAction_',
+      groupId,
+      'Queued group rejection skipped because every rotation was already processed.'
+    );
+    return;
+  }
+
+  var decisionDate = now_();
+  var rejectedRecords = [];
+  try {
+    pendingRecords.forEach(function(record) {
+      var rejectedRecord = Object.assign({}, record);
+      rejectedRecord[H.RECORD.HEAD_STATUS] = STATUS.HEAD_REJECTED;
+      rejectedRecord[H.RECORD.FINAL_STATUS] = STATUS.FINAL_REJECTED;
+      rejectedRecord[H.RECORD.REJECTION_REASON] = reason;
+      rejectedRecord[H.RECORD.DECISION_DATE] = decisionDate;
+
+      updateRequestByRow_(record._rowNumber, {
+        [H.RECORD.HEAD_STATUS]: STATUS.HEAD_REJECTED,
+        [H.RECORD.FINAL_STATUS]: STATUS.FINAL_REJECTED,
+        [H.RECORD.REJECTION_REASON]: reason,
+        [H.RECORD.DECISION_DATE]: decisionDate
+      });
+      rejectedRecords.push(rejectedRecord);
+      logInfo_(
+        'processQueuedRejectGroupAction_',
+        safeString_(record[H.RECORD.REQUEST_ID]),
+        'Unit head rejected this rotation through the submission-level decision.'
+      );
+    });
+  } finally {
+    // Do not call MailApp inside the approval-action trigger. Queue at most
+    // three notifications so the trigger remains fast and retryable.
+    rejectedRecords.forEach(function(record) {
+      queueRejectedNotification(record);
+    });
+  }
+}
+
 function getValidatedWebAppUrlStatus_() {
   var configuredUrl = safeString_(getConfig().WEB_APP_URL);
   if (!isConfiguredWebAppUrl_(configuredUrl)) {
@@ -232,31 +491,10 @@ function getValidatedWebAppUrlStatus_() {
     };
   }
 
-  var activeUrl = '';
-  try {
-    activeUrl = safeString_(ScriptApp.getService().getUrl());
-  } catch (err) {
-    return {
-      ok: false,
-      message: 'Unable to read the active Web App deployment URL. Redeploy the Apps Script as a Web App, then update WEB_APP_URL.'
-    };
-  }
-
-  if (!activeUrl) {
-    return {
-      ok: false,
-      message: 'No active Web App deployment URL was found. Deploy the Apps Script as a Web App, then update WEB_APP_URL.'
-    };
-  }
-
-  if (normalizeWebAppUrl_(configuredUrl) !== normalizeWebAppUrl_(activeUrl)) {
-    return {
-      ok: false,
-      message: 'WEB_APP_URL does not match the active Web App deployment URL. Update WEB_APP_URL after the latest deployment before using rejection links.'
-    };
-  }
-
-  return { ok: true, url: configuredUrl };
+  // The configured production /exec URL is authoritative. Comparing it with a
+  // runtime-detected deployment creates false failures when a project has more
+  // than one valid deployment or Google reports an older deployment.
+  return { ok: true, url: normalizeWebAppUrl_(configuredUrl) };
 }
 
 function normalizeWebAppUrl_(url) {

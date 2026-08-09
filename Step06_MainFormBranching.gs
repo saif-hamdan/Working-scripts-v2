@@ -7,6 +7,8 @@ function run06_continueMainFormBranching(options) {
 
 function continueMainFormBranching_(options) {
   options = options || {};
+  return continueMultiRotationFormBuild_(options);
+  /* Legacy unit-page continuation retained below for rollback reference. */
   var startedAt = Date.now();
   var ss = openDashboardFromProperties_();
   var form = openMainFormFromProperties_();
@@ -22,7 +24,10 @@ function continueMainFormBranching_(options) {
   var complete = getBootstrapProperty_(BSPROP.BRANCH_COMPLETE, 'false') === 'true';
   var mode = getBootstrapProperty_(BSPROP.BRANCH_MODE, '');
   var targetHash = safeString_(getBootstrapProperty_(BSPROP.BRANCH_TARGET_HASH, ''));
-  var currentHash = safeString_(getBootstrapProperty_(BSPROP.REFERENCE_DATA_HASH, ''));
+  var currentHash = safeString_(
+    getBootstrapProperty_(BSPROP.REFERENCE_FORM_HASH, '') ||
+    getBootstrapProperty_(BSPROP.REFERENCE_DATA_HASH, '')
+  );
 
   if (complete && storedTotal === expectedTotal) {
     writeSetupSummary_(ss, form, tryOpenEvaluationForm_());
