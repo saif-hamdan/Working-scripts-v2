@@ -202,3 +202,7 @@ The five section-head letter fields are used only in the final-approved email.
 They are optional: blank values use generic Arabic and English address text and
 do not block delivery. Valid section-head email addresses are included in the
 email's `To` recipients rather than `CC`.
+The bilingual host letter below the final-approved email's details table includes
+the employee's name, the host unit in Arabic only, and a request to specify a daily time slot and
+appoint a knowledge mentor. It reuses the request and section data already loaded
+for that notification; no additional spreadsheet lookup is needed.

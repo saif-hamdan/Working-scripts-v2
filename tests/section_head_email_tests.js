@@ -15,7 +15,8 @@ const state = {
   logs: [],
   throwOnSend: false,
   revertedTo: undefined,
-  renderedData: null
+  renderedData: null,
+  sectionReads: 0
 };
 
 const sheet = {
@@ -128,7 +129,10 @@ run(`
   getOrCreateSheet_ = function() { return testSheet; };
   requireHeaders_ = function() {};
   getRecordFromSheetRow_ = function() { return Object.assign({}, testState.record); };
-  findSectionByUnitAndName_ = function() { return testState.section; };
+  findSectionByUnitAndName_ = function() {
+    testState.sectionReads += 1;
+    return testState.section;
+  };
   getHeaderMap_ = function() {
     var map = {};
     map[H.RECORD.FINAL_STATUS] = 8;
@@ -162,6 +166,7 @@ context.testState = state;
 function makeRecord() {
   const record = {};
   record[H.RECORD.REQUEST_ID] = 'REQ-EMAIL-LIST';
+  record[H.RECORD.EMPLOYEE_NAME] = 'سالم بن أحمد العامري';
   record[H.RECORD.EMPLOYEE_EMAIL] = 'employee@squ.edu.om';
   record[H.RECORD.DIRECT_MANAGER_EMAIL] = 'manager@squ.edu.om';
   record[H.RECORD.CURRENT_UNIT_HEAD_EMAIL] = 'unit-head@squ.edu.om';
@@ -183,10 +188,47 @@ function reset(emailValue) {
   state.throwOnSend = false;
   state.revertedTo = undefined;
   state.renderedData = null;
+  state.sectionReads = 0;
 }
 
 const tests = [];
 function test(name, fn) { tests.push({ name, fn }); }
+
+// Evaluate the real email's Apps Script tags without calling Google services.
+function renderFinalApprovedTemplate(letter) {
+  const source = fs.readFileSync(path.join(root, 'Emails_FinalApproved.html'), 'utf8');
+  const tags = /<\?(!?=)?([\s\S]*?)\?>/g;
+  let program = 'var output = [];\n';
+  let offset = 0;
+  let match;
+  while ((match = tags.exec(source))) {
+    program += `output.push(${JSON.stringify(source.slice(offset, match.index))});\n`;
+    if (match[1] === '=') {
+      program += `output.push(escapeHtml(${match[2].trim().replace(/;$/, '')}));\n`;
+    } else if (match[1] === '!=') {
+      program += `output.push(${match[2].trim().replace(/;$/, '')});\n`;
+    } else {
+      program += `${match[2]}\n`;
+    }
+    offset = tags.lastIndex;
+  }
+  program += `output.push(${JSON.stringify(source.slice(offset))});\noutput.join('');`;
+  return vm.runInNewContext(program, {
+    data: {
+      sectionHeadLetter: letter,
+      brand: { primaryColor: '#0B4EA2', logoUrl: '' },
+      rows: [{ ar: 'اسم الموظف', en: 'Employee Name', value: letter.employeeName || '' }],
+      orgAr: 'قسم خدمات الموظفين والمتقاعدين',
+      orgEn: 'Employees and Retirees Services Section'
+    },
+    include(name) { return fs.readFileSync(path.join(root, name + '.html'), 'utf8'); },
+    escapeHtml(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, (character) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[character]));
+    }
+  });
+}
 
 test('single, two, and three valid addresses are parsed and normalized', () => {
   [
@@ -315,6 +357,7 @@ test('final-approved To contains all valid section heads and removes duplicates'
   assert.match(payload.to, /head1@squ\.edu\.om/);
   assert.match(payload.to, /head2@squ\.edu\.om/);
   assert.strictEqual((payload.to.match(/manager@squ\.edu\.om/g) || []).length, 1);
+  assert.strictEqual(state.sectionReads, 1, 'The letter must reuse the existing section lookup.');
 });
 
 test('final-approved letter uses dynamic section-head values', () => {
@@ -337,7 +380,9 @@ test('final-approved letter uses dynamic section-head values', () => {
       nameEn: 'Ms Maryam Al Balushi',
       salutationAr: 'المحترمة',
       jobTitleAr: 'رئيسة قسم التطوير',
-      jobTitleEn: 'Head of Development Section'
+      jobTitleEn: 'Head of Development Section',
+      unitName: 'دائرة الموارد البشرية',
+      employeeName: 'سالم بن أحمد العامري'
     }
   );
 });
@@ -352,6 +397,19 @@ test('missing optional section-head values use generic text without blocking ema
   assert.strictEqual(state.renderedData.sectionHeadLetter.salutationAr, 'المحترم/المحترمة');
   assert.strictEqual(state.renderedData.sectionHeadLetter.jobTitleAr, 'رئيس القسم');
   assert.strictEqual(state.renderedData.sectionHeadLetter.jobTitleEn, 'Head of Section');
+  assert.strictEqual(state.renderedData.sectionHeadLetter.unitName, 'Unit A');
+  assert.strictEqual(state.renderedData.sectionHeadLetter.employeeName, 'سالم بن أحمد العامري');
+});
+
+test('the host letter uses the rotation unit, never the employee current unit', () => {
+  context.letterRecord = {
+    [H.RECORD.ROTATION_UNIT]: 'الوحدة المستضيفة',
+    [H.RECORD.CURRENT_UNIT]: 'وحدة الموظف الحالية',
+    [H.RECORD.EMPLOYEE_NAME]: '  سالم بن أحمد العامري  '
+  };
+  const letter = run('buildSectionHeadLetterData_(letterRecord, {})');
+  assert.strictEqual(letter.unitName, 'الوحدة المستضيفة');
+  assert.strictEqual(letter.employeeName, 'سالم بن أحمد العامري');
 });
 
 test('the bilingual host letter exists only in the final-approved template', () => {
@@ -360,7 +418,8 @@ test('the bilingual host letter exists only in the final-approved template', () 
   assert.match(finalTemplate, /In line with Sultan Qaboos University's commitment/);
   assert.match(finalTemplate, /data\.sectionHeadLetter\.nameAr/);
   assert.match(finalTemplate, /data\.sectionHeadLetter\.nameEn/);
-  assert.doesNotMatch(finalTemplate, /data\.sectionHeadLetter\.unitName/);
+  assert.match(finalTemplate, /data\.sectionHeadLetter\.unitName/);
+  assert.match(finalTemplate, /data\.sectionHeadLetter\.employeeName/);
   assert.match(
     finalTemplate,
     /font-weight:bold;\"><\?= data\.sectionHeadLetter\.salutationAr \?><\/span>/
@@ -370,8 +429,49 @@ test('the bilingual host letter exists only in the final-approved template', () 
     .filter((file) => /^Emails_.*\.html$/.test(file) && file !== 'Emails_FinalApproved.html')
     .forEach((file) => {
       const source = fs.readFileSync(path.join(root, file), 'utf8');
-      assert.doesNotMatch(source, /data\.sectionHeadLetter|انطلاقًا من توجهات جامعة السلطان قابوس/);
+      assert.doesNotMatch(source, /data\.sectionHeadLetter|انطلاقًا من توجهات جامعة السلطان قابوس|Please specify a suitable daily time slot/);
     });
+});
+
+test('both host-letter versions render the employee and note, with the host unit in Arabic only', () => {
+  const html = renderFinalApprovedTemplate({
+    nameAr: 'الفاضلة مريم البلوشية',
+    nameEn: 'Ms Maryam Al Balushi',
+    salutationAr: 'المحترمة',
+    jobTitleAr: 'رئيسة قسم التطوير',
+    jobTitleEn: 'Head of Development Section',
+    unitName: 'دائرة الموارد البشرية',
+    employeeName: 'سالم بن أحمد العامري'
+  });
+  assert.match(html, /font-weight:bold;">المحترمة<\/span>/);
+  assert.match(html, /لاستقبال <span dir="auto">سالم بن أحمد العامري<\/span> خلال فترة/);
+  assert.match(html, /prepare to receive <span dir="auto">سالم بن أحمد العامري<\/span> during/);
+  assert.strictEqual((html.match(/<span dir="auto">دائرة الموارد البشرية<\/span>/g) || []).length, 1);
+  const englishLetter = html.slice(html.indexOf('<div dir="ltr" style="background:#f7f9fc;'));
+  assert.match(englishLetter, /Head of Development Section/);
+  assert.doesNotMatch(englishLetter, /دائرة الموارد البشرية/);
+  assert.match(html, /تعيين مرشد المعرفي للموظف ويمكن أن يكون رئيس القسم/);
+  assert.match(html, /Appoint a knowledge mentor for the employee/);
+  assert.match(html, /ملاحظة\/ يرجى التكرم بتحديد التوقيت الزمني اليومي المناسب لاستقبال الموظف/);
+  assert.match(html, /Note: Please specify a suitable daily time slot for receiving the employee/);
+  assert.doesNotMatch(html, /مرشد وظيفي|workplace mentor|<\?|undefined|\(اسم الموظف الجديد/);
+});
+
+test('missing letter details still render generic bilingual text without dangling separators', () => {
+  const html = renderFinalApprovedTemplate(run('buildSectionHeadLetterData_(null, null)'));
+  assert.match(html, /لاستقبال <span dir="auto">الموظف الجديد<\/span>/);
+  assert.match(html, /prepare to receive <span dir="auto">the new employee<\/span>/);
+  assert.doesNotMatch(html, /undefined|null| – <span/);
+});
+
+test('dynamic host-letter values are escaped as text in both languages', () => {
+  const letter = JSON.parse(JSON.stringify(run('buildSectionHeadLetterData_(null, null)')));
+  letter.employeeName = '<script>employee</script>';
+  letter.unitName = '<img src=x onerror=alert(1)>';
+  const html = renderFinalApprovedTemplate(letter);
+  assert.match(html, /&lt;script&gt;employee&lt;\/script&gt;/);
+  assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
+  assert.doesNotMatch(html, /<script>|<img src=x/);
 });
 
 test('final approval succeeds only after valid recipients are sent', () => {

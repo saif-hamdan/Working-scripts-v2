@@ -312,7 +312,9 @@ function buildSectionHeadLetterData_(record, section) {
     nameEn: safeString_(section.headNameEn) || 'Section Head',
     salutationAr: safeString_(section.headSalutationAr) || 'المحترم/المحترمة',
     jobTitleAr: safeString_(section.headJobTitleAr) || 'رئيس القسم',
-    jobTitleEn: safeString_(section.headJobTitleEn) || 'Head of Section'
+    jobTitleEn: safeString_(section.headJobTitleEn) || 'Head of Section',
+    unitName: safeString_(section.unitName) || safeString_(record && record[H.RECORD.ROTATION_UNIT]),
+    employeeName: safeString_(record && record[H.RECORD.EMPLOYEE_NAME])
   };
 }
 
