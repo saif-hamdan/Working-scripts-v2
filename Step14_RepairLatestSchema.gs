@@ -74,6 +74,7 @@ function readBootstrapRowsByHeader_(sheet) {
     return String(header || '').trim();
   });
   var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  restoreEvaluationUrlsFromCells_(sheet, headers, rows, 2);
   return rows.map(function(row) {
     var obj = {};
     var hasValue = false;

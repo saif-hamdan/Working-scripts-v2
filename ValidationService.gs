@@ -339,6 +339,7 @@ function revertEdit_(e) {
 function getRecordFromSheetRow_(sheet, row) {
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(safeString_);
   var values = sheet.getRange(row, 1, 1, sheet.getLastColumn()).getValues()[0];
+  restoreEvaluationUrlsFromCells_(sheet, headers, [values], row);
   var record = { _rowNumber: row };
   headers.forEach(function(header, index) {
     if (header) record[header] = values[index];

@@ -433,6 +433,20 @@ test('the bilingual host letter exists only in the final-approved template', () 
     });
 });
 
+test('only the hosting-section final approval email omits the automated no-reply footer', () => {
+  const html = renderFinalApprovedTemplate(run('buildSectionHeadLetterData_(null, null)'));
+  assert.doesNotMatch(html, /رسالة آلية من|يرجى عدم الرد|Automated message from|Please do not reply|class="footer"/);
+  assert.match(html, /يرجى عدم التردد في التواصل معنا/);
+  assert.match(html, /please do not hesitate to contact us/);
+  fs.readdirSync(root)
+    .filter((file) => /^Emails_.*\.html$/.test(file) && file !== 'Emails_FinalApproved.html')
+    .forEach((file) => {
+      const source = fs.readFileSync(path.join(root, file), 'utf8');
+      assert.match(source, /رسالة آلية من.*يرجى عدم الرد/, file);
+      assert.match(source, /Automated message from.*Please do not reply/, file);
+    });
+});
+
 test('both host-letter versions render the employee and note, with the host unit in Arabic only', () => {
   const html = renderFinalApprovedTemplate({
     nameAr: 'الفاضلة مريم البلوشية',

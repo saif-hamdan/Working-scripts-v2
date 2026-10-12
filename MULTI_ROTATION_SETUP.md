@@ -112,3 +112,18 @@ calendar day after that individual rotation ends. For three rotations ending
 on different dates, the employee receives three separate evaluation emails on
 their respective due dates. A missed trigger run is caught up on the next run,
 and a successfully sent or queued evaluation is not created again.
+
+New links in `سجل الطلبات` → `رابط التقييم` display the clickable label
+`فتح التقييم / Open Evaluation` using a `HYPERLINK` formula. The full prefilled
+URL remains the destination and is returned when the script reads a record;
+emails and links elsewhere are unchanged. Later request-row updates preserve
+the hyperlink. Previously saved long links are left as they are.
+
+To apply this display-only change, update `SheetService.gs`,
+`ValidationService.gs`, and `Step14_RepairLatestSchema.gs` in Apps Script and
+save. The existing evaluation job uses the new label when it saves a new link.
+Do not run Step 14 for this change; its updated reader only ensures a later
+schema repair retains the full link destination, rather than just the label.
+No form rebuild, new trigger, or external shortening service is needed.
+Reading labeled links adds one column-formula read per batch; there is no
+extra full-sheet scan.

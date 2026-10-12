@@ -1,4 +1,34 @@
 /** Spreadsheet helpers. */
+var EVALUATION_LINK_LABEL_ = 'فتح التقييم / Open Evaluation';
+
+/** Only the request sheet displays a label; record objects retain the full URL. */
+function buildEvaluationLinkCellFormula_(url) {
+  var target = safeString_(url);
+  if (!/^https?:\/\/\S+$/i.test(target)) return url;
+  return '=HYPERLINK("' + target.replace(/"/g, '""') + '","' + EVALUATION_LINK_LABEL_ + '")';
+}
+
+function evaluationUrlFromCellFormula_(formula) {
+  // Accept only a literal URL, not a formula expression or a cell reference.
+  var match = /^=HYPERLINK\(\s*"((?:[^"]|"")*)"\s*[,;]/i.exec(safeString_(formula));
+  var url = match ? match[1].replace(/""/g, '"') : '';
+  return /^https?:\/\/\S+$/i.test(url) ? url : '';
+}
+
+function restoreEvaluationUrlsFromCells_(sheet, headers, rows, startRow) {
+  var columnIndex = headers.indexOf(H.RECORD.EVALUATION_LINK);
+  if (columnIndex === -1 || !rows.some(function(row) {
+    return row[columnIndex] === EVALUATION_LINK_LABEL_;
+  })) return;
+  // One bounded column read for the supplied batch.
+  var formulas = sheet.getRange(startRow, columnIndex + 1, rows.length, 1).getFormulas();
+  rows.forEach(function(row, index) {
+    if (row[columnIndex] !== EVALUATION_LINK_LABEL_) return;
+    var url = evaluationUrlFromCellFormula_(formulas[index][0]);
+    if (url) row[columnIndex] = url;
+  });
+}
+
 function openDashboardSpreadsheet_() {
   var id = getConfig().DASHBOARD_SPREADSHEET_ID;
   if (!id) throw new Error('DASHBOARD_SPREADSHEET_ID is not configured.');
@@ -79,6 +109,7 @@ function getDataObjects_(sheet) {
   var lastCol = sheet.getLastColumn();
   var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(normalizeHeaderAlias_);
   var rows = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+  restoreEvaluationUrlsFromCells_(sheet, headers, rows, 2);
   var objects = [];
   rows.forEach(function(row, index) {
     var obj = { _rowNumber: index + 2 };
@@ -121,6 +152,16 @@ function updateObjectRow_(sheet, rowNumber, updates) {
   Object.keys(updates).forEach(function(header) {
     row[map[header] - 1] = updates[header];
   });
+  var evaluationColumn = sheet.getName() === SHEETS.RECORDS && map[H.RECORD.EVALUATION_LINK];
+  if (evaluationColumn) {
+    if (Object.prototype.hasOwnProperty.call(updates, H.RECORD.EVALUATION_LINK)) {
+      row[evaluationColumn - 1] = buildEvaluationLinkCellFormula_(updates[H.RECORD.EVALUATION_LINK]);
+    } else if (row[evaluationColumn - 1] === EVALUATION_LINK_LABEL_) {
+      // Row rewrites must preserve the hyperlink instead of saving its label.
+      var formula = sheet.getRange(rowNumber, evaluationColumn).getFormula();
+      if (evaluationUrlFromCellFormula_(formula)) row[evaluationColumn - 1] = formula;
+    }
+  }
   sheet.getRange(rowNumber, 1, 1, lastCol).setValues([row]);
 }
 
@@ -142,6 +183,7 @@ function findObjectByValue_(sheet, header, value) {
   if (!rowNumber) return null;
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(safeString_);
   var values = sheet.getRange(rowNumber, 1, 1, sheet.getLastColumn()).getValues()[0];
+  restoreEvaluationUrlsFromCells_(sheet, headers, [values], rowNumber);
   var obj = { _rowNumber: rowNumber };
   headers.forEach(function(h, idx) { if (h) obj[h] = values[idx]; });
   return obj;
@@ -170,6 +212,7 @@ function findObjectsByValue_(sheet, header, value, maxResults) {
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(safeString_);
   return rowNumbers.map(function(rowNumber) {
     var values = sheet.getRange(rowNumber, 1, 1, sheet.getLastColumn()).getValues()[0];
+    restoreEvaluationUrlsFromCells_(sheet, headers, [values], rowNumber);
     var obj = { _rowNumber: rowNumber };
     headers.forEach(function(h, index) { if (h) obj[h] = values[index]; });
     return obj;
