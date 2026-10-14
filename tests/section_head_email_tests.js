@@ -433,18 +433,28 @@ test('the bilingual host letter exists only in the final-approved template', () 
     });
 });
 
-test('only the hosting-section final approval email omits the automated no-reply footer', () => {
+test('all emails omit automated no-reply notices and preserve section-name footer styling', () => {
   const html = renderFinalApprovedTemplate(run('buildSectionHeadLetterData_(null, null)'));
   assert.doesNotMatch(html, /رسالة آلية من|يرجى عدم الرد|Automated message from|Please do not reply|class="footer"/);
   assert.match(html, /يرجى عدم التردد في التواصل معنا/);
   assert.match(html, /please do not hesitate to contact us/);
   fs.readdirSync(root)
-    .filter((file) => /^Emails_.*\.html$/.test(file) && file !== 'Emails_FinalApproved.html')
+    .filter((file) => /^Emails_.*\.html$/.test(file))
     .forEach((file) => {
       const source = fs.readFileSync(path.join(root, file), 'utf8');
-      assert.match(source, /رسالة آلية من.*يرجى عدم الرد/, file);
-      assert.match(source, /Automated message from.*Please do not reply/, file);
+      assert.doesNotMatch(source, /رسالة آلية من|يرجى عدم الرد|Automated message from|Please do not reply|فريق خدمات الموظفين والمتقاعدين|Employees and Retirees Services Team/i, file);
+      if (file === 'Emails_FinalApproved.html') return;
+      assert.match(source, /<div class="footer">\s*<div dir="rtl">قسم خدمات الموظفين والمتقاعدين<\/div>\s*<div>Employees and Retirees Services Section<\/div>\s*<\/div>/, file);
     });
+});
+
+test('the host letter uses Section in both languages for coordination and its signatures', () => {
+  const html = renderFinalApprovedTemplate(run('buildSectionHeadLetterData_(null, null)'));
+  assert.match(html, /أو قسم خدمات الموظفين والمتقاعدين عند الحاجة/);
+  assert.match(html, /or the Employees and Retirees Services Section when needed/);
+  assert.match(html, /<p style="margin:2px 0 0; font-weight:bold;">قسم خدمات الموظفين والمتقاعدين<\/p>/);
+  assert.match(html, /<p style="margin:2px 0 0; font-weight:bold;">Employees and Retirees Services Section<\/p>/);
+  assert.doesNotMatch(html, /فريق خدمات الموظفين والمتقاعدين|Employees and Retirees Services Team/);
 });
 
 test('both host-letter versions render the employee and note, with the host unit in Arabic only', () => {
