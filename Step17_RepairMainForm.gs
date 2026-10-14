@@ -59,7 +59,7 @@ function repairMainFormBranching_(options) {
   try {
     initializeBootstrapRotationOptionBranching_(form, readUnits_(ss), readSections_(ss), {
       mode: BBRANCH_MODE.CLEAN,
-      targetHash: sync.hash,
+      targetHash: sync.formHash || sync.hash,
       preservePublishedHash: true
     });
 

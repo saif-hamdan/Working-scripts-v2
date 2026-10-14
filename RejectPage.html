@@ -32,8 +32,22 @@
             </tr>
           <? } ?>
         </table>
+        <? if (data.requests && data.requests.length) { ?>
+          <? for (var requestIndex = 0; requestIndex < data.requests.length; requestIndex++) { var request = data.requests[requestIndex]; ?>
+            <h3>اختيار التدوير <?= request.selectionNumber ?> / Rotation Selection <?= request.selectionNumber ?></h3>
+            <table class="details">
+              <tr><th>البيان / Field</th><th>القيمة / Value</th></tr>
+              <? for (var requestRowIndex = 0; requestRowIndex < request.rows.length; requestRowIndex++) { ?>
+                <tr>
+                  <th><?= request.rows[requestRowIndex].ar ?> / <?= request.rows[requestRowIndex].en ?></th>
+                  <td><?= request.rows[requestRowIndex].value ?></td>
+                </tr>
+              <? } ?>
+            </table>
+          <? } ?>
+        <? } ?>
         <form method="post" action="<?= data.actionUrl ?>" onsubmit="return submitRejectRequest_(this);">
-          <input type="hidden" name="action" value="reject">
+          <input type="hidden" name="action" value="<?= data.rejectAction || 'reject' ?>">
           <input type="hidden" name="token" value="<?= data.token ?>">
           <p dir="rtl"><strong>سبب الرفض / Rejection reason</strong></p>
           <textarea name="reason" required placeholder="اكتب سبب الرفض هنا / Write the rejection reason here"></textarea>
@@ -70,6 +84,7 @@
     if (!disableRejectSubmit_(form)) return false;
 
     var token = form.querySelector('input[name="token"]').value;
+    var action = form.querySelector('input[name="action"]').value;
     var reason = form.querySelector('textarea[name="reason"]').value;
     google.script.run
       .withSuccessHandler(function(result) {
@@ -86,7 +101,7 @@
           success: false
         });
       })
-      .rejectRequestFromPage(token, reason);
+      .rejectRequestFromPage(token, reason, action);
     return false;
   }
 

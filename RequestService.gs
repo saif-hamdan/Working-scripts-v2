@@ -13,36 +13,96 @@ function createRequestFromNormalizedData_(data, sourceInfo, options) {
   if (sourceInfo.responseSourceId) data.responseSourceId = sourceInfo.responseSourceId;
   var rotationOptions = normalizeRotationOptionsFromSubmission_(data);
   validateSubmissionData_(data, rotationOptions);
-
-  if (data.responseId) {
-    var existingRecord = findIndexedRequestByResponseId_(data.responseId);
-    if (existingRecord) {
-      logInfo_('createRequestFromNormalizedData_:idempotent', existingRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID] || '', 'Request already exists for form response ' + data.responseId + '; skipping duplicate creation.');
-      return existingRecord;
-    }
-  }
-
-  // The source fingerprint is only a fallback for inputs that do not have a
-  // stable response ID. Distinct response rows must remain distinct requests.
-  if (!data.responseId && data.responseSourceId) {
-    var existingSourceRecord = findIndexedRequestByResponseSourceId_(data.responseSourceId);
-    if (existingSourceRecord) {
-      logInfo_('createRequestFromNormalizedData_:sourceIdempotent', existingSourceRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID] || '', 'Request already exists for response source ' + data.responseSourceId + '; skipping duplicate creation.');
-      return existingSourceRecord;
-    }
-  }
+  // Prefer the exact response-row ID. The content fingerprint is only a
+  // fallback for callers that cannot supply a stable native/queue response ID.
+  var stableResponseId = safeString_(data.responseId || data.responseSourceId);
+  if (!stableResponseId) throw new Error('A stable parent form-response ID is required.');
+  var requestGroupId = makeRequestGroupId_(stableResponseId);
+  var submissionTotalHours = rotationOptions.reduce(function(total, option) {
+    return total + toNumber_(option.totalHours, 0);
+  }, 0);
 
   var createdRecords = [];
   var perRecordOptions = {};
   Object.keys(options).forEach(function(key) { perRecordOptions[key] = options[key]; });
   perRecordOptions.deferRefresh = true;
-  for (var optionIndex = 0; optionIndex < rotationOptions.length; optionIndex++) {
+  perRecordOptions.requestGroupId = requestGroupId;
+  perRecordOptions.stableResponseId = stableResponseId;
+  perRecordOptions.submissionTotalHours = submissionTotalHours;
+  perRecordOptions.deferSubmissionNotifications = true;
+  perRecordOptions.existingRecords = options.existingRecords ||
+    getConflictCandidateRecordsForSubmission_(data, rotationOptions);
+  var startSelectionNumber = Math.max(1, toNumber_(options.startSelectionNumber, 1));
+  for (var optionIndex = startSelectionNumber - 1; optionIndex < rotationOptions.length; optionIndex++) {
     var option = rotationOptions[optionIndex];
+    var selectionKey = makeSelectionIdempotencyKey_(stableResponseId, option.optionOrder);
+    var existingSelection = findIndexedRequestBySelectionKey_(selectionKey);
+    if (existingSelection) {
+      var existingRequest = getRequestById_(existingSelection[H.REQUEST_SOURCE_INDEX.REQUEST_ID]) || existingSelection;
+      createdRecords.push(existingRequest);
+      if (typeof options.onSelectionProcessed === 'function') {
+        options.onSelectionProcessed(option.optionOrder, rotationOptions.length, existingRequest, true);
+      }
+      continue;
+    }
+    perRecordOptions.selectionKey = selectionKey;
     var created = createRequestRecordForRotationOption_(data, option, perRecordOptions);
     createdRecords.push(created);
+    perRecordOptions.existingRecords.push(created);
+    if (typeof options.onSelectionProcessed === 'function') {
+      options.onSelectionProcessed(option.optionOrder, rotationOptions.length, created, false);
+    }
   }
-  if (options.deferRefresh !== true) refreshDashboard();
+  var submissionRecords = collectSubmissionRequestRecords_(stableResponseId, rotationOptions, createdRecords);
+  if (options.suppressSubmissionNotifications !== true && submissionRecords.length === rotationOptions.length) {
+    finalizeSubmissionNotifications_(submissionRecords);
+  }
+  if (options.deferRefresh !== true && createdRecords.length) refreshDashboardForRecords_(createdRecords);
   return createdRecords.length === 1 ? createdRecords[0] : createdRecords;
+}
+
+function collectSubmissionRequestRecords_(stableResponseId, rotationOptions, availableRecords) {
+  var recordsByOrder = {};
+  (availableRecords || []).forEach(function(record) {
+    var optionOrder = toNumber_(record[H.RECORD.OPTION_ORDER] || record[H.REQUEST_SOURCE_INDEX.SELECTION_NUMBER], 0);
+    if (optionOrder) recordsByOrder[optionOrder] = record;
+  });
+  (rotationOptions || []).forEach(function(option) {
+    var optionOrder = toNumber_(option.optionOrder, 0);
+    if (!optionOrder || recordsByOrder[optionOrder]) return;
+    var selectionKey = makeSelectionIdempotencyKey_(stableResponseId, optionOrder);
+    var indexRecord = findIndexedRequestBySelectionKey_(selectionKey);
+    if (!indexRecord) return;
+    var requestId = safeString_(indexRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID]);
+    recordsByOrder[optionOrder] = getRequestById_(requestId) || indexRecord;
+  });
+  return (rotationOptions || []).map(function(option) {
+    return recordsByOrder[toNumber_(option.optionOrder, 0)] || null;
+  }).filter(Boolean);
+}
+
+function isPendingApprovalNotificationRecord_(record) {
+  return safeString_(record[H.RECORD.HEAD_STATUS]) === STATUS.HEAD_PENDING &&
+    safeString_(record[H.RECORD.FINAL_STATUS]) === STATUS.FINAL_PENDING &&
+    !safeString_(record[H.RECORD.APPROVAL_EMAIL_SENT_AT]) &&
+    toNumber_(record[H.RECORD.EMAIL_RETRY_COUNT], 0) === 0;
+}
+
+function finalizeSubmissionNotifications_(records) {
+  records = (records || []).slice().sort(function(left, right) {
+    return toNumber_(left[H.RECORD.OPTION_ORDER], 0) - toNumber_(right[H.RECORD.OPTION_ORDER], 0);
+  });
+  var pendingApprovalRecords = records.filter(isPendingApprovalNotificationRecord_);
+  if (!pendingApprovalRecords.length) return { approvalGroups: 0, confirmationSent: false };
+  var approvalResult = sendGroupedApprovalEmails_(pendingApprovalRecords);
+  var confirmationSent = sendGroupedSubmissionConfirmationEmail_(records);
+  logInfo_(
+    'finalizeSubmissionNotifications_',
+    safeString_(records[0][H.RECORD.REQUEST_GROUP_ID]),
+    'Grouped approval emails: ' + approvalResult.groups +
+      '; grouped submission confirmation processed: ' + confirmationSent + '.'
+  );
+  return { approvalGroups: approvalResult.groups, confirmationSent: confirmationSent };
 }
 
 function createRequestRecordForRotationOption_(data, option, options) {
@@ -77,9 +137,16 @@ function createRequestRecordForRotationOption_(data, option, options) {
   record[H.RECORD.ROTATION_UNIT] = option.rotationUnit;
   record[H.RECORD.SECTION] = option.section;
   record[H.RECORD.OPTION_ORDER] = option.optionOrder;
+  record[H.RECORD.REQUEST_GROUP_ID] = options.requestGroupId;
+  record[H.RECORD.SELECTION_KEY] = options.selectionKey;
   record[H.RECORD.START_DATE] = dateOnly_(option.fromDate);
   record[H.RECORD.END_DATE] = dateOnly_(option.toDate);
-  record[H.RECORD.HOURS] = option.hours || data.hours;
+  record[H.RECORD.HOURS] = option.hours;
+  record[H.RECORD.WORKING_DAYS] = option.workingDays;
+  record[H.RECORD.TOTAL_HOURS] = option.totalHours;
+  // Used by immediate emails only; underscore-prefixed properties are not
+  // persisted to سجل الطلبات.
+  record._submissionTotalHours = options.submissionTotalHours;
   record[H.RECORD.TYPE] = type;
   record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_PENDING;
   record[H.RECORD.FINAL_STATUS] = STATUS.FINAL_PENDING;
@@ -88,7 +155,9 @@ function createRequestRecordForRotationOption_(data, option, options) {
   record[H.RECORD.CONFLICT_DETAILS] = '';
   record[H.RECORD.APPROVAL_EMAIL_SENT_AT] = '';
   record[H.RECORD.DECISION_DATE] = '';
-  record[H.RECORD.EVALUATION_LINK] = getConfig().EVALUATION_FORM_URL;
+  // The record-specific link is generated and stored only when the rotation is
+  // eligible for its post-end evaluation email.
+  record[H.RECORD.EVALUATION_LINK] = '';
   record[H.RECORD.EVALUATION_SENT] = STATUS.NO;
   record[H.RECORD.EVALUATION_SENT_AT] = '';
   record[H.RECORD.LAST_UPDATED] = now_();
@@ -101,8 +170,14 @@ function createRequestRecordForRotationOption_(data, option, options) {
   record[H.RECORD.LAST_ERROR] = '';
   record[H.RECORD.FORM_RESPONSE_SOURCE_ID] = data.responseSourceId;
 
-  var activeRotation = findActiveRotationByEmployee_(data.employeeId, data.employeeName, requestId);
-  var conflict = null;
+  var activeRotation = findActiveRotationByEmployee_(
+    data.employeeId,
+    data.employeeName,
+    requestId,
+    options.existingRecords,
+    option.fromDate,
+    option.toDate
+  );
 
   if (activeRotation) {
     record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_EMPLOYEE_ACTIVE;
@@ -110,22 +185,6 @@ function createRequestRecordForRotationOption_(data, option, options) {
     record[H.RECORD.REJECTION_REASON] = buildActiveEmployeeRejectionReason_(activeRotation);
     record[H.RECORD.CONFLICT_ID] = activeRotation[H.RECORD.REQUEST_ID];
     record[H.RECORD.CONFLICT_DETAILS] = formatActiveRotationDetails_(activeRotation);
-    record[H.RECORD.DECISION_DATE] = now_();
-  } else {
-    conflict = findConflicts({
-      rotationUnit: option.rotationUnit,
-      section: option.section,
-      startDate: option.fromDate,
-      endDate: option.toDate,
-      excludeRequestId: requestId
-    });
-  }
-
-  if (conflict) {
-    record[H.RECORD.HEAD_STATUS] = STATUS.HEAD_CONFLICT;
-    record[H.RECORD.FINAL_STATUS] = STATUS.FINAL_CONFLICT;
-    record[H.RECORD.CONFLICT_ID] = conflict[H.RECORD.REQUEST_ID];
-    record[H.RECORD.CONFLICT_DETAILS] = formatConflictDetails_(conflict);
     record[H.RECORD.DECISION_DATE] = now_();
   }
 
@@ -137,15 +196,16 @@ function createRequestRecordForRotationOption_(data, option, options) {
 
   if (activeRotation) {
     sendActiveEmployeeRejectedNotification(record, activeRotation);
-    logInfo_('createRequestFromNormalizedData_:activeEmployeeRejected', requestId, 'Request rejected because employee already has an active approved job rotation.');
-  } else if (conflict) {
-    sendConflictNotification(record, conflict, 'submission');
-    logInfo_('createRequestFromNormalizedData_:conflict', requestId, 'Request rejected at submission because of conflict.');
+    logInfo_('createRequestFromNormalizedData_:activeEmployeeRejected', requestId, 'Request rejected because the employee already has an overlapping accepted knowledge rotation.');
   } else {
-    var sent = sendApprovalEmail(record);
-    if (sent) updateRequestByRow_(rowNumber, { [H.RECORD.APPROVAL_EMAIL_SENT_AT]: now_() });
-    sendSubmissionConfirmationEmail(record);
-    logInfo_('createRequestFromNormalizedData_', requestId, 'Request created and approval email processed.');
+    if (options.deferSubmissionNotifications === true) {
+      logInfo_('createRequestFromNormalizedData_', requestId, 'Request created; approval email is deferred until every selection in the submission is ready.');
+    } else {
+      var sent = sendApprovalEmail(record);
+      if (sent) updateRequestByRow_(rowNumber, { [H.RECORD.APPROVAL_EMAIL_SENT_AT]: now_() });
+      sendSubmissionConfirmationEmail(record);
+      logInfo_('createRequestFromNormalizedData_', requestId, 'Request created and approval email processed.');
+    }
   }
 
   return record;
@@ -153,25 +213,35 @@ function createRequestRecordForRotationOption_(data, option, options) {
 
 function parseFormSubmission_(e) {
   var named = {};
+  var namedOccurrences = {};
   var submitterEmail = '';
   var responseId = '';
 
   if (e && e.namedValues) {
     named = e.namedValues;
+    Object.keys(named).forEach(function(title) {
+      namedOccurrences[title] = Array.isArray(named[title]) ? named[title].slice() : [named[title]];
+    });
   }
 
   if (e && e.responseId) responseId = safeString_(e.responseId);
 
   if (e && e.response) {
     var response = e.response;
+    namedOccurrences = {};
     try { submitterEmail = response.getRespondentEmail() || ''; } catch (ignore) {}
     try { responseId = response.getId ? response.getId() : ''; } catch (ignore2) {}
-    try { named.Timestamp = [response.getTimestamp ? response.getTimestamp() : '']; } catch (ignore3) {}
+    try {
+      named.Timestamp = [response.getTimestamp ? response.getTimestamp() : ''];
+      namedOccurrences.Timestamp = named.Timestamp.slice();
+    } catch (ignore3) {}
     response.getItemResponses().forEach(function(ir) {
       var responseItem = ir.getItem();
       var title = responseItem.getTitle();
       var rawResponse = ir.getResponse();
       named[title] = Array.isArray(rawResponse) ? rawResponse : [rawResponse];
+      if (!namedOccurrences[title]) namedOccurrences[title] = [];
+      namedOccurrences[title].push(rawResponse);
       if (Array.isArray(rawResponse)) {
         try {
           var gridRows = responseItem.asGridItem().getRows();
@@ -183,20 +253,24 @@ function parseFormSubmission_(e) {
     });
   }
 
-  function val(title) {
-    var v = named[title];
-    if (Array.isArray(v)) {
-      for (var i = 0; i < v.length; i++) {
-        if (safeString_(v[i])) return v[i];
+  function val(title, occurrenceIndex) {
+    var occurrences = namedOccurrences[title];
+    if (Array.isArray(occurrences)) {
+      if (typeof occurrenceIndex === 'number') {
+        return occurrenceIndex >= 0 && occurrenceIndex < occurrences.length ? occurrences[occurrenceIndex] : '';
+      }
+      for (var occurrence = 0; occurrence < occurrences.length; occurrence++) {
+        if (safeString_(occurrences[occurrence])) return occurrences[occurrence];
       }
       return '';
     }
+    var v = named[title];
     return v || '';
   }
 
-  function firstNonEmpty(titles) {
+  function firstNonEmpty(titles, occurrenceIndex) {
     for (var i = 0; i < titles.length; i++) {
-      var s = safeString_(val(titles[i]));
+      var s = safeString_(val(titles[i], occurrenceIndex));
       if (s) return s;
     }
     return '';
@@ -244,19 +318,28 @@ function parseLinkedResponseRow_(headers, row) {
   headers = headers || [];
   row = row || [];
 
-  function val(title) {
+  function val(title, occurrenceIndex) {
+    var targetOccurrence = typeof occurrenceIndex === 'number'
+      ? Math.max(0, occurrenceIndex)
+      : null;
+    var matchedOccurrence = 0;
     var fallback = '';
     for (var i = 0; i < headers.length; i++) {
       if (safeString_(headers[i]) !== title) continue;
+      if (targetOccurrence !== null) {
+        if (matchedOccurrence === targetOccurrence) return row[i];
+        matchedOccurrence++;
+        continue;
+      }
       if (safeString_(row[i])) return row[i];
       fallback = row[i];
     }
     return fallback;
   }
 
-  function firstNonEmpty(titles) {
+  function firstNonEmpty(titles, occurrenceIndex) {
     for (var i = 0; i < titles.length; i++) {
-      var s = safeString_(val(titles[i]));
+      var s = safeString_(val(titles[i], occurrenceIndex));
       if (s) return s;
     }
     return '';
@@ -334,6 +417,35 @@ function datesOverlap_(startA, endA, startB, endB) {
   return dateOnly_(startA).getTime() <= dateOnly_(endB).getTime() && dateOnly_(startB).getTime() <= dateOnly_(endA).getTime();
 }
 
+function makeRotationDateOverlapValidationError_(messageAr, messageEn, firstOption, secondOption) {
+  var error = makeSubmissionValidationError_(messageAr, messageEn);
+  var firstStart = dateOnly_(firstOption && firstOption.fromDate);
+  var firstEnd = dateOnly_(firstOption && firstOption.toDate);
+  var secondStart = dateOnly_(secondOption && secondOption.fromDate);
+  var secondEnd = dateOnly_(secondOption && secondOption.toDate);
+  error.validationType = 'ROTATION_DATE_OVERLAP';
+  error.recipientPolicy = 'EMPLOYEE_CORRECTION';
+  error.conflict = {
+    firstSelectionNumber: toNumber_(firstOption && firstOption.optionOrder, 0),
+    secondSelectionNumber: toNumber_(secondOption && secondOption.optionOrder, 0),
+    firstUnit: safeString_(firstOption && firstOption.rotationUnit),
+    firstSection: safeString_(firstOption && firstOption.section),
+    secondUnit: safeString_(secondOption && secondOption.rotationUnit),
+    secondSection: safeString_(secondOption && secondOption.section),
+    firstStartDate: firstStart,
+    firstEndDate: firstEnd,
+    secondStartDate: secondStart,
+    secondEndDate: secondEnd,
+    overlapStartDate: firstStart && secondStart
+      ? new Date(Math.max(firstStart.getTime(), secondStart.getTime()))
+      : null,
+    overlapEndDate: firstEnd && secondEnd
+      ? new Date(Math.min(firstEnd.getTime(), secondEnd.getTime()))
+      : null
+  };
+  return error;
+}
+
 function isSectionInUnit_(unitName, sectionName) {
   var targetUnit = normalizeKey_(unitName);
   var targetSection = normalizeKey_(sectionName);
@@ -343,20 +455,20 @@ function isSectionInUnit_(unitName, sectionName) {
 }
 
 function validateSubmissionData_(data, rotationOptions) {
-  throwIfMissing_(data.directManagerName, 'Direct manager name is missing.');
-  throwIfMissing_(data.directManagerId, 'Line manager employee ID is missing.');
+  throwSubmissionMissing_(data.directManagerName, 'اسم المسؤول المباشر مفقود.', 'Direct manager name is missing.');
+  throwSubmissionMissing_(data.directManagerId, 'الرقم الوظيفي للمسؤول المباشر مفقود.', 'Line manager employee ID is missing.');
   if (!data.directManagerEmail) data.directManagerEmail = data.submitterEmail || data.employeeEmail;
-  throwIfMissing_(data.directManagerEmail, 'Direct manager email is missing.');
-  throwIfMissing_(data.directManagerExtension, 'Line manager extension is missing.');
-  throwIfMissing_(data.employeeName, 'Employee name is missing.');
-  throwIfMissing_(data.employeeId, 'Employee ID is missing.');
-  if (!data.employeeHireDate) throw new Error('Employee hire date is missing or invalid.');
-  throwIfMissing_(data.employeeJobTitle, 'Employee job title is missing.');
-  throwIfMissing_(data.employeeEmail, 'Employee email is missing.');
-  throwIfMissing_(data.currentUnit, 'Current unit is missing.');
-  throwIfMissing_(data.currentDepartment, 'Current section is missing.');
+  throwSubmissionMissing_(data.directManagerEmail, 'بريد المسؤول المباشر مفقود.', 'Direct manager email is missing.');
+  throwSubmissionMissing_(data.directManagerExtension, 'رقم محول المسؤول المباشر مفقود.', 'Line manager extension is missing.');
+  throwSubmissionMissing_(data.employeeName, 'اسم الموظف مفقود.', 'Employee name is missing.');
+  throwSubmissionMissing_(data.employeeId, 'الرقم الوظيفي للموظف مفقود.', 'Employee ID is missing.');
+  throwSubmissionMissing_(data.employeeHireDate, 'تاريخ تعيين الموظف مفقود أو غير صحيح.', 'Employee hire date is missing or invalid.');
+  throwSubmissionMissing_(data.employeeJobTitle, 'المسمى الوظيفي للموظف مفقود.', 'Employee job title is missing.');
+  throwSubmissionMissing_(data.employeeEmail, 'بريد الموظف مفقود.', 'Employee email is missing.');
+  throwSubmissionMissing_(data.currentUnit, 'الوحدة الحالية مفقودة.', 'Current unit is missing.');
+  throwSubmissionMissing_(data.currentDepartment, 'القسم الحالي مفقود.', 'Current section is missing.');
   rotationOptions = rotationOptions || normalizeRotationOptionsFromSubmission_(data);
-  if (!rotationOptions.length) throw new Error('At least one rotation option is required.');
+  throwSubmissionMissing_(rotationOptions.length ? 'yes' : '', 'يجب إضافة اختيار تدوير واحد على الأقل.', 'At least one rotation option is required.');
   if (rotationOptions.some(function(option) { return option.rotationType === 'rotation'; })) {
     validateUnifiedRotationOptions_(data, rotationOptions);
     return;
@@ -393,36 +505,96 @@ function validateSubmissionData_(data, rotationOptions) {
   for (var i = 0; i < internalOptions.length; i++) {
     for (var j = i + 1; j < internalOptions.length; j++) {
       if (datesOverlap_(internalOptions[i].fromDate, internalOptions[i].toDate, internalOptions[j].fromDate, internalOptions[j].toDate)) {
-        throw new Error('Internal rotation date ranges cannot overlap.');
+        throw makeRotationDateOverlapValidationError_(
+          'لا يمكن أن تتداخل فترات التدوير الداخلي في الطلب الواحد.',
+          'Internal rotation date ranges cannot overlap.',
+          internalOptions[i],
+          internalOptions[j]
+        );
       }
     }
   }
+}
+
+function throwSubmissionMissing_(value, messageAr, messageEn) {
+  if (value === null || value === undefined || safeString_(value) === '') {
+    throw makeSubmissionValidationError_(messageAr, messageEn);
+  }
+}
+
+function getConflictCandidateRecordsForSubmission_(data, rotationOptions) {
+  var sheet = getSheet_(SHEETS.RECORDS);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  var candidates = [];
+  if (safeString_(data.employeeId)) {
+    candidates = candidates.concat(findObjectsByValue_(sheet, H.RECORD.EMPLOYEE_ID, data.employeeId, 500));
+  } else if (safeString_(data.employeeName)) {
+    candidates = candidates.concat(findObjectsByValue_(sheet, H.RECORD.EMPLOYEE_NAME, data.employeeName, 500));
+  }
+  var seenRequests = {};
+  return candidates.filter(function(record) {
+    var requestId = safeString_(record[H.RECORD.REQUEST_ID]) || String(record._rowNumber);
+    if (seenRequests[requestId]) return false;
+    seenRequests[requestId] = true;
+    return true;
+  });
 }
 
 function validateUnifiedRotationOptions_(data, rotationOptions) {
   if (rotationOptions.some(function(option) { return option.rotationType !== 'rotation'; })) {
     throw new Error('Legacy internal/external rotations cannot be mixed with the new rotation-unit selections.');
   }
-  if (rotationOptions.length !== 1) throw new Error('Exactly one rotation section is required per submission.');
+  if (!rotationOptions.length || rotationOptions.length > (FORM.MAX_ROTATION_OPTIONS || 3)) {
+    throw makeSubmissionValidationError_(
+      'يجب أن يحتوي الطلب على اختيار تدوير واحد على الأقل وبحد أقصى ثلاثة اختيارات.',
+      'A submission must contain between one and three rotation selections.'
+    );
+  }
 
-  var selectedUnit = safeString_(data.rotationUnit || rotationOptions[0].rotationUnit);
-  throwIfMissing_(selectedUnit, 'Rotation unit is missing.');
-  var option = rotationOptions[0];
-  if (toNumber_(option.optionOrder, 1) !== 1) throw new Error('The rotation selection number is invalid.');
-  if (normalizeKey_(option.rotationUnit) !== normalizeKey_(selectedUnit)) {
-    throw new Error('The rotation section must belong to the selected rotation unit.');
-  }
-  throwIfMissing_(option.section, 'Rotation section is missing.');
-  if (option.section === FORM.NO_AVAILABLE_SECTIONS) throw new Error('No available section was selected.');
-  if (!isSectionInUnit_(selectedUnit, option.section)) {
-    throw new Error('The rotation section does not belong to the selected rotation unit.');
-  }
-  if (!option.fromDate || !option.toDate) throw new Error('Rotation Start Date or Rotation End Date is missing.');
-  if (dateOnly_(option.fromDate).getTime() > dateOnly_(option.toDate).getTime()) {
-    throw new Error('Rotation Start Date cannot be after Rotation End Date.');
-  }
-  if (!option.hours || toNumber_(option.hours, 0) <= 0) {
-    throw new Error('Required Daily Hours must be greater than zero.');
+  var seenSections = {};
+  rotationOptions.forEach(function(option, index) {
+    var expectedOrder = index + 1;
+    if (toNumber_(option.optionOrder, 0) !== expectedOrder) {
+      throw makeSubmissionValidationError_(
+        'أرقام اختيارات التدوير غير متسلسلة.',
+        'Rotation selection numbers must be sequential starting from 1.'
+      );
+    }
+    throwSubmissionMissing_(option.rotationUnit, 'وحدة التدوير مفقودة.', 'Rotation unit is missing.');
+    throwSubmissionMissing_(option.section, 'قسم التدوير مفقود.', 'Rotation section is missing.');
+    if (!isSectionInUnit_(option.rotationUnit, option.section)) {
+      throw makeSubmissionValidationError_(
+        'قسم التدوير المحدد لا يتبع الوحدة المحددة.',
+        'The selected rotation section does not belong to its unit.'
+      );
+    }
+    var sectionKey = normalizeKey_(option.rotationUnit) + '|' + normalizeKey_(option.section);
+    if (seenSections[sectionKey]) {
+      throw makeSubmissionValidationError_(
+        'لا يمكن اختيار قسم التدوير نفسه أكثر من مرة في الطلب الواحد.',
+        'Duplicate section selections are not allowed within the same submission.'
+      );
+    }
+    seenSections[sectionKey] = true;
+    var metrics = calculateRotationMetrics_(option.fromDate, option.toDate, option.hours);
+    option.fromDate = metrics.startDate;
+    option.toDate = metrics.endDate;
+    option.hours = metrics.dailyHours;
+    option.workingDays = metrics.workingDays;
+    option.totalHours = metrics.totalHours;
+  });
+
+  for (var i = 0; i < rotationOptions.length; i++) {
+    for (var j = i + 1; j < rotationOptions.length; j++) {
+      if (datesOverlap_(rotationOptions[i].fromDate, rotationOptions[i].toDate, rotationOptions[j].fromDate, rotationOptions[j].toDate)) {
+        throw makeRotationDateOverlapValidationError_(
+          'لا يمكن أن تتداخل فترات اختيارات التدوير في الطلب الواحد.',
+          'Rotation date ranges within the same submission cannot overlap.',
+          rotationOptions[i],
+          rotationOptions[j]
+        );
+      }
+    }
   }
 }
 
@@ -436,22 +608,55 @@ function parseRotationOptionsFromAccessor_(firstNonEmpty, currentUnit, rotationU
 }
 
 function parseUnifiedRotationOptions_(firstNonEmpty, rotationUnit) {
-  rotationUnit = safeString_(rotationUnit);
-  if (!rotationUnit) return [];
-  var section = firstNonEmpty(expandUnitScopedTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_SECTION, rotationUnit));
-  var fromDate = parseDateFlexible_(firstNonEmpty(expandUnitScopedTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_FROM, rotationUnit)));
-  var toDate = parseDateFlexible_(firstNonEmpty(expandUnitScopedTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_TO, rotationUnit)));
-  var hours = firstNonEmpty(expandUnitScopedTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_HOURS, rotationUnit));
-  if (!section && !fromDate && !toDate && !hours) return [];
-  return [{
-    rotationType: 'rotation',
-    rotationUnit: rotationUnit,
-    section: section,
-    fromDate: fromDate,
-    toDate: toDate,
-    hours: hours,
-    optionOrder: 1
-  }];
+  var options = [];
+  for (var i = 1; i <= (FORM.MAX_ROTATION_OPTIONS || 3); i++) {
+    var sectionChoice = firstNonEmpty([
+      optionTitle_(FORM.TITLES.ROTATION_SECTION_PREFIX, i)
+    ].concat(
+      expandOptionTitles_(FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_SECTION, i),
+      expandLegacySingleReplacementTitles_([FORM.TITLES.ROTATION_SECTION_PREFIX], i)
+    ));
+    var fromDate = parseDateFlexible_(readRepeatedRotationResponse_(
+      firstNonEmpty,
+      optionTitle_(FORM.TITLES.ROTATION_FROM_PREFIX, i),
+      FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_FROM,
+      i
+    ));
+    var toDate = parseDateFlexible_(readRepeatedRotationResponse_(
+      firstNonEmpty,
+      optionTitle_(FORM.TITLES.ROTATION_TO_PREFIX, i),
+      FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_TO,
+      i
+    ));
+    var hours = readRepeatedRotationResponse_(
+      firstNonEmpty,
+      optionTitle_(FORM.TITLES.ROTATION_HOURS_PREFIX, i),
+      FORM_RESPONSE_TITLE_CANDIDATES.ROTATION_HOURS,
+      i
+    );
+    if (!sectionChoice && !fromDate && !toDate && !hours) continue;
+    var parsedSection = parseRotationSectionChoice_(sectionChoice, '');
+    options.push({
+      rotationType: 'rotation',
+      rotationUnit: parsedSection.unit,
+      section: parsedSection.section,
+      fromDate: fromDate,
+      toDate: toDate,
+      hours: hours,
+      optionOrder: i
+    });
+  }
+  return options;
+}
+
+function readRepeatedRotationResponse_(firstNonEmpty, visibleTitle, legacyTemplates, optionNumber) {
+  var occurrenceValue = firstNonEmpty([visibleTitle], optionNumber - 1);
+  if (safeString_(occurrenceValue)) return occurrenceValue;
+  var legacyTitles = expandOptionTitles_(legacyTemplates, optionNumber).filter(function(title) {
+    return safeString_(title) !== safeString_(visibleTitle);
+  });
+  legacyTitles = legacyTitles.concat(expandLegacySingleReplacementTitles_(legacyTemplates, optionNumber));
+  return firstNonEmpty(legacyTitles);
 }
 
 function expandUnitScopedTitles_(titles, unitName) {
@@ -485,7 +690,15 @@ function appendParsedRotationOptions_(options, rotationType, maxOptions, firstNo
 }
 
 function expandOptionTitles_(templates, optionNumber) {
-  return (templates || []).map(function(title) { return safeString_(title).replace('{n}', optionNumber); });
+  return (templates || []).map(function(title) {
+    return safeString_(title).split('{n}').join(optionNumber);
+  });
+}
+
+function expandLegacySingleReplacementTitles_(templates, optionNumber) {
+  return (templates || []).map(function(title) {
+    return safeString_(title).replace('{n}', optionNumber);
+  });
 }
 
 function expandBranchedOptionTitles_(templates, optionNumber, unitName) {
@@ -508,6 +721,10 @@ function parseRotationSectionChoice_(choice, fallbackUnit) {
     }
     return { unit: fallbackUnit, section: choice };
   }
+  var emDashParts = choice.split(' — ');
+  if (emDashParts.length >= 2) {
+    return { unit: emDashParts[0], section: emDashParts.slice(1).join(' — ') };
+  }
   var parts = choice.split(' / ');
   if (parts.length >= 2) return { unit: parts[0], section: parts.slice(1).join(' / ') };
   return { unit: '', section: choice };
@@ -523,8 +740,8 @@ function normalizeRotationOptionsFromSubmission_(data) {
 
 function buildActiveEmployeeRejectionReason_(activeRotation) {
   return [
-    'تم رفض الطلب تلقائياً لأن الموظف لديه تدوير وظيفي معتمد ونشط حالياً.',
-    'The request was automatically rejected because the employee currently has an active approved job rotation.',
+    'تم رفض الطلب تلقائياً لأن الموظف لديه تدوير معرفي معتمد ونشط حالياً.',
+    'The request was automatically rejected because the employee currently has an active approved knowledge rotation.',
     'رقم الطلب النشط / Active request ID: ' + safeString_(activeRotation[H.RECORD.REQUEST_ID])
   ].join('\n');
 }
@@ -555,19 +772,61 @@ function isRecordActiveOrApproved_(record) {
   return head === STATUS.HEAD_ACCEPTED && ACTIVE_FINAL_STATUSES.indexOf(finalStatus) !== -1;
 }
 
+function getPendingApprovalSubmissionRecords_(sheet, seedRecord) {
+  var groupId = safeString_(seedRecord[H.RECORD.REQUEST_GROUP_ID]);
+  var records = groupId
+    ? findObjectsByValue_(sheet, H.RECORD.REQUEST_GROUP_ID, groupId, FORM.MAX_ROTATION_OPTIONS || 3)
+    : [seedRecord];
+  return records.filter(isPendingApprovalNotificationRecord_).sort(function(left, right) {
+    return toNumber_(left[H.RECORD.OPTION_ORDER], 0) - toNumber_(right[H.RECORD.OPTION_ORDER], 0);
+  });
+}
+
 function processPendingApprovalEmails(options) {
   options = options || {};
-  var records = getRecords_();
+  var sheet = getSheet_(SHEETS.RECORDS);
+  if (!sheet || sheet.getLastRow() < 2) return { scanned: 0, sent: 0 };
+  var cfg = getConfig();
+  var lastRow = sheet.getLastRow();
+  var scanRange = getQueueScanRange_(
+    PENDING_APPROVAL_SCAN_CURSOR_KEY,
+    lastRow,
+    cfg.QUEUE_SCAN_WINDOW_ROWS || QUEUE_SCAN_WINDOW_ROWS
+  );
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(safeString_);
+  var values = scanRange.rowCount
+    ? sheet.getRange(scanRange.startRow, 1, scanRange.rowCount, sheet.getLastColumn()).getValues()
+    : [];
+  var records = values.map(function(row, index) {
+    var record = { _rowNumber: scanRange.startRow + index };
+    headers.forEach(function(header, columnIndex) {
+      if (header) record[header] = row[columnIndex];
+    });
+    return record;
+  });
+  var sentCount = 0;
+  var attemptedCount = 0;
+  var processedGroups = {};
   for (var i = 0; i < records.length; i++) {
     var record = records[i];
-    if (safeString_(record[H.RECORD.HEAD_STATUS]) !== STATUS.HEAD_PENDING) continue;
-    if (safeString_(record[H.RECORD.FINAL_STATUS]) !== STATUS.FINAL_PENDING) continue;
-    if (safeString_(record[H.RECORD.APPROVAL_EMAIL_SENT_AT])) continue;
-    var retryCount = toNumber_(record[H.RECORD.EMAIL_RETRY_COUNT], 0);
-    if (retryCount > 0) continue;
-    if (shouldStopSync_(options.startedAt)) break;
-    var sent = sendApprovalEmail(record);
-    if (sent) updateRequestByRow_(record._rowNumber, { [H.RECORD.APPROVAL_EMAIL_SENT_AT]: now_() });
-    else updateRequestByRow_(record._rowNumber, { [H.RECORD.EMAIL_RETRY_COUNT]: retryCount + 1 });
+    if (!isPendingApprovalNotificationRecord_(record)) continue;
+    var groupKey = safeString_(record[H.RECORD.REQUEST_GROUP_ID]) ||
+      safeString_(record[H.RECORD.REQUEST_ID]);
+    if (processedGroups[groupKey]) continue;
+    processedGroups[groupKey] = true;
+    if (attemptedCount >= PENDING_APPROVAL_EMAIL_BATCH_SIZE) {
+      setQueueScanCursor_(PENDING_APPROVAL_SCAN_CURSOR_KEY, record._rowNumber, lastRow);
+      return { scanned: i, sent: sentCount, remainingLikely: true };
+    }
+    if (shouldStopSync_(options.startedAt)) {
+      setQueueScanCursor_(PENDING_APPROVAL_SCAN_CURSOR_KEY, record._rowNumber, lastRow);
+      return { scanned: i, sent: sentCount, remainingLikely: true };
+    }
+    var pendingGroup = getPendingApprovalSubmissionRecords_(sheet, record);
+    var delivery = sendGroupedApprovalEmails_(pendingGroup);
+    attemptedCount += delivery.groups;
+    sentCount += delivery.sent;
   }
+  advanceQueueScanCursor_(PENDING_APPROVAL_SCAN_CURSOR_KEY, scanRange, lastRow);
+  return { scanned: records.length, sent: sentCount, remainingLikely: scanRange.endRow < lastRow };
 }

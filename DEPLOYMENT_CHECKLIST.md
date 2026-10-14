@@ -1,29 +1,37 @@
 # Deployment Checklist
 
 - [ ] Create or prepare the `SQU Job Rotation Dashboard` spreadsheet.
-- [ ] Create or prepare the `استمارة تحديد مسار التدوير الوظيفي للموظفين الجدد / New Employee Job Rotation Path Form` Google Form.
-- [ ] Create or prepare the `تقييم تجربة التدوير الوظيفي / Job Rotation Experience Evaluation` Google Form.
+- [ ] Create or prepare the `استمارة تحديد مسار التدوير المعرفي للموظفين الجدد / New Employee Knowledge Rotation Path Form` Google Form.
+- [ ] Create or prepare the `Knowledge Rotation Experience Evaluation / تقييم تجربة التدوير المعرفي` Google Form.
 - [ ] Add all working script files to one Apps Script project.
-- [ ] For an existing form, run `run17_repairMainFormBranching()` once, then repeat `run06_continueMainFormBranching()` until it reports `Complete`.
-- [ ] Confirm the same form URL reopens and every eligible unit has exactly one Section, Start Date, End Date, and Daily Hours question.
+- [ ] Confirm the duplicate Script ID is `1s9bvFblbnaAXKd5VInk4O7hniqEN_MgeljrPtQRpwd5LldA04IuMMWIG`.
+- [ ] Confirm `Setup Summary` contains only newly created duplicate resource IDs.
+- [ ] For a fresh form, run Steps 01–05, then run `run06_continueMainFormBranching()` three times until it reports `Complete`.
+- [ ] Confirm the main Form has three rotation pages; pages 1 and 2 offer Yes/No continuation and page 3 submits.
+- [ ] Confirm every rotation dropdown displays `Unit Name — Section Name`.
+- [ ] Confirm the footprint reported by Step 05 stays below configured Forms limits.
 - [ ] Add Script Properties from `CONFIG_TEMPLATE.json`.
-- [ ] Confirm an automated test email displays `قسم خدمات الموظفين والمتقاعدين | Employee Services`; legacy sender-name properties are ignored.
-- [ ] Run `setupAll()` and authorize.
+- [ ] Confirm an automated test email displays `Employee Services`; legacy sender-name properties are ignored.
+- [ ] Confirm submission-validation error emails go only to `employeeservices@squ.edu.om`, with `m.alaamri1@squ.edu.om` in CC.
+- [ ] Do not run `setupAll()` for the fresh staged setup; follow `MULTI_ROTATION_SETUP.md`.
 - [ ] Replace sample unit data in `إدارة الوحدات`.
 - [ ] Replace sample section data in `إدارة الأقسام`.
-- [ ] Run `setupAll()` again.
+- [ ] Confirm daily-hours validation accepts 2–7 only and server validation enforces three Sunday–Thursday working days.
 - [ ] Deploy as Web App with **Execute as** set to the script owner or the intended automation account.
 - [ ] Deploy as Web App with access allowed for all unit heads who receive approval/rejection links.
 - [ ] Run `run15_saveActiveWebAppUrl()` to save the active Web App deployment URL into `WEB_APP_URL`.
 - [ ] After every new Web App deployment, run `run15_saveActiveWebAppUrl()` again before sending links.
-- [ ] Run `setupAll()` a final time.
-- [ ] Submit a test request.
-- [ ] Test approve.
-- [ ] Test reject with reason.
+- [ ] Save the new Web App `/exec` URL before enabling any approval links.
+- [ ] Submit controlled tests containing 1, 2, and 3 rotations.
+- [ ] Submit three rotations and confirm the unit head receives one email with a separate **Approve** and **Reject** pair under every rotation.
+- [ ] Test one rotation’s **Approve** button and confirm only that row receives unit-head approval and remains pending for final dashboard approval.
+- [ ] Test one rotation’s **Reject** button with a reason and confirm only that rotation is rejected.
 - [ ] Test same-employee active-rotation auto-rejection.
 - [ ] Test two overlapping requests in the same section.
 - [ ] Test final status cannot be changed to `منجز` before head approval.
 - [ ] Test final approval and confirm the employee, line manager, and current-unit head receive the rotation details with the bilingual sender name.
 - [ ] Test evaluation email after rotation end date.
+- [ ] Confirm the evaluation link prefills the request, employee, title, actual unit/section, and participation duration; prefilled values remain editable.
 - [ ] Run `installTriggers()` and confirm exactly one five-minute `syncSystem` trigger is installed.
+- [ ] Confirm no direct `onFormSubmit` trigger is installed.
 - [ ] Confirm there is no separate time-driven `run11_refreshMainFormFromAdminSheets` trigger.

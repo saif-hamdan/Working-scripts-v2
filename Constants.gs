@@ -3,14 +3,22 @@
  * All dashboard-facing headers are Arabic. Internal/system fields are also Arabic.
  */
 const SYSTEM = Object.freeze({
-  VERSION: '1.0.0',
+  VERSION: '2.0.0',
   TIME_ZONE: 'Asia/Muscat',
   REQUEST_PREFIX: 'TRN'
 });
 
-const EMAIL_SENDER_DISPLAY_NAME = 'قسم خدمات الموظفين والمتقاعدين | Employee Services';
+const EMAIL_SENDER_DISPLAY_NAME = 'Employee Services';
+const EMPLOYEE_SERVICES_COPY_EMAIL = 'employeeservices@squ.edu.om';
+const SUBMISSION_REVIEW_EMAIL_TO = EMPLOYEE_SERVICES_COPY_EMAIL;
+const SUBMISSION_REVIEW_EMAIL_CC = 'm.alaamri1@squ.edu.om';
+const DEFAULT_SECTION_HEAD_EMAIL = 'M.ALAAMRI1@squ.edu.om';
+const LEGACY_EMPLOYEE_ROTATION_HOURS_SHEET_NAME = 'ملخص ساعات التدوير الوظيفي للموظفين';
+const LEGACY_EMPLOYEE_NAME_FORM_TITLE = 'اسم الموظف / Employee Name';
+const LEGACY_SUBMISSION_TOTAL_HOURS_HEADER = 'إجمالي ساعات الطلب';
+const LEGACY_DASHBOARD_SECTION_STATUS_HEADER = 'حالة القسم';
 
-const RESPONSE_QUEUE_BATCH_SIZE = 25;
+const RESPONSE_QUEUE_BATCH_SIZE = 1;
 const ACTION_QUEUE_BATCH_SIZE = 25;
 const EMAIL_QUEUE_BATCH_SIZE = 50;
 const QUEUE_SCAN_WINDOW_ROWS = 500;
@@ -20,6 +28,8 @@ const RESPONSE_QUEUE_MAX_SCAN_WINDOW_ROWS = 2000;
 const RESPONSE_QUEUE_SCAN_CURSOR_KEY = 'RESPONSE_QUEUE_NEXT_SCAN_ROW';
 const EMAIL_QUEUE_SCAN_CURSOR_KEY = 'EMAIL_QUEUE_NEXT_SCAN_ROW';
 const ACTION_QUEUE_SCAN_CURSOR_KEY = 'ACTION_QUEUE_NEXT_SCAN_ROW';
+const PENDING_APPROVAL_SCAN_CURSOR_KEY = 'PENDING_APPROVAL_NEXT_SCAN_ROW';
+const PENDING_APPROVAL_EMAIL_BATCH_SIZE = 10;
 const WEB_APP_URL_PLACEHOLDER = 'PASTE_WEB_APP_URL_AFTER_DEPLOYMENT';
 
 const SYNC_CONFIG = Object.freeze({
@@ -28,6 +38,7 @@ const SYNC_CONFIG = Object.freeze({
   ACTIVE_END_HOUR: 22,
   LOCK_WAIT_MS: 3000,
   MAX_SINGLE_RUN_MS: 5.5 * 60 * 1000,
+  PARENT_SELECTION_STOP_MS: 4.5 * 60 * 1000,
   DAILY_RUNTIME_BUDGET_MS: 5.5 * 60 * 60 * 1000,
   TRIGGER_EVERY_MINUTES: 5,
   RUNTIME_KEY_PREFIX: 'SYNC_RUNTIME_MS_',
@@ -49,7 +60,7 @@ const SHEETS = Object.freeze({
   EMAIL_QUEUE: 'طابور البريد',
   ACTION_QUEUE: 'طابور القرارات',
   REQUEST_SOURCE_INDEX: 'Request Source Index',
-  EMPLOYEE_ROTATION_HOURS: 'ملخص ساعات التدوير الوظيفي للموظفين'
+  EMPLOYEE_ROTATION_HOURS: 'ملخص ساعات التدوير المعرفي'
 });
 
 const H = Object.freeze({
@@ -62,7 +73,7 @@ const H = Object.freeze({
     ACTIVE_TRAINEES: 'الأرقام الوظيفية للموظفين في التدوير النشط',
     ALL_TRAINEES: 'جميع من أتموا التدوير في القسم',
     LAST_ROTATION: 'آخر تاريخ تدوير',
-    STATUS: 'حالة القسم'
+    TOTAL_HOURS: 'إجمالي ساعات التدوير'
   }),
   RECORD: Object.freeze({
     REQUEST_ID: 'رقم الطلب',
@@ -84,9 +95,13 @@ const H = Object.freeze({
     ROTATION_UNIT: 'وحدة التدوير',
     SECTION: 'قسم التدوير',
     OPTION_ORDER: 'رقم الخيار',
+    REQUEST_GROUP_ID: 'معرف مجموعة الطلب',
+    SELECTION_KEY: 'مفتاح الاختيار',
     START_DATE: 'من تاريخ',
     END_DATE: 'إلى تاريخ',
     HOURS: 'عدد الساعات اليومية المطلوبة',
+    WORKING_DAYS: 'عدد أيام العمل',
+    TOTAL_HOURS: 'إجمالي ساعات التدوير',
     TYPE: 'نوع الطلب',
     HEAD_STATUS: 'حالة موافقة رئيس الوحدة',
     FINAL_STATUS: 'حالة الاعتماد النهائي',
@@ -122,7 +137,13 @@ const H = Object.freeze({
     UNIT_NAME: 'اسم الوحدة',
     SECTION_NAME: 'اسم القسم',
     ACTIVE: 'نشط',
-    CAPACITY: 'السعة'
+    CAPACITY: 'السعة',
+    HEAD_EMAIL: 'بريد رئيس القسم',
+    HEAD_NAME_AR: 'اسم رئيس القسم بالعربية',
+    HEAD_NAME_EN: 'اسم رئيس القسم بالإنجليزية',
+    HEAD_SALUTATION_AR: 'صيغة مخاطبة رئيس القسم',
+    HEAD_JOB_TITLE_AR: 'المسمى الوظيفي لرئيس القسم بالعربية',
+    HEAD_JOB_TITLE_EN: 'المسمى الوظيفي لرئيس القسم بالإنجليزية'
   }),
   SETTINGS: Object.freeze({
     KEY: 'المفتاح',
@@ -151,6 +172,9 @@ const H = Object.freeze({
   REQUEST_SOURCE_INDEX: Object.freeze({
     FORM_RESPONSE_ID: 'FORM_RESPONSE_ID',
     FORM_RESPONSE_SOURCE_ID: 'FORM_RESPONSE_SOURCE_ID',
+    REQUEST_GROUP_ID: 'REQUEST_GROUP_ID',
+    SELECTION_NUMBER: 'SELECTION_NUMBER',
+    SELECTION_KEY: 'SELECTION_KEY',
     REQUEST_ID: 'REQUEST_ID',
     CREATED_AT: 'CREATED_AT'
   }),
@@ -158,7 +182,8 @@ const H = Object.freeze({
     EMPLOYEE_NAME: 'اسم الموظف',
     EMPLOYEE_ID: 'الرقم الوظيفي للموظف',
     COMPLETED_HOURS: 'إجمالي ساعات التدوير المنجز',
-    ONGOING_HOURS: 'إجمالي ساعات التدوير الجاري'
+    ONGOING_HOURS: 'إجمالي ساعات التدوير الجاري',
+    TOTAL_HOURS: 'إجمالي ساعات التدوير التراكمية'
   }),
   QUEUE: Object.freeze({
     MESSAGE_ID: 'معرف الرسالة',
@@ -187,6 +212,20 @@ const ACTION_QUEUE_HEADERS = Object.freeze(Object.values(H.ACTION_QUEUE));
 const REQUEST_SOURCE_INDEX_HEADERS = Object.freeze(Object.values(H.REQUEST_SOURCE_INDEX));
 const EMPLOYEE_ROTATION_HOURS_HEADERS = Object.freeze(Object.values(H.EMPLOYEE_ROTATION_HOURS));
 
+const INTERNAL_RECORD_HEADERS = Object.freeze([
+  H.RECORD.REQUEST_GROUP_ID,
+  H.RECORD.SELECTION_KEY,
+  H.RECORD.CONFLICT_ID,
+  H.RECORD.CONFLICT_DETAILS,
+  H.RECORD.TOKEN,
+  H.RECORD.APPROVER_EMAIL,
+  H.RECORD.FORM_RESPONSE_ID,
+  H.RECORD.LOCK_VERSION,
+  H.RECORD.EMAIL_RETRY_COUNT,
+  H.RECORD.LAST_ERROR,
+  H.RECORD.FORM_RESPONSE_SOURCE_ID
+]);
+
 const EMPLOYEE_ROTATION_HOURS_CONFIG = Object.freeze({
   TIMEZONE: SYSTEM.TIME_ZONE,
   TRIGGER_EVERY_MINUTES: 10,
@@ -201,7 +240,7 @@ const STATUS = Object.freeze({
   OCCUPIED: 'مشغول',
   TYPE_INTERNAL: 'داخلي',
   TYPE_EXTERNAL: 'خارجي',
-  TYPE_ROTATION: 'تدوير وظيفي',
+  TYPE_ROTATION: 'التدوير المعرفي',
   HEAD_PENDING: 'بانتظار موافقة رئيس الوحدة',
   HEAD_ACCEPTED: 'موافق عليه من رئيس الوحدة',
   HEAD_REJECTED: 'مرفوض من رئيس الوحدة',
@@ -241,6 +280,7 @@ const ACTIVE_FINAL_STATUSES = Object.freeze([
 
 const APPROVED_EVALUATION_FINAL_STATUSES = Object.freeze([
   STATUS.FINAL_APPROVED,
+  STATUS.FINAL_IN_PROGRESS,
   STATUS.FINAL_DONE
 ]);
 
@@ -252,6 +292,7 @@ const SETTINGS_KEYS = Object.freeze({
   RESPONSE_QUEUE_BATCH_SIZE: 'RESPONSE_QUEUE_BATCH_SIZE',
   QUEUE_SCAN_WINDOW_ROWS: 'QUEUE_SCAN_WINDOW_ROWS',
   ACTION_QUEUE_MAX_RETRIES: 'ACTION_QUEUE_MAX_RETRIES',
+  EVALUATION_FORM_ID: 'EVALUATION_FORM_ID',
   EVALUATION_FORM_URL: 'EVALUATION_FORM_URL',
   WEB_APP_URL: 'WEB_APP_URL',
   OWNER_EMAIL: 'OWNER_EMAIL',
@@ -282,21 +323,21 @@ const FORM = Object.freeze({
   INTERNAL_BRANCH_PAGE_PREFIX: 'التدوير الداخلي حسب الوحدة / Internal Rotation by Unit - ',
   EXTERNAL_ROUTER_PAGE_PREFIX: 'اختيار وحدة التدوير الخارجي / Select External Rotation Unit - ',
   EXTERNAL_BRANCH_PAGE_PREFIX: 'تفاصيل التدوير الخارجي / External Rotation Details - ',
-  MAX_ROTATION_OPTIONS: 1,
+  MAX_ROTATION_OPTIONS: 3,
   MAX_INTERNAL_OPTIONS: 3,
   MAX_EXTERNAL_OPTIONS: 3,
   NO_AVAILABLE_SECTIONS: 'لا توجد أقسام متاحة حالياً',
   NO_EXTERNAL_ROTATION: 'لا أرغب في إضافة تدوير خارجي / No external rotation',
   TITLES: Object.freeze({
-    FORM_TITLE: 'استمارة تحديد مسار التدوير الوظيفي للموظفين الجدد / New Employee Job Rotation Path Form',
-    FORM_DESCRIPTION: 'في إطار تطوير الأداء المؤسسي وتأهيل الموظفين الجدد، تم إعداد هذه الاستبانة لتحديد مسار التدوير الوظيفي بما يدعم اكتساب الخبرات العملية وتسريع اندماج الموظف في بيئة العمل.\nTo support institutional performance enhancement and the effective onboarding of new employees, this form has been developed to identify each employee\'s job rotation pathway, facilitating the acquisition of practical experience and accelerating integration into the work environment.',
+    FORM_TITLE: 'استمارة تحديد مسار التدوير المعرفي للموظفين الجدد / New Employee Knowledge Rotation Path Form',
+    FORM_DESCRIPTION: 'في إطار تطوير الأداء المؤسسي وتأهيل الموظفين الجدد، تم إعداد هذه الاستمارة لتحديد مسار التدوير المعرفي بما يدعم اكتساب الخبرات العملية وتسريع اندماج الموظف الجديد في بيئة العمل.\nTo support institutional performance enhancement and the effective onboarding of new employees, this form has been developed to identify each employee\'s knowledge rotation pathway, facilitating the acquisition of practical experience and accelerating integration into the work environment.',
     LINE_MANAGER_SECTION: 'بيانات المسؤول المباشر / Line Manager Details',
     DIRECT_MANAGER_NAME: 'اسم المسؤول المباشر / Line Manager Name',
     DIRECT_MANAGER_ID: 'رقم وظيفي المسؤول المباشر / Line Manager Employee ID',
     DIRECT_MANAGER_EMAIL: 'بريد الالكتروني المسؤول المباشر / Line Manager Email',
     DIRECT_MANAGER_EXTENSION: 'رقم محول المسؤول المباشر / Line Manager Extension',
     EMPLOYEE_SECTION: 'بيانات الموظف / Employee Details',
-    EMPLOYEE_NAME: 'اسم الموظف / Employee Name',
+    EMPLOYEE_NAME: 'اسم الموظف الثلاثي / Full Employee Name',
     EMPLOYEE_ID: 'رقم وظيفي الموظف / Employee ID',
     EMPLOYEE_HIRE_DATE: 'تاريخ تعيين الموظف / Employee Hire Date',
     EMPLOYEE_JOB_TITLE: 'المسمى الوظيفي للموظف / Employee Job Title',
@@ -304,14 +345,15 @@ const FORM = Object.freeze({
     CURRENT_EMPLOYEE_SECTION: 'بيانات الموظف الحالية / Current Employee Details',
     CURRENT_UNIT: 'الوحدة الحالية للموظف / Current Employee Unit',
     CURRENT_DEPARTMENT: 'القسم الحالي للموظف / Current Employee Section',
-    ROTATION_SECTION: 'بيانات التدوير الوظيفي / Job Rotation Details',
+    ROTATION_SECTION: 'بيانات التدوير المعرفي / Knowledge Rotation Details',
+    ROTATION_PAGE_PREFIX: 'اختيار التدوير {n} / Rotation Selection {n}',
     ROTATION_SECTION_PREFIX: 'اختيار التدوير {n}: القسم / Rotation Selection {n}: Section',
     OPTIONAL_ROTATION_GRID: 'اختيارات التدوير الإضافية / Additional Rotation Selections',
     OPTIONAL_ROTATION_GRID_ROW_PREFIX: 'اختيار التدوير {n} / Rotation Selection {n}',
-    ROTATION_FROM_PREFIX: 'اختيار التدوير {n}: من تاريخ / Rotation Selection {n}: From',
-    ROTATION_TO_PREFIX: 'اختيار التدوير {n}: إلى تاريخ / Rotation Selection {n}: To',
-    ROTATION_HOURS_PREFIX: 'اختيار التدوير {n}: الساعات اليومية / Rotation Selection {n}: Daily Hours',
-    ROTATION_ADD_MORE_PREFIX: 'هل تريد إضافة قسم تدوير آخر (الاختيار {n})؟ / Do you want to add another rotation section (Selection {n})?',
+    ROTATION_FROM_PREFIX: 'من تاريخ | From',
+    ROTATION_TO_PREFIX: 'إلى تاريخ | To',
+    ROTATION_HOURS_PREFIX: 'الساعات اليومية | Daily Hours',
+    ROTATION_ADD_MORE_PREFIX: 'هل ترغب في إضافة تدوير آخر؟ / Do you want to add another rotation? ({n})',
     ROTATION_ADD_MORE_YES: 'نعم / Yes',
     ROTATION_ADD_MORE_NO: 'لا، إنهاء الطلب / No, finish the request',
     PHASE_ONE_INTERNAL: 'المرحلة الأولى: التدوير داخل الوحدة / Phase One: Rotation Inside the Current Unit',
@@ -333,12 +375,36 @@ const FORM = Object.freeze({
   })
 });
 
+const EVALUATION_FIELDS = Object.freeze({
+  REQUEST_ID: 'رقم الطلب / Request ID',
+  REQUEST_GROUP_ID: 'معرف مجموعة الطلب / Request Group ID',
+  SELECTION_NUMBER: 'رقم اختيار التدوير / Rotation Selection Number',
+  EMPLOYEE_NAME: 'اسم الموظف / Employee Name',
+  EMPLOYEE_ID: 'الرقم الوظيفي / Employee ID',
+  JOB_TITLE: 'المسمى الوظيفي / Job Title',
+  ROTATION_UNIT: 'وحدة التدوير / Rotation Unit',
+  ROTATION_SECTION: 'قسم التدوير / Rotation Section',
+  START_DATE: 'تاريخ بداية التدوير / Rotation Start Date',
+  END_DATE: 'تاريخ نهاية التدوير / Rotation End Date',
+  DAILY_HOURS: 'عدد ساعات التدوير اليومية / Daily Rotation Hours',
+  WORKING_DAYS: 'عدد أيام العمل / Working Days',
+  TOTAL_HOURS: 'إجمالي ساعات التدوير / Rotation Total Hours',
+  PARTICIPATION_DURATION: 'مدة المشاركة / Participation Duration'
+});
+
+const GOOGLE_FORM_LIMITS = Object.freeze({
+  MAX_CONTENT_ITEMS: 300,
+  MAX_SECTIONS: 75,
+  MAX_TOTAL_CHOICES: 2000,
+  WARNING_RATIO: 0.9
+});
+
 const FORM_RESPONSE_TITLE_CANDIDATES = Object.freeze({
   DIRECT_MANAGER_NAME: Object.freeze([FORM.TITLES.DIRECT_MANAGER_NAME, 'المسؤول المباشر', 'اسم المدير المباشر / Direct Manager Name', 'اسم المدير المباشر']),
   DIRECT_MANAGER_ID: Object.freeze([FORM.TITLES.DIRECT_MANAGER_ID, 'الرقم الوظيفي للمسؤول المباشر', 'رقم وظيفي المسؤول المباشر', 'رقم وظيفي المسؤول المباشر / Line Manager Employee ID', 'رقم وظيفي المدير المباشر', 'رقم وظيفي المدير المباشر / Direct Manager Employee ID', 'Line Manager Employee ID', 'Direct Manager Employee ID']),
   DIRECT_MANAGER_EMAIL: Object.freeze([FORM.TITLES.DIRECT_MANAGER_EMAIL, 'بريد المسؤول المباشر', 'بريد المدير المباشر / Direct Manager Email', 'بريد المدير المباشر']),
   DIRECT_MANAGER_EXTENSION: Object.freeze([FORM.TITLES.DIRECT_MANAGER_EXTENSION, 'رقم محول المسؤول المباشر', 'محول المسؤول المباشر', 'رقم محول المسؤول المباشر / Line Manager Extension', 'رقم محول المدير المباشر', 'رقم محول المدير المباشر / Direct Manager Extension', 'Line Manager Extension', 'Direct Manager Extension']),
-  EMPLOYEE_NAME: Object.freeze([FORM.TITLES.EMPLOYEE_NAME, 'اسم الموظف']),
+  EMPLOYEE_NAME: Object.freeze([FORM.TITLES.EMPLOYEE_NAME, LEGACY_EMPLOYEE_NAME_FORM_TITLE, 'اسم الموظف']),
   EMPLOYEE_ID: Object.freeze([FORM.TITLES.EMPLOYEE_ID, 'الرقم الوظيفي للموظف', 'Employee ID']),
   EMPLOYEE_HIRE_DATE: Object.freeze([FORM.TITLES.EMPLOYEE_HIRE_DATE, 'تاريخ تعيين الموظف', 'تاريخ التعيين', 'تاريخ تعيين الموظف / Employee Hire Date', 'Employee Hire Date', 'Hire Date']),
   EMPLOYEE_JOB_TITLE: Object.freeze([FORM.TITLES.EMPLOYEE_JOB_TITLE, 'المسمى الوظيفي للموظف', 'المسمى الوظيفي', 'المسمى الوظيفي للموظف / Employee Job Title', 'Employee Job Title', 'Job Title']),
@@ -351,9 +417,9 @@ const FORM_RESPONSE_TITLE_CANDIDATES = Object.freeze({
   HOURS: Object.freeze([FORM.TITLES.HOURS, 'عدد الساعات اليومية المطلوبة', 'عدد الساعات', 'عدد ساعات ال' + 'تد' + 'ريب اليومية', 'Daily ' + 'Train' + 'ing Hours', 'عدد ساعات ال' + 'تد' + 'ريب اليومية / Daily ' + 'Train' + 'ing Hours']),
 
   ROTATION_SECTION: Object.freeze([FORM.TITLES.ROTATION_DEPARTMENT, 'Rotation Section']),
-  ROTATION_FROM: Object.freeze([FORM.TITLES.START_DATE, 'Rotation Start Date', 'From Date']),
-  ROTATION_TO: Object.freeze([FORM.TITLES.END_DATE, 'Rotation End Date', 'To Date']),
-  ROTATION_HOURS: Object.freeze([FORM.TITLES.HOURS, 'Required Daily Hours', 'Daily Hours']),
+  ROTATION_FROM: Object.freeze(['اختيار التدوير {n}: من تاريخ / Rotation Selection {n}: From', FORM.TITLES.START_DATE, 'Rotation Start Date', 'From Date']),
+  ROTATION_TO: Object.freeze(['اختيار التدوير {n}: إلى تاريخ / Rotation Selection {n}: To', FORM.TITLES.END_DATE, 'Rotation End Date', 'To Date']),
+  ROTATION_HOURS: Object.freeze(['اختيار التدوير {n}: الساعات اليومية / Rotation Selection {n}: Daily Hours', FORM.TITLES.HOURS, 'Required Daily Hours', 'Daily Hours']),
 
   INTERNAL_SECTION: Object.freeze(['التدوير داخل الوحدة - الخيار {n}: القسم / Section', 'Internal section {n}', 'Internal Section {n}', 'القسم الداخلي {n}']),
   INTERNAL_FROM: Object.freeze(['التدوير داخل الوحدة - الخيار {n}: الفترة من / Period from', 'From date {n}', 'الفترة من {n}']),

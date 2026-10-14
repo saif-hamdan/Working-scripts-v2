@@ -3,6 +3,9 @@ const RESPONSE_QUEUE = Object.freeze({
   STATUS: 'Processing Status',
   PROCESSED_AT: 'Processed At',
   REQUEST_ID: 'Dashboard Request ID',
+  REQUEST_GROUP_ID: 'Request Group ID',
+  SELECTION_COUNT: 'Selection Count',
+  NEXT_SELECTION_NUMBER: 'Next Selection Number',
   LAST_ERROR: 'Processing Error',
   RETRY_COUNT: 'Retry Count',
   LAST_ATTEMPT_AT: 'Last Attempt At'
@@ -12,17 +15,23 @@ const RESPONSE_QUEUE_HEADERS = Object.freeze([
   RESPONSE_QUEUE.STATUS,
   RESPONSE_QUEUE.PROCESSED_AT,
   RESPONSE_QUEUE.REQUEST_ID,
+  RESPONSE_QUEUE.REQUEST_GROUP_ID,
+  RESPONSE_QUEUE.SELECTION_COUNT,
+  RESPONSE_QUEUE.NEXT_SELECTION_NUMBER,
   RESPONSE_QUEUE.LAST_ERROR,
   RESPONSE_QUEUE.RETRY_COUNT,
   RESPONSE_QUEUE.LAST_ATTEMPT_AT
 ]);
 
 const RESPONSE_QUEUE_STATUS = Object.freeze({
-  NEW: 'NEW',
+  NEW: 'PENDING',
+  PENDING: 'PENDING',
   PROCESSING: 'PROCESSING',
   PROCESSED: 'PROCESSED',
-  ERROR: 'ERROR',
-  ERROR_REQUIRES_REVIEW: 'ERROR_REQUIRES_REVIEW'
+  ERROR: 'RETRYABLE_ERROR',
+  RETRYABLE_ERROR: 'RETRYABLE_ERROR',
+  ERROR_REQUIRES_REVIEW: 'MANUAL_REVIEW',
+  MANUAL_REVIEW: 'MANUAL_REVIEW'
 });
 
 function processUnprocessedFormResponses(options) {
@@ -66,9 +75,6 @@ function processUnprocessedFormResponses(options) {
     var cursorDeferred = false;
 
     var responseQueueItems = [];
-    var responseIds = [];
-    var responseSourceIds = [];
-
     for (var index = rows.length - 1; index >= 0; index--) {
       var row = rows[index];
       var rowNumber = startRow + index;
@@ -103,21 +109,11 @@ function processUnprocessedFormResponses(options) {
       actionableCount++;
 
       var responseId = makeResponseQueueId_(ss, sheet, rowNumber);
-      var responseSourceId = makeResponseSourceIdFromRow_(headers, row, map);
-      responseQueueItems.push({ row: row, rowNumber: rowNumber, responseId: responseId, responseSourceId: responseSourceId });
-      if (responseId) responseIds.push(responseId);
-      if (responseSourceId) responseSourceIds.push(responseSourceId);
+      responseQueueItems.push({ row: row, rowNumber: rowNumber, responseId: responseId, responseSourceId: '' });
     }
 
-    var matchedRecords = findRequestsByResponseIds_(responseIds, responseSourceIds);
     var recordsByResponseSourceId = {};
     var recordsByResponseId = {};
-    matchedRecords.forEach(function(record) {
-      var matchedResponseSourceId = safeString_(record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID]);
-      var matchedResponseId = safeString_(record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID]);
-      if (matchedResponseSourceId && !recordsByResponseSourceId[matchedResponseSourceId]) recordsByResponseSourceId[matchedResponseSourceId] = record;
-      if (matchedResponseId && !recordsByResponseId[matchedResponseId]) recordsByResponseId[matchedResponseId] = record;
-    });
 
     for (var itemIndex = 0; itemIndex < responseQueueItems.length; itemIndex++) {
       var item = responseQueueItems[itemIndex];
@@ -125,46 +121,70 @@ function processUnprocessedFormResponses(options) {
       var rowNumber = item.rowNumber;
       var responseId = item.responseId;
       var responseSourceId = item.responseSourceId;
+      var recordsHandled = [];
       try {
         var data = null;
-        // A queue response ID identifies one exact response-sheet row. When it
-        // exists, a fallback source fingerprint must never override it.
-        var existingRecord = findExistingResponseQueueRequest_(
-          responseId,
-          responseSourceId,
-          recordsByResponseId,
-          recordsByResponseSourceId
-        );
-        if (existingRecord) {
-          markResponseRowProcessed_(sheet, rowNumber, map, existingRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID] || responseId, '');
-          skippedCount++;
-          logInfo_('processUnprocessedFormResponses', existingRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID] || responseId, 'Queued form response from row ' + rowNumber + ' already had a request; marked as processed.');
-          continue;
-        }
-
         markResponseRowProcessing_(sheet, rowNumber, map);
         data = parseLinkedResponseRow_(stripResponseQueueHeaders_(headers, map), stripResponseQueueRow_(row, headers, map));
+        responseSourceId = safeString_(data.responseSourceId || responseSourceId);
         var sourceInfo = buildRequestSourceInfo_(data);
         sourceInfo.responseId = responseId;
         sourceInfo.responseSourceId = responseSourceId;
+        var startSelectionNumber = Math.max(1, getResponseRowNextSelectionNumber_(row, map));
+        var selectionCount = normalizeRotationOptionsFromSubmission_(data).length;
+        var requestIdsCreated = splitCsv_(map[RESPONSE_QUEUE.REQUEST_ID] ? row[map[RESPONSE_QUEUE.REQUEST_ID] - 1] : '');
+        requestCreationOptions.startSelectionNumber = startSelectionNumber;
+        requestCreationOptions.onSelectionProcessed = function(selectionNumber, totalSelections, createdRecord) {
+          recordsHandled.push(createdRecord);
+          var createdRequestId = safeString_(createdRecord[H.RECORD.REQUEST_ID] || createdRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID]);
+          if (createdRequestId && requestIdsCreated.indexOf(createdRequestId) === -1) requestIdsCreated.push(createdRequestId);
+          markResponseSelectionProgress_(
+            sheet,
+            rowNumber,
+            map,
+            selectionNumber + 1,
+            totalSelections,
+            createdRecord[H.RECORD.REQUEST_GROUP_ID] || createdRecord[H.REQUEST_SOURCE_INDEX.REQUEST_GROUP_ID],
+            requestIdsCreated
+          );
+          if (shouldStopBeforeNextParentSelection_(options.startedAt, selectionNumber, totalSelections)) {
+            var partialError = new Error('Parent submission paused safely after selection ' + selectionNumber + '.');
+            partialError.code = 'PARTIAL_PARENT_RETRY';
+            throw partialError;
+          }
+        };
         var record = createRequestFromNormalizedData_(data, sourceInfo, requestCreationOptions);
         var primaryRecord = Array.isArray(record) ? record[0] : record;
-        var requestIds = Array.isArray(record) ? record.map(function(createdRecord) { return createdRecord[H.RECORD.REQUEST_ID]; }).filter(Boolean).join(', ') : (record[H.RECORD.REQUEST_ID] || record[H.REQUEST_SOURCE_INDEX.REQUEST_ID] || responseId);
+        var requestIds = requestIdsCreated.join(', ');
         var indexRecord = normalizeRequestSourceIndexRecord_(primaryRecord);
         if (responseSourceId && !recordsByResponseSourceId[responseSourceId]) recordsByResponseSourceId[responseSourceId] = indexRecord;
         if (responseId && !recordsByResponseId[responseId]) recordsByResponseId[responseId] = indexRecord;
+        if (recordsHandled.length) {
+          try { refreshDashboardForRecords_(recordsHandled); } catch (refreshErr) { logError_('processUnprocessedFormResponses:refresh', responseId, refreshErr); }
+          recordsHandled = [];
+        }
         markResponseRowProcessed_(sheet, rowNumber, map, requestIds || responseId, '');
         processedCount++;
         logInfo_('processUnprocessedFormResponses', requestIds, 'Queued form response processed from row ' + rowNumber + '.');
       } catch (err) {
-        if (isInvalidDateOrderError_(err) && data) {
+        if (recordsHandled.length) {
+          try { refreshDashboardForRecords_(recordsHandled); } catch (refreshErr) { logError_('processUnprocessedFormResponses:refresh', responseId, refreshErr); }
+        }
+        if (isSubmissionValidationError_(err) && data) {
           markResponseRowRequiresReview_(sheet, rowNumber, map, err);
           sendInvalidDatesSubmissionEmail(data, responseId, err);
+        } else if (err && err.code === 'PARTIAL_PARENT_RETRY') {
+          markResponseRowRetryable_(sheet, rowNumber, map, err, false);
+          stoppedEarly = true;
+          remainingLikely = true;
+          setQueueScanCursor_(RESPONSE_QUEUE_SCAN_CURSOR_KEY, rowNumber, lastRow);
+          cursorDeferred = true;
         } else {
           markResponseRowError_(sheet, rowNumber, map, err, cfg.RESPONSE_QUEUE_MAX_RETRIES);
         }
         failedCount++;
         logError_('processUnprocessedFormResponses', responseId, err);
+        if (err && err.code === 'PARTIAL_PARENT_RETRY') break;
       }
     }
 
@@ -221,16 +241,23 @@ function ensureResponseQueueColumns_(sheet) {
   var lastCol = sheet.getLastColumn();
   var headers = lastCol > 0 ? sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(safeString_) : [];
   var queueStart = findResponseQueueColumnStart_(headers);
+  var createdColumns = false;
 
   if (!queueStart) {
     queueStart = lastCol + 1;
     sheet.getRange(1, queueStart, 1, RESPONSE_QUEUE_HEADERS.length).setValues([RESPONSE_QUEUE_HEADERS]);
+    createdColumns = true;
   }
 
   var map = {};
   RESPONSE_QUEUE_HEADERS.forEach(function(header, index) {
     map[header] = queueStart + index;
   });
+  if (createdColumns && sheet.getMaxRows() > 1) {
+    var dataRowCount = sheet.getMaxRows() - 1;
+    sheet.getRange(2, map[RESPONSE_QUEUE.PROCESSED_AT], dataRowCount, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+    sheet.getRange(2, map[RESPONSE_QUEUE.LAST_ATTEMPT_AT], dataRowCount, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+  }
   return map;
 }
 
@@ -266,6 +293,16 @@ function shouldAttemptResponseRow_(row, map, maxRetries) {
 function getResponseRowRetryCount_(row, map) {
   if (!map[RESPONSE_QUEUE.RETRY_COUNT]) return 0;
   return toNumber_(row[map[RESPONSE_QUEUE.RETRY_COUNT] - 1], 0);
+}
+
+function getResponseRowNextSelectionNumber_(row, map) {
+  if (!map[RESPONSE_QUEUE.NEXT_SELECTION_NUMBER]) return 1;
+  return Math.max(1, toNumber_(row[map[RESPONSE_QUEUE.NEXT_SELECTION_NUMBER] - 1], 1));
+}
+
+function shouldStopBeforeNextParentSelection_(startedAt, processedSelectionNumber, totalSelections) {
+  if (processedSelectionNumber >= totalSelections || !startedAt) return false;
+  return Date.now() - startedAt >= SYNC_CONFIG.PARENT_SELECTION_STOP_MS;
 }
 
 function stripResponseQueueHeaders_(headers, map) {
@@ -314,6 +351,12 @@ function findRequestByResponseSourceId_(responseSourceId) {
 }
 
 function makeResponseSourceIdFromRow_(headers, row, map) {
+  var cleanHeaders = stripResponseQueueHeaders_(headers, map);
+  var cleanRow = stripResponseQueueRow_(row, headers, map);
+  return parseLinkedResponseRow_(cleanHeaders, cleanRow).responseSourceId;
+
+  // Legacy single-rotation hashing is intentionally retained below as
+  // unreachable rollback reference.
   function valueFor(candidates) {
     for (var i = 0; i < candidates.length; i++) {
       var wanted = candidates[i];
@@ -378,6 +421,20 @@ function markResponseRowProcessing_(sheet, rowNumber, map) {
   var updates = {};
   updates[RESPONSE_QUEUE.STATUS] = RESPONSE_QUEUE_STATUS.PROCESSING;
   updates[RESPONSE_QUEUE.LAST_ATTEMPT_AT] = now_();
+  var currentNext = toNumber_(sheet.getRange(rowNumber, map[RESPONSE_QUEUE.NEXT_SELECTION_NUMBER]).getValue(), 0);
+  if (!currentNext) updates[RESPONSE_QUEUE.NEXT_SELECTION_NUMBER] = 1;
+  updateResponseQueueRow_(sheet, rowNumber, map, updates);
+}
+
+function markResponseSelectionProgress_(sheet, rowNumber, map, nextSelectionNumber, selectionCount, requestGroupId, requestIds) {
+  var updates = {};
+  updates[RESPONSE_QUEUE.STATUS] = RESPONSE_QUEUE_STATUS.PROCESSING;
+  updates[RESPONSE_QUEUE.NEXT_SELECTION_NUMBER] = nextSelectionNumber;
+  updates[RESPONSE_QUEUE.SELECTION_COUNT] = selectionCount;
+  updates[RESPONSE_QUEUE.REQUEST_GROUP_ID] = requestGroupId || '';
+  updates[RESPONSE_QUEUE.REQUEST_ID] = (requestIds || []).join(', ');
+  updates[RESPONSE_QUEUE.LAST_ATTEMPT_AT] = now_();
+  updates[RESPONSE_QUEUE.LAST_ERROR] = '';
   updateResponseQueueRow_(sheet, rowNumber, map, updates);
 }
 
@@ -394,6 +451,17 @@ function markResponseRowError_(sheet, rowNumber, map, err, maxRetries) {
   var retryCount = toNumber_(sheet.getRange(rowNumber, map[RESPONSE_QUEUE.RETRY_COUNT]).getValue(), 0) + 1;
   var updates = {};
   updates[RESPONSE_QUEUE.STATUS] = retryCount >= maxRetries ? RESPONSE_QUEUE_STATUS.ERROR_REQUIRES_REVIEW : RESPONSE_QUEUE_STATUS.ERROR;
+  updates[RESPONSE_QUEUE.LAST_ERROR] = err && err.message ? err.message : safeString_(err);
+  updates[RESPONSE_QUEUE.RETRY_COUNT] = retryCount;
+  updates[RESPONSE_QUEUE.LAST_ATTEMPT_AT] = now_();
+  updateResponseQueueRow_(sheet, rowNumber, map, updates);
+}
+
+function markResponseRowRetryable_(sheet, rowNumber, map, err, incrementRetry) {
+  var retryCount = toNumber_(sheet.getRange(rowNumber, map[RESPONSE_QUEUE.RETRY_COUNT]).getValue(), 0);
+  if (incrementRetry !== false) retryCount++;
+  var updates = {};
+  updates[RESPONSE_QUEUE.STATUS] = RESPONSE_QUEUE_STATUS.RETRYABLE_ERROR;
   updates[RESPONSE_QUEUE.LAST_ERROR] = err && err.message ? err.message : safeString_(err);
   updates[RESPONSE_QUEUE.RETRY_COUNT] = retryCount;
   updates[RESPONSE_QUEUE.LAST_ATTEMPT_AT] = now_();
