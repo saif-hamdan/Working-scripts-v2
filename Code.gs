@@ -100,7 +100,7 @@ function isSyncNearTimeout_(startedAt) {
 
 function shouldStopSync_(startedAt) {
   if (!isSyncNearTimeout_(startedAt)) return false;
-  logInfo_('syncSystem', '', 'syncSystem stopped early to avoid timeout. Remaining work will continue in the next run.');
+  logExecutionStage_('syncSystem', 'Stopped early to avoid timeout; remaining work continues next run', startedAt);
   return true;
 }
 
@@ -217,38 +217,49 @@ function runFullSyncRefresh_(startedAt) {
 
 function syncSystem() {
   var startedAt = Date.now();
+  logExecutionStage_('syncSystem', 'Start; check active hours', startedAt);
   if (!isSyncActiveHour_()) {
-    logInfo_('syncSystem', '', 'syncSystem skipped: outside active hours.');
+    logExecutionStage_('syncSystem', 'Skipped: outside active hours', startedAt);
     return;
   }
 
+  logExecutionStage_('syncSystem', 'Acquire lock', startedAt);
   var lock = LockService.getScriptLock();
   var lockAcquired = lock.tryLock(SYNC_CONFIG.LOCK_WAIT_MS);
   if (!lockAcquired) {
-    logInfo_('syncSystem', '', 'syncSystem skipped: another execution is already running.');
+    logExecutionStage_('syncSystem', 'Skipped: another execution is already running', startedAt);
     return;
   }
 
   try {
+    logExecutionStage_('syncSystem', 'Clean runtime properties and check daily budget', startedAt);
     cleanupOldSyncRuntimeProperties_();
     if (!hasSyncDailyBudgetRemaining_()) {
-      logInfo_('syncSystem', '', 'syncSystem skipped: estimated daily runtime budget reached.');
+      logExecutionStage_('syncSystem', 'Skipped: estimated daily runtime budget reached', startedAt);
       return;
     }
     if (shouldStopSync_(startedAt)) return;
+    logExecutionStage_('syncSystem', 'Process response queue', startedAt);
     var responseQueueStats = processUnprocessedFormResponses({ skipLock: true, startedAt: startedAt, deferRefresh: true });
+    logExecutionStage_('syncSystem', 'Response queue finished; write statistics log', startedAt);
     logInfo_('syncSystem', '', formatResponseQueueStats_(responseQueueStats));
     if (shouldStopSync_(startedAt)) return;
+    logExecutionStage_('syncSystem', 'Process approval action queue', startedAt);
     var approvalActionQueueStats = processApprovalActionQueue({ skipLock: true, startedAt: startedAt });
+    logExecutionStage_('syncSystem', 'Approval action queue finished; write statistics log', startedAt);
     logInfo_('syncSystem', '', formatApprovalActionQueueStats_(approvalActionQueueStats));
     if (shouldStopSync_(startedAt)) return;
+    logExecutionStage_('syncSystem', 'Synchronize reference data', startedAt);
     var referenceSyncStats = syncReferenceDataFromAdminSheets_();
     if (shouldStopSync_(startedAt)) return;
+    logExecutionStage_('syncSystem', 'Process email queue', startedAt);
     var emailQueueStats = processEmailQueue({ startedAt: startedAt });
     if (shouldStopSync_(startedAt)) return;
+    logExecutionStage_('syncSystem', 'Process pending approval emails', startedAt);
     processPendingApprovalEmails({ startedAt: startedAt });
     if (shouldStopSync_(startedAt)) return;
 
+    logExecutionStage_('syncSystem', 'Check refresh requirements', startedAt);
     var nowMs = Date.now();
     var queueChanged = hasSyncQueueChanges_(responseQueueStats, approvalActionQueueStats, emailQueueStats);
     var approvalRecordsChanged = toNumber_(approvalActionQueueStats && approvalActionQueueStats.processed, 0) > 0;
@@ -268,21 +279,28 @@ function syncSystem() {
       (typeof mainFormNeedsRefresh_ === 'function' && mainFormNeedsRefresh_());
 
     if (needsDashboardRefresh || needsFormRefresh) {
+      logExecutionStage_('syncSystem', 'Read request records for refresh', startedAt);
       var records = getRecords_();
       var dashboardRows = null;
       if (shouldStopSync_(startedAt)) return;
       if (needsDashboardRefresh) {
+        logExecutionStage_('syncSystem', 'Refresh dashboard', startedAt);
         dashboardRows = refreshDashboardFromSync_(records);
+        logExecutionStage_('syncSystem', 'Dashboard refreshed; write completion log', startedAt);
         logInfo_('syncSystem', '', 'Dashboard refresh completed; reason: ' + (approvalRecordsChanged ? 'approval changes' : (referenceChanged ? 'reference data changes' : 'scheduled interval')) + '.');
       }
       if (shouldStopSync_(startedAt)) return;
       if (needsFormRefresh) {
+        logExecutionStage_('syncSystem', 'Refresh form choices', startedAt);
         refreshFormChoicesFromSync_(startedAt, formChoicesChanged);
+        logExecutionStage_('syncSystem', 'Form choices checked; write completion log', startedAt);
         logInfo_('syncSystem', '', 'Change-driven form refresh checked; reason: ' + (formChoicesChanged ? 'unit/section choice changes' : (stagedBranchingInProgress ? 'staged branching progress' : 'queued reference edit')) + '.');
       }
     } else {
+      logExecutionStage_('syncSystem', 'No refresh needed; write skip log', startedAt);
       logInfo_('syncSystem', '', 'Refresh phases skipped: no queue/reference changes and scheduled intervals have not elapsed.');
     }
+    logExecutionStage_('syncSystem', 'Write completion log', startedAt);
     logInfo_('syncSystem', '', 'Sync completed in ' + (Date.now() - startedAt) + ' ms.');
   } catch (err) {
     logError_('syncSystem', '', err);
@@ -290,12 +308,14 @@ function syncSystem() {
     if (lockAcquired) {
       try {
         var elapsedMs = Date.now() - startedAt;
+        logExecutionStage_('syncSystem', 'Record runtime and write runtime log', startedAt);
         var runtimeUsedTodayMs = addSyncRuntimeToday_(elapsedMs);
         logInfo_('syncSystem', '', 'Estimated sync runtime used today: ' + runtimeUsedTodayMs + ' ms.');
       } catch (runtimeErr) {
         logError_('syncSystem:runtimeTracking', '', runtimeErr);
       } finally {
         lock.releaseLock();
+        logExecutionStage_('syncSystem', 'Finished', startedAt);
       }
     }
   }

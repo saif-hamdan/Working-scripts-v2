@@ -2,6 +2,23 @@
 
 This branch is the isolated duplicate Apps Script project for the Google Forms + Google Sheets job-rotation approval workflow. See `MULTI_ROTATION_SETUP.md` before creating resources.
 
+## Minimal trigger reliability update
+
+The summary and sync entry points now write lightweight execution-stage and
+elapsed-time diagnostics. Outside-hours and busy-lock exits no longer open the
+dashboard just to log a skipped run. Actual refreshes retain their existing
+spreadsheet audit messages, locking, calculations, queues, and schedules.
+Errors are copied to execution logs before spreadsheet logging is attempted;
+failure of the spreadsheet logger is also reported without throwing or retrying.
+This reduces unnecessary service calls but cannot prevent Google-side outages.
+
+For an existing project, replace and save `Logger.gs` first, then
+`TrainingHoursService.gs` and `Code.gs`. Existing Head triggers use the saved
+code on their next execution. No Web App redeployment, URL change, setup
+rebuild, or trigger reinstallation is required for this update. Do not upload
+the Node-only `tests/` directory. In Executions, inspect the last stage and
+elapsed milliseconds if a later run stalls or fails.
+
 ## What it implements
 
 - Google Form response-sheet queue processing for submissions.

@@ -2,29 +2,40 @@
 var EMPLOYEE_ROTATION_HOURS_LOOKUP_CACHE_ = {};
 
 function refreshEmployeeRotationHoursSummary() {
-  var rows = calculateEmployeeRotationHoursSummary_(getRecords_());
+  var startedAt = Date.now();
+  logExecutionStage_('refreshEmployeeRotationHoursSummary', 'Read request records', startedAt);
+  var records = getRecords_();
+  logExecutionStage_('refreshEmployeeRotationHoursSummary', 'Calculate hours', startedAt);
+  var rows = calculateEmployeeRotationHoursSummary_(records);
+  logExecutionStage_('refreshEmployeeRotationHoursSummary', 'Render summary', startedAt);
   renderEmployeeRotationHoursSummary_(rows);
+  logExecutionStage_('refreshEmployeeRotationHoursSummary', 'Finished', startedAt);
   return rows;
 }
 
 function scheduledRefreshEmployeeRotationHoursSummary() {
+  var startedAt = Date.now();
+  logExecutionStage_('scheduledRefreshEmployeeRotationHoursSummary', 'Start; check active window', startedAt);
   if (!isEmployeeRotationHoursSummaryActiveTime_()) {
-    logInfo_('scheduledRefreshEmployeeRotationHoursSummary', '', 'Employee rotation hours summary skipped: outside 22:00-23:50 window.');
+    logExecutionStage_('scheduledRefreshEmployeeRotationHoursSummary', 'Skipped: outside 22:00-23:50 window', startedAt);
     return;
   }
+  logExecutionStage_('scheduledRefreshEmployeeRotationHoursSummary', 'Acquire lock', startedAt);
   var lock = LockService.getScriptLock();
   var lockAcquired = lock.tryLock(3000);
   if (!lockAcquired) {
-    logInfo_('scheduledRefreshEmployeeRotationHoursSummary', '', 'Employee rotation hours summary skipped: another execution is already running.');
+    logExecutionStage_('scheduledRefreshEmployeeRotationHoursSummary', 'Skipped: another execution is already running', startedAt);
     return;
   }
   try {
     refreshEmployeeRotationHoursSummary();
+    logExecutionStage_('scheduledRefreshEmployeeRotationHoursSummary', 'Write completion log', startedAt);
     logInfo_('scheduledRefreshEmployeeRotationHoursSummary', '', 'Employee rotation hours summary refreshed.');
   } catch (err) {
     logError_('scheduledRefreshEmployeeRotationHoursSummary', '', err);
   } finally {
     lock.releaseLock();
+    logExecutionStage_('scheduledRefreshEmployeeRotationHoursSummary', 'Finished', startedAt);
   }
 }
 
@@ -46,9 +57,12 @@ function isEmployeeRotationHoursSummaryActiveTime_(date) {
 }
 
 function renderEmployeeRotationHoursSummary_(rows) {
+  var startedAt = Date.now();
   var ss = openDashboardSpreadsheet_();
   var sheet = getEmployeeRotationHoursSheet_(ss);
+  logExecutionStage_('renderEmployeeRotationHoursSummary_', 'Write summary rows', startedAt);
   clearAndWriteObjects_(sheet, EMPLOYEE_ROTATION_HOURS_HEADERS, rows || []);
+  logExecutionStage_('renderEmployeeRotationHoursSummary_', 'Format summary', startedAt);
   applyCleanTableFormatting_(sheet, EMPLOYEE_ROTATION_HOURS_HEADERS.length);
 }
 
