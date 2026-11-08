@@ -54,6 +54,12 @@ function run14_repairExistingResourcesFromLatestScript() {
 
 function repairBootstrapSheetSchema_(ss, sheetName, headers) {
   var sheet = bsEnsureSheet_(ss, sheetName);
+  if (sheetName === BS.RECORDS && typeof EVALUATION_TRACKING_HEADERS !== 'undefined' &&
+      getHeaderMap_(sheet)[EVALUATION_TRACKING.ENROLLED_AT]) {
+    headers = headers.concat(EVALUATION_TRACKING_HEADERS.filter(function(header) {
+      return headers.indexOf(header) === -1;
+    }));
+  }
   var rows = readBootstrapRowsByHeader_(sheet);
   sheet.clear();
   bsSetHeaders_(sheet, headers);

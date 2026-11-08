@@ -13,8 +13,8 @@
         <div class="title-en">Knowledge Rotation Experience Evaluation</div>
       </div>
       <div class="content">
-        <div class="intro-ar">يرجى تعبئة نموذج تقييم تجربة التدوير المعرفي.</div>
-        <div class="intro-en">Please complete the knowledge rotation experience evaluation form.</div>
+        <div class="intro-ar"><? if (data.isEvaluationReminder) { ?>تذكير: لم نستلم تقييمك لهذه الفترة من التدوير المعرفي بعد. يرجى تعبئة النموذج من خلال الرابط أدناه.<? } else { ?>يرجى تعبئة نموذج تقييم تجربة التدوير المعرفي.<? } ?></div>
+        <div class="intro-en"><? if (data.isEvaluationReminder) { ?>Reminder: We have not yet received your evaluation for this rotation. Please complete the form using the link below.<? } else { ?>Please complete the knowledge rotation experience evaluation form.<? } ?></div>
         
 <table class="details">
   <tr><th>البيان / Field</th><th>القيمة / Value</th></tr>

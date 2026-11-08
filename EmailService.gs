@@ -464,21 +464,32 @@ function queueConflictNotification(record, conflict, source) {
   return queueEmailForLater_(buildConflictNotificationPayload_(record, conflict, source), { kind: 'conflict', requestId: record[H.RECORD.REQUEST_ID] });
 }
 
-function sendEvaluationEmail(record, evaluationUrl) {
+function sendEvaluationEmail(record, evaluationUrl, followupOptions) {
+  followupOptions = followupOptions || {};
+  if (followupOptions.queueOnly) requireEvaluationTime_(followupOptions.deadline);
   evaluationUrl = safeString_(evaluationUrl) ||
     safeString_(record[H.RECORD.EVALUATION_LINK]) ||
     buildEvaluationPrefilledUrl_(record);
-  var data = buildTemplateData_(record, { evaluationUrl: evaluationUrl });
+  var data = buildTemplateData_(record, {
+    evaluationUrl: evaluationUrl,
+    isEvaluationReminder: Boolean(followupOptions.isReminder)
+  });
   var html = renderTemplate_('Emails_Evaluation', data);
-  var context = { kind: 'evaluation', requestId: record[H.RECORD.REQUEST_ID] };
+  var context = followupOptions.context || { kind: 'evaluation', requestId: record[H.RECORD.REQUEST_ID] };
   var rotationNumber = safeString_(record[H.RECORD.OPTION_ORDER]);
   var rotationSuffix = rotationNumber ? ' - التدوير ' + rotationNumber + ' / Rotation ' + rotationNumber : '';
-  var sent = sendEmailSafe_({
+  var payload = {
     to: safeString_(record[H.RECORD.EMPLOYEE_EMAIL]),
-    subject: 'تقييم تجربة التدوير المعرفي / Knowledge Rotation Experience Evaluation - ' +
+    subject: (followupOptions.isReminder ? 'تذكير / Reminder - ' : '') +
+      'تقييم تجربة التدوير المعرفي / Knowledge Rotation Experience Evaluation - ' +
       record[H.RECORD.REQUEST_ID] + rotationSuffix,
     htmlBody: html
-  }, context);
+  };
+  if (followupOptions.queueOnly) {
+    requireEvaluationTime_(followupOptions.deadline);
+    return queueEmailForLater_(payload, context);
+  }
+  var sent = sendEmailSafe_(payload, context);
   return sent || isEmailContextQueued_(context);
 }
 
@@ -628,15 +639,20 @@ function processEmailQueue(options) {
   var stats = { sent: 0, processed: 0, failed: 0, skipped: 0, scanned: 0, remainingLikely: scanRange.endRow < lastRow, stoppedEarly: false, stoppedForBatch: false };
   var actionableCount = 0;
   var cursorDeferred = false;
+  var evaluationQueueState = null;
+  var evaluationMessagesAttempted = 0;
   for (var i = rows.length - 1; i >= 0; i--) {
     var row = objectFromQueueRow_(headers, rows[i], startRow + i);
     stats.scanned++;
-    if (safeString_(row[H.QUEUE.STATUS]) === STATUS.QUEUE_SENT) {
+    if (safeString_(row[H.QUEUE.STATUS]) === STATUS.QUEUE_SENT ||
+        safeString_(row[H.QUEUE.STATUS]) === STATUS.QUEUE_CANCELLED) {
       stats.skipped++;
       continue;
     }
     var attempts = toNumber_(row[H.QUEUE.ATTEMPTS], 0);
-    if (attempts >= 5) {
+    var context = parseJsonSafe_(row[H.QUEUE.CONTEXT_JSON], {});
+    var trackedEvaluation = typeof isTrackedEvaluationEmailContext_ === 'function' && isTrackedEvaluationEmailContext_(context);
+    if (attempts >= 5 && !(trackedEvaluation && safeString_(row[H.QUEUE.STATUS]) === STATUS.QUEUE_SENDING)) {
       stats.skipped++;
       continue;
     }
@@ -655,7 +671,22 @@ function processEmailQueue(options) {
       break;
     }
     actionableCount++;
-    var context = parseJsonSafe_(row[H.QUEUE.CONTEXT_JSON], {});
+    if (trackedEvaluation) {
+      if (evaluationMessagesAttempted >= EVALUATION_FOLLOWUP_CONFIG.MAX_MESSAGES_PER_RUN) {
+        actionableCount--;
+        stats.remainingLikely = true;
+        stats.skipped++;
+        continue;
+      }
+      evaluationMessagesAttempted++;
+      if (!evaluationQueueState) evaluationQueueState = prepareEvaluationQueueState_(options);
+      var evaluationResult = processTrackedEvaluationQueueRow_(sheet, row, context, evaluationQueueState);
+      if (evaluationResult === 'sent') { stats.sent++; stats.processed++; }
+      else if (evaluationResult === 'cancelled') stats.processed++;
+      else if (evaluationResult === 'failed') stats.failed++;
+      else { stats.skipped++; actionableCount--; stats.remainingLikely = true; }
+      continue;
+    }
     try {
       var queuedPayload = applyEmailRecipientPolicy_({
         to: safeString_(row[H.QUEUE.TO]),

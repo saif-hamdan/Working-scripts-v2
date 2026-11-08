@@ -1,5 +1,10 @@
 /** Evaluation email job. Each rotation record has its own due date and sent flag. */
 function sendEvaluationEmails(referenceDate) {
+  // Time-driven triggers supply an event object, not the optional test date.
+  if (referenceDate && typeof referenceDate === 'object' && !(referenceDate instanceof Date)) referenceDate = null;
+  if (typeof getEvaluationFollowupSettings_ === 'function' && getEvaluationFollowupSettings_().enabled) {
+    return runEvaluationFollowupJob_(referenceDate);
+  }
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(25000)) return;
   try {

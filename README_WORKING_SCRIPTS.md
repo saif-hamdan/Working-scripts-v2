@@ -2,6 +2,17 @@
 
 This branch is the isolated duplicate Apps Script project for the Google Forms + Google Sheets job-rotation approval workflow. See `MULTI_ROTATION_SETUP.md` before creating resources.
 
+## Evaluation submission tracking and three-day reminders
+
+See `EVALUATION_FOLLOWUP_SETUP.md` for the opt-in **Step 20** activation and
+VS Code upload instructions. New invitations are tracked independently per
+rotation and reminded every three calendar days until a matching submission
+is received. Existing invitations are not enrolled. Missing tracking columns
+are appended without rebuilding Forms or rewriting request data. The existing
+daily evaluation job and mail queue are reused with batch/deadline guards,
+incremental response reconciliation, and outbox duplicate-send safeguards.
+Uploading code alone does not enable follow-up emails.
+
 ## Minimal trigger reliability update
 
 The summary and sync entry points now write lightweight execution-stage and

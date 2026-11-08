@@ -256,6 +256,8 @@ const STATUS = Object.freeze({
   QUEUE_PENDING: 'بانتظار الإرسال',
   QUEUE_SENT: 'تم الإرسال',
   QUEUE_FAILED: 'فشل الإرسال',
+  QUEUE_SENDING: 'جار الإرسال',
+  QUEUE_CANCELLED: 'ألغي الإرسال',
   ACTION_QUEUE_PENDING: 'بانتظار المعالجة',
   ACTION_QUEUE_PROCESSED: 'تمت المعالجة',
   ACTION_QUEUE_FAILED: 'فشلت المعالجة - ستعاد المحاولة',
@@ -390,6 +392,33 @@ const EVALUATION_FIELDS = Object.freeze({
   WORKING_DAYS: 'عدد أيام العمل / Working Days',
   TOTAL_HOURS: 'إجمالي ساعات التدوير / Rotation Total Hours',
   PARTICIPATION_DURATION: 'مدة المشاركة / Participation Duration'
+});
+
+// Optional extension columns: keep RECORD_HEADERS stable for existing projects
+// and versioned web apps until the follow-up feature is explicitly enabled.
+const EVALUATION_TRACKING = Object.freeze({
+  SUBMITTED: 'تم استلام التقييم',
+  SUBMITTED_AT: 'تاريخ استلام التقييم',
+  LAST_REMINDER_AT: 'تاريخ آخر تذكير بالتقييم',
+  REMINDER_COUNT: 'عدد تذكيرات التقييم',
+  NEXT_REMINDER_AT: 'موعد التذكير القادم بالتقييم',
+  ENROLLED_AT: 'تاريخ تفعيل متابعة التقييم',
+  PENDING_CONTEXT: 'سياق بريد متابعة التقييم',
+  RESPONSE_ID: 'معرف رد التقييم'
+});
+const EVALUATION_TRACKING_HEADERS = Object.freeze(Object.values(EVALUATION_TRACKING));
+const EVALUATION_FOLLOWUP_CONFIG = Object.freeze({
+  REMINDER_DAYS: 3,
+  MAX_JOB_MS: 180000,
+  MAX_MESSAGES_PER_RUN: 10,
+  MAX_RESPONSES_PER_RUN: 100,
+  MAX_QUEUE_PREFLIGHT_MS: 45000,
+  MAIL_QUOTA_RESERVE: 20,
+  CONTINUATION_DELAY_MS: 5 * 60 * 1000,
+  ENABLED_AT_KEY: 'EVALUATION_FOLLOWUP_ENABLED_AT',
+  FORM_ID_KEY: 'EVALUATION_FOLLOWUP_FORM_ID',
+  RESPONSE_CURSOR_KEY: 'EVALUATION_FOLLOWUP_RESPONSE_CURSOR',
+  JOB_CURSOR_KEY: 'EVALUATION_FOLLOWUP_JOB_CURSOR'
 });
 
 const GOOGLE_FORM_LIMITS = Object.freeze({
