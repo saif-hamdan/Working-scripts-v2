@@ -1,6 +1,7 @@
 function run00_diagnoseSetupState() {
   var props = getBootstrapProps_().getProperties();
   Logger.log('=== SQU Setup Toolkit Diagnostics ===');
+  Logger.log('Apps Script project ID: ' + ScriptApp.getScriptId());
   Logger.log('Current user: ' + safeUserEmail_());
   Logger.log('Last step: ' + (props[BSPROP.LAST_STEP] || 'not set'));
   Logger.log('Last status: ' + (props[BSPROP.LAST_STATUS] || 'not set'));
@@ -51,6 +52,7 @@ function clearSavedResourceProperties_() {
     BSPROP.BRANCH_REPAIR_PREVIOUS_ACCEPTING,
     BSPROP.BRANCH_REPAIR_PREVIOUS_CLOSED_MESSAGE,
     BSPROP.REFERENCE_DATA_HASH,
+    BSPROP.REFERENCE_FORM_HASH,
     BSPROP.REFERENCE_DIRTY,
     BSPROP.REFERENCE_DIRTY_AT,
     BSPROP.LAST_REFERENCE_SYNC,
@@ -60,7 +62,9 @@ function clearSavedResourceProperties_() {
     SETTINGS_KEYS.DASHBOARD_SPREADSHEET_ID,
     SETTINGS_KEYS.MAIN_FORM_ID,
     SETTINGS_KEYS.FORM_RESPONSES_SPREADSHEET_ID,
-    SETTINGS_KEYS.EVALUATION_FORM_URL
+    SETTINGS_KEYS.EVALUATION_FORM_ID,
+    SETTINGS_KEYS.EVALUATION_FORM_URL,
+    SETTINGS_KEYS.WEB_APP_URL
   ].forEach(function(key) {
     getBootstrapProps_().deleteProperty(key);
   });

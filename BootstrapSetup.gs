@@ -13,7 +13,7 @@ function bootstrapAll() {
   run05_startMainFormBranching();
   run06_continueMainFormBranching();
   if (getBootstrapProperty_(BSPROP.BRANCH_COMPLETE, 'false') !== 'true') {
-    return 'Main form branching is still in progress. Run run06_continueMainFormBranching() repeatedly, then continue with Steps 7 through 10.';
+    return 'Main form branching is still in progress. Run run06_continueMainFormBranching() until all three selection pages report Complete, then continue with Steps 7 through 10.';
   }
   run07_setupEvaluationForm();
   run08_buildDashboardSummaryAndCharts();

@@ -1,7 +1,9 @@
 /** Sheet-backed queue for approval/rejection link decisions. */
 const APPROVAL_ACTIONS = Object.freeze({
   APPROVE: 'approve',
-  REJECT: 'reject'
+  REJECT: 'reject',
+  APPROVE_GROUP: 'approve_group',
+  REJECT_GROUP: 'reject_group'
 });
 
 function queueApprovalAction_(token, action, reason) {
@@ -9,10 +11,18 @@ function queueApprovalAction_(token, action, reason) {
   action = safeString_(action);
   reason = safeString_(reason);
   throwIfMissing_(token, 'Missing approval token.');
-  if (action !== APPROVAL_ACTIONS.APPROVE && action !== APPROVAL_ACTIONS.REJECT) {
+  var supportedActions = [
+    APPROVAL_ACTIONS.APPROVE,
+    APPROVAL_ACTIONS.REJECT,
+    APPROVAL_ACTIONS.APPROVE_GROUP,
+    APPROVAL_ACTIONS.REJECT_GROUP
+  ];
+  if (supportedActions.indexOf(action) === -1) {
     throw new Error('Unsupported approval action: ' + action);
   }
-  if (action === APPROVAL_ACTIONS.REJECT) throwIfMissing_(reason, 'Rejection reason is required.');
+  if (action === APPROVAL_ACTIONS.REJECT || action === APPROVAL_ACTIONS.REJECT_GROUP) {
+    throwIfMissing_(reason, 'Rejection reason is required.');
+  }
 
   var sheet = getOrCreateSheet_(SHEETS.ACTION_QUEUE);
   setSheetHeaders_(sheet, ACTION_QUEUE_HEADERS);
@@ -87,6 +97,10 @@ function processApprovalActionQueue(options) {
           processQueuedApproveAction_(row[H.ACTION_QUEUE.TOKEN]);
         } else if (action === APPROVAL_ACTIONS.REJECT) {
           processQueuedRejectAction_(row[H.ACTION_QUEUE.TOKEN], row[H.ACTION_QUEUE.REASON]);
+        } else if (action === APPROVAL_ACTIONS.APPROVE_GROUP) {
+          processQueuedApproveGroupAction_(row[H.ACTION_QUEUE.TOKEN]);
+        } else if (action === APPROVAL_ACTIONS.REJECT_GROUP) {
+          processQueuedRejectGroupAction_(row[H.ACTION_QUEUE.TOKEN], row[H.ACTION_QUEUE.REASON]);
         } else {
           throw new Error('Unsupported approval action: ' + action);
         }

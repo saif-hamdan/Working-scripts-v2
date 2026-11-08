@@ -17,7 +17,7 @@ function refreshMainFormFromAdminSheets_(options) {
     return failStep_('11 Refresh Main Form From Admin Sheets', 'Reference data validation failed with ' + errors.length + ' error(s). Check Setup Summary.');
   }
 
-  var currentHash = safeString_(sync.hash);
+  var currentHash = safeString_(sync.formHash || sync.hash);
   var publishedHash = safeString_(getBootstrapProperty_(BSPROP.BRANCH_PUBLISHED_HASH, ''));
   var inProgress = mainFormBranchingInProgress_();
 
@@ -38,10 +38,7 @@ function refreshMainFormFromAdminSheets_(options) {
   if (!publishedHash) {
     var existingForm = openMainFormFromProperties_();
     var existingSections = readSections_(ss);
-    var existingUnits = bootstrapEligibleUnits_(readUnits_(ss), existingSections);
-    var adoptionIssues = validateBootstrapRotationBranching_(existingForm, existingUnits, existingSections, {
-      requirePublishedNavigation: true
-    });
+    var adoptionIssues = validateMultiRotationForm_(existingForm, existingSections);
     if (adoptionIssues.length) {
       if (options.allowCleanInitialization === true && mainFormIsUnusedForCleanInitialization_(existingForm)) {
         initializeBootstrapRotationOptionBranching_(existingForm, readUnits_(ss), existingSections, {
@@ -104,13 +101,20 @@ function mainFormBranchingInProgress_() {
 function mainFormNeedsRefresh_() {
   if (mainFormBranchingInProgress_()) return true;
   if (getBootstrapProperty_(BSPROP.REFERENCE_DIRTY, 'false') === 'true') return true;
-  var currentHash = safeString_(getBootstrapProperty_(BSPROP.REFERENCE_DATA_HASH, ''));
+  var currentHash = safeString_(
+    getBootstrapProperty_(BSPROP.REFERENCE_FORM_HASH, '') ||
+    getBootstrapProperty_(BSPROP.REFERENCE_DATA_HASH, '')
+  );
   var publishedHash = safeString_(getBootstrapProperty_(BSPROP.BRANCH_PUBLISHED_HASH, ''));
   return Boolean(currentHash && currentHash !== publishedHash);
 }
 
 function markMainFormReferenceDataDirty_(currentHash) {
-  currentHash = safeString_(currentHash || getBootstrapProperty_(BSPROP.REFERENCE_DATA_HASH, ''));
+  currentHash = safeString_(
+    currentHash ||
+    getBootstrapProperty_(BSPROP.REFERENCE_FORM_HASH, '') ||
+    getBootstrapProperty_(BSPROP.REFERENCE_DATA_HASH, '')
+  );
   var publishedHash = safeString_(getBootstrapProperty_(BSPROP.BRANCH_PUBLISHED_HASH, ''));
   var dirty = Boolean(currentHash && currentHash !== publishedHash);
   setBootstrapProperties_({
@@ -132,5 +136,10 @@ function mainFormIsUnusedForCleanInitialization_(form) {
 // Compatibility helper retained for callers from older deployments.
 function resetMainFormBranchingFromReferenceData_(ss, form) {
   var sync = syncAdminReferenceData_(ss);
-  return initializeLiveMainFormRefresh_(form, readUnits_(ss), readSections_(ss), sync.hash);
+  return initializeLiveMainFormRefresh_(
+    form,
+    readUnits_(ss),
+    readSections_(ss),
+    sync.formHash || sync.hash
+  );
 }

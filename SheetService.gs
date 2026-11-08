@@ -1,4 +1,34 @@
 /** Spreadsheet helpers. */
+var EVALUATION_LINK_LABEL_ = 'فتح التقييم / Open Evaluation';
+
+/** Only the request sheet displays a label; record objects retain the full URL. */
+function buildEvaluationLinkCellFormula_(url) {
+  var target = safeString_(url);
+  if (!/^https?:\/\/\S+$/i.test(target)) return url;
+  return '=HYPERLINK("' + target.replace(/"/g, '""') + '","' + EVALUATION_LINK_LABEL_ + '")';
+}
+
+function evaluationUrlFromCellFormula_(formula) {
+  // Accept only a literal URL, not a formula expression or a cell reference.
+  var match = /^=HYPERLINK\(\s*"((?:[^"]|"")*)"\s*[,;]/i.exec(safeString_(formula));
+  var url = match ? match[1].replace(/""/g, '"') : '';
+  return /^https?:\/\/\S+$/i.test(url) ? url : '';
+}
+
+function restoreEvaluationUrlsFromCells_(sheet, headers, rows, startRow) {
+  var columnIndex = headers.indexOf(H.RECORD.EVALUATION_LINK);
+  if (columnIndex === -1 || !rows.some(function(row) {
+    return row[columnIndex] === EVALUATION_LINK_LABEL_;
+  })) return;
+  // One bounded column read for the supplied batch.
+  var formulas = sheet.getRange(startRow, columnIndex + 1, rows.length, 1).getFormulas();
+  rows.forEach(function(row, index) {
+    if (row[columnIndex] !== EVALUATION_LINK_LABEL_) return;
+    var url = evaluationUrlFromCellFormula_(formulas[index][0]);
+    if (url) row[columnIndex] = url;
+  });
+}
+
 function openDashboardSpreadsheet_() {
   var id = getConfig().DASHBOARD_SPREADSHEET_ID;
   if (!id) throw new Error('DASHBOARD_SPREADSHEET_ID is not configured.');
@@ -79,6 +109,7 @@ function getDataObjects_(sheet) {
   var lastCol = sheet.getLastColumn();
   var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(normalizeHeaderAlias_);
   var rows = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+  restoreEvaluationUrlsFromCells_(sheet, headers, rows, 2);
   var objects = [];
   rows.forEach(function(row, index) {
     var obj = { _rowNumber: index + 2 };
@@ -121,18 +152,30 @@ function updateObjectRow_(sheet, rowNumber, updates) {
   Object.keys(updates).forEach(function(header) {
     row[map[header] - 1] = updates[header];
   });
+  var evaluationColumn = sheet.getName() === SHEETS.RECORDS && map[H.RECORD.EVALUATION_LINK];
+  if (evaluationColumn) {
+    if (Object.prototype.hasOwnProperty.call(updates, H.RECORD.EVALUATION_LINK)) {
+      row[evaluationColumn - 1] = buildEvaluationLinkCellFormula_(updates[H.RECORD.EVALUATION_LINK]);
+    } else if (row[evaluationColumn - 1] === EVALUATION_LINK_LABEL_) {
+      // Row rewrites must preserve the hyperlink instead of saving its label.
+      var formula = sheet.getRange(rowNumber, evaluationColumn).getFormula();
+      if (evaluationUrlFromCellFormula_(formula)) row[evaluationColumn - 1] = formula;
+    }
+  }
   sheet.getRange(rowNumber, 1, 1, lastCol).setValues([row]);
 }
 
 function findRowByValue_(sheet, header, value) {
   var map = getHeaderMap_(sheet);
   if (!map[header] || sheet.getLastRow() < 2) return null;
-  var values = sheet.getRange(2, map[header], sheet.getLastRow() - 1, 1).getValues();
   var target = safeString_(value);
-  for (var i = 0; i < values.length; i++) {
-    if (safeString_(values[i][0]) === target) return i + 2;
-  }
-  return null;
+  if (!target) return null;
+  var match = sheet
+    .getRange(2, map[header], sheet.getLastRow() - 1, 1)
+    .createTextFinder(target)
+    .matchEntireCell(true)
+    .findNext();
+  return match ? match.getRow() : null;
 }
 
 function findObjectByValue_(sheet, header, value) {
@@ -140,9 +183,40 @@ function findObjectByValue_(sheet, header, value) {
   if (!rowNumber) return null;
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(safeString_);
   var values = sheet.getRange(rowNumber, 1, 1, sheet.getLastColumn()).getValues()[0];
+  restoreEvaluationUrlsFromCells_(sheet, headers, [values], rowNumber);
   var obj = { _rowNumber: rowNumber };
   headers.forEach(function(h, idx) { if (h) obj[h] = values[idx]; });
   return obj;
+}
+
+function findObjectsByValue_(sheet, header, value, maxResults) {
+  var map = getHeaderMap_(sheet);
+  var target = safeString_(value);
+  if (!map[header] || !target || sheet.getLastRow() < 2) return [];
+  var matches = sheet
+    .getRange(2, map[header], sheet.getLastRow() - 1, 1)
+    .createTextFinder(target)
+    .matchEntireCell(true)
+    .findAll();
+  var limit = Math.max(1, toNumber_(maxResults, 500));
+  var rowNumbers = [];
+  var seenRows = {};
+  matches.slice(0, limit).forEach(function(match) {
+    var rowNumber = match.getRow();
+    if (!seenRows[rowNumber]) {
+      seenRows[rowNumber] = true;
+      rowNumbers.push(rowNumber);
+    }
+  });
+  if (!rowNumbers.length) return [];
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(safeString_);
+  return rowNumbers.map(function(rowNumber) {
+    var values = sheet.getRange(rowNumber, 1, 1, sheet.getLastColumn()).getValues()[0];
+    restoreEvaluationUrlsFromCells_(sheet, headers, [values], rowNumber);
+    var obj = { _rowNumber: rowNumber };
+    headers.forEach(function(h, index) { if (h) obj[h] = values[index]; });
+    return obj;
+  });
 }
 
 function clearAndWriteObjects_(sheet, headers, objects) {
@@ -170,21 +244,74 @@ function applyCleanTableFormatting_(sheet, headerCount) {
     if (sheet.getFilter()) sheet.getFilter().remove();
     sheet.getRange(1, 1, Math.max(lastRow, 2), lastCol).createFilter();
   } catch (ignore2) {}
+  applyStandardDateFormats_(sheet);
+}
+
+function applyStandardDateFormats_(sheet) {
+  if (!sheet || sheet.getLastRow() < 2) return;
+  var map = getHeaderMap_(sheet);
+  var rowCount = sheet.getLastRow() - 1;
+  [
+    H.RECORD.EMPLOYEE_HIRE_DATE,
+    H.RECORD.START_DATE,
+    H.RECORD.END_DATE,
+    H.RECORD.DECISION_DATE,
+    H.DASHBOARD.LAST_ROTATION
+  ].forEach(function(header) {
+    if (map[header]) sheet.getRange(2, map[header], rowCount, 1).setNumberFormat('dd/MM/yyyy');
+  });
+  [
+    H.RECORD.TIMESTAMP,
+    H.RECORD.APPROVAL_EMAIL_SENT_AT,
+    H.RECORD.EVALUATION_SENT_AT,
+    H.RECORD.LAST_UPDATED,
+    H.QUEUE.CREATED_AT,
+    H.QUEUE.LAST_ATTEMPT_AT
+  ].forEach(function(header) {
+    if (map[header]) sheet.getRange(2, map[header], rowCount, 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+  });
+}
+
+function removeLegacySubmissionTotalHoursColumn_(sheet) {
+  if (!sheet || sheet.getLastColumn() < 1) return false;
+  var column = getHeaderMap_(sheet)[LEGACY_SUBMISSION_TOTAL_HOURS_HEADER];
+  if (!column) return false;
+  sheet.deleteColumn(column);
+  return true;
+}
+
+function removeDashboardSectionStatusColumn_(sheet) {
+  if (!sheet || sheet.getLastColumn() < 1) return false;
+  var column = getHeaderMap_(sheet)[LEGACY_DASHBOARD_SECTION_STATUS_HEADER];
+  if (!column) return false;
+  sheet.deleteColumn(column);
+  return true;
 }
 
 function hideInternalColumns_(sheet) {
   var map = getHeaderMap_(sheet);
-  [
-    H.RECORD.TOKEN,
-    H.RECORD.APPROVER_EMAIL,
-    H.RECORD.FORM_RESPONSE_ID,
-    H.RECORD.FORM_RESPONSE_SOURCE_ID,
-    H.RECORD.LOCK_VERSION,
-    H.RECORD.EMAIL_RETRY_COUNT,
-    H.RECORD.LAST_ERROR
-  ].forEach(function(header) {
-    if (map[header]) sheet.hideColumns(map[header]);
+  var columns = INTERNAL_RECORD_HEADERS.map(function(header) {
+    return map[header] || 0;
+  }).filter(Boolean).sort(function(left, right) {
+    return left - right;
   });
+  if (!columns.length) return [];
+
+  // Hide adjacent internal columns in one call to reduce Spreadsheet service
+  // round trips on setup and schema repair.
+  var rangeStart = columns[0];
+  var previous = columns[0];
+  for (var i = 1; i <= columns.length; i++) {
+    var current = columns[i];
+    if (current === previous + 1) {
+      previous = current;
+      continue;
+    }
+    sheet.hideColumns(rangeStart, previous - rangeStart + 1);
+    rangeStart = current;
+    previous = current;
+  }
+  return columns;
 }
 
 function getRequestSourceIndex_() {
@@ -199,6 +326,9 @@ function normalizeRequestSourceIndexRecord_(record) {
   var indexRecord = {};
   indexRecord[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID] = safeString_(record[H.RECORD.FORM_RESPONSE_ID] || record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID]);
   indexRecord[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID] = safeString_(record[H.RECORD.FORM_RESPONSE_SOURCE_ID] || record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID]);
+  indexRecord[H.REQUEST_SOURCE_INDEX.REQUEST_GROUP_ID] = safeString_(record[H.RECORD.REQUEST_GROUP_ID] || record[H.REQUEST_SOURCE_INDEX.REQUEST_GROUP_ID]);
+  indexRecord[H.REQUEST_SOURCE_INDEX.SELECTION_NUMBER] = toNumber_(record[H.RECORD.OPTION_ORDER] || record[H.REQUEST_SOURCE_INDEX.SELECTION_NUMBER], 0);
+  indexRecord[H.REQUEST_SOURCE_INDEX.SELECTION_KEY] = safeString_(record[H.RECORD.SELECTION_KEY] || record[H.REQUEST_SOURCE_INDEX.SELECTION_KEY]);
   indexRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID] = safeString_(record[H.RECORD.REQUEST_ID] || record[H.REQUEST_SOURCE_INDEX.REQUEST_ID]);
   indexRecord[H.REQUEST_SOURCE_INDEX.CREATED_AT] = record[H.RECORD.TIMESTAMP] || record[H.REQUEST_SOURCE_INDEX.CREATED_AT] || now_();
   if (record._rowNumber) indexRecord._rowNumber = record._rowNumber;
@@ -264,16 +394,27 @@ function findIndexedRequestByResponseSourceId_(sourceId) {
   return findObjectByValue_(sheet, H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID, sourceId);
 }
 
+function findIndexedRequestBySelectionKey_(selectionKey) {
+  selectionKey = safeString_(selectionKey);
+  if (!selectionKey) return null;
+  var sheet = getOrCreateSheet_(SHEETS.REQUEST_SOURCE_INDEX);
+  requireHeaders_(sheet, REQUEST_SOURCE_INDEX_HEADERS);
+  return findObjectByValue_(sheet, H.REQUEST_SOURCE_INDEX.SELECTION_KEY, selectionKey);
+}
+
 function appendRequestSourceIndex_(record) {
   record = record || {};
   var responseId = safeString_(record[H.RECORD.FORM_RESPONSE_ID] || record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID]);
   var sourceId = safeString_(record[H.RECORD.FORM_RESPONSE_SOURCE_ID] || record[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID]);
+  var selectionKey = safeString_(record[H.RECORD.SELECTION_KEY] || record[H.REQUEST_SOURCE_INDEX.SELECTION_KEY]);
   var requestId = safeString_(record[H.RECORD.REQUEST_ID] || record[H.REQUEST_SOURCE_INDEX.REQUEST_ID]);
-  if (!requestId || (!responseId && !sourceId)) return null;
+  if (!requestId || (!responseId && !sourceId && !selectionKey)) return null;
 
-  var existing = responseId
-    ? findIndexedRequestByResponseId_(responseId)
-    : (sourceId ? findIndexedRequestByResponseSourceId_(sourceId) : null);
+  var existing = selectionKey
+    ? findIndexedRequestBySelectionKey_(selectionKey)
+    : (responseId
+      ? findIndexedRequestByResponseId_(responseId)
+      : (sourceId ? findIndexedRequestByResponseSourceId_(sourceId) : null));
   if (existing) return existing;
 
   var sheet = getOrCreateSheet_(SHEETS.REQUEST_SOURCE_INDEX);
@@ -281,6 +422,9 @@ function appendRequestSourceIndex_(record) {
   var indexRecord = {};
   indexRecord[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID] = responseId;
   indexRecord[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID] = sourceId;
+  indexRecord[H.REQUEST_SOURCE_INDEX.REQUEST_GROUP_ID] = safeString_(record[H.RECORD.REQUEST_GROUP_ID] || record[H.REQUEST_SOURCE_INDEX.REQUEST_GROUP_ID]);
+  indexRecord[H.REQUEST_SOURCE_INDEX.SELECTION_NUMBER] = toNumber_(record[H.RECORD.OPTION_ORDER] || record[H.REQUEST_SOURCE_INDEX.SELECTION_NUMBER], 0);
+  indexRecord[H.REQUEST_SOURCE_INDEX.SELECTION_KEY] = selectionKey;
   indexRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID] = requestId;
   indexRecord[H.REQUEST_SOURCE_INDEX.CREATED_AT] = record[H.RECORD.TIMESTAMP] || record[H.REQUEST_SOURCE_INDEX.CREATED_AT] || now_();
   indexRecord._rowNumber = appendObjectRow_(sheet, REQUEST_SOURCE_INDEX_HEADERS, indexRecord);
@@ -301,6 +445,10 @@ function backfillRequestSourceIndexIfEmpty_(indexSheet, recordsSheet) {
     var indexRecord = {};
     indexRecord[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_ID] = responseId;
     indexRecord[H.REQUEST_SOURCE_INDEX.FORM_RESPONSE_SOURCE_ID] = sourceId;
+    indexRecord[H.REQUEST_SOURCE_INDEX.REQUEST_GROUP_ID] = safeString_(record[H.RECORD.REQUEST_GROUP_ID]);
+    indexRecord[H.REQUEST_SOURCE_INDEX.SELECTION_NUMBER] = toNumber_(record[H.RECORD.OPTION_ORDER], 0);
+    indexRecord[H.REQUEST_SOURCE_INDEX.SELECTION_KEY] = safeString_(record[H.RECORD.SELECTION_KEY]) ||
+      makeSelectionIdempotencyKey_(sourceId || responseId, record[H.RECORD.OPTION_ORDER] || 1);
     indexRecord[H.REQUEST_SOURCE_INDEX.REQUEST_ID] = requestId;
     indexRecord[H.REQUEST_SOURCE_INDEX.CREATED_AT] = record[H.RECORD.TIMESTAMP] || now_();
     indexRows.push(indexRecord);

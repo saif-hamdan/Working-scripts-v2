@@ -1,0 +1,2 @@
+# Node-only local tests use require() and must never be uploaded to Apps Script.
+**/tests/**

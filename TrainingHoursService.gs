@@ -1,28 +1,41 @@
 /** Employee-level rotation hour summary calculations. */
+var EMPLOYEE_ROTATION_HOURS_LOOKUP_CACHE_ = {};
+
 function refreshEmployeeRotationHoursSummary() {
-  var rows = calculateEmployeeRotationHoursSummary_(getRecords_());
+  var startedAt = Date.now();
+  logExecutionStage_('refreshEmployeeRotationHoursSummary', 'Read request records', startedAt);
+  var records = getRecords_();
+  logExecutionStage_('refreshEmployeeRotationHoursSummary', 'Calculate hours', startedAt);
+  var rows = calculateEmployeeRotationHoursSummary_(records);
+  logExecutionStage_('refreshEmployeeRotationHoursSummary', 'Render summary', startedAt);
   renderEmployeeRotationHoursSummary_(rows);
+  logExecutionStage_('refreshEmployeeRotationHoursSummary', 'Finished', startedAt);
   return rows;
 }
 
 function scheduledRefreshEmployeeRotationHoursSummary() {
+  var startedAt = Date.now();
+  logExecutionStage_('scheduledRefreshEmployeeRotationHoursSummary', 'Start; check active window', startedAt);
   if (!isEmployeeRotationHoursSummaryActiveTime_()) {
-    logInfo_('scheduledRefreshEmployeeRotationHoursSummary', '', 'Employee rotation hours summary skipped: outside 22:00-23:50 window.');
+    logExecutionStage_('scheduledRefreshEmployeeRotationHoursSummary', 'Skipped: outside 22:00-23:50 window', startedAt);
     return;
   }
+  logExecutionStage_('scheduledRefreshEmployeeRotationHoursSummary', 'Acquire lock', startedAt);
   var lock = LockService.getScriptLock();
   var lockAcquired = lock.tryLock(3000);
   if (!lockAcquired) {
-    logInfo_('scheduledRefreshEmployeeRotationHoursSummary', '', 'Employee rotation hours summary skipped: another execution is already running.');
+    logExecutionStage_('scheduledRefreshEmployeeRotationHoursSummary', 'Skipped: another execution is already running', startedAt);
     return;
   }
   try {
     refreshEmployeeRotationHoursSummary();
+    logExecutionStage_('scheduledRefreshEmployeeRotationHoursSummary', 'Write completion log', startedAt);
     logInfo_('scheduledRefreshEmployeeRotationHoursSummary', '', 'Employee rotation hours summary refreshed.');
   } catch (err) {
     logError_('scheduledRefreshEmployeeRotationHoursSummary', '', err);
   } finally {
     lock.releaseLock();
+    logExecutionStage_('scheduledRefreshEmployeeRotationHoursSummary', 'Finished', startedAt);
   }
 }
 
@@ -44,22 +57,41 @@ function isEmployeeRotationHoursSummaryActiveTime_(date) {
 }
 
 function renderEmployeeRotationHoursSummary_(rows) {
+  var startedAt = Date.now();
   var ss = openDashboardSpreadsheet_();
-  var sheet = ensureSheet_(ss, SHEETS.EMPLOYEE_ROTATION_HOURS);
+  var sheet = getEmployeeRotationHoursSheet_(ss);
+  logExecutionStage_('renderEmployeeRotationHoursSummary_', 'Write summary rows', startedAt);
   clearAndWriteObjects_(sheet, EMPLOYEE_ROTATION_HOURS_HEADERS, rows || []);
+  logExecutionStage_('renderEmployeeRotationHoursSummary_', 'Format summary', startedAt);
   applyCleanTableFormatting_(sheet, EMPLOYEE_ROTATION_HOURS_HEADERS.length);
 }
 
-function calculateEmployeeRotationHoursSummary_(records) {
+/**
+ * Reuses and renames the existing summary tab so changing its managed name
+ * never creates a duplicate sheet or loses its formatting/history.
+ */
+function getEmployeeRotationHoursSheet_(ss) {
+  ss = ss || openDashboardSpreadsheet_();
+  var sheet = ss.getSheetByName(SHEETS.EMPLOYEE_ROTATION_HOURS);
+  if (sheet) return sheet;
+
+  var legacySheet = ss.getSheetByName(LEGACY_EMPLOYEE_ROTATION_HOURS_SHEET_NAME);
+  if (legacySheet) {
+    legacySheet.setName(SHEETS.EMPLOYEE_ROTATION_HOURS);
+    return legacySheet;
+  }
+  return ensureSheet_(ss, SHEETS.EMPLOYEE_ROTATION_HOURS);
+}
+
+function calculateEmployeeRotationHoursSummary_(records, referenceDate) {
   var summaryByEmployeeId = {};
   (records || []).forEach(function(record) {
     var employeeId = safeString_(record[H.RECORD.EMPLOYEE_ID]);
     var employeeName = safeString_(record[H.RECORD.EMPLOYEE_NAME]);
     if (!employeeId && !employeeName) return;
 
-    var finalStatus = safeString_(record[H.RECORD.FINAL_STATUS]);
-    var isCompleted = isRecordCompletedRotationForHours_(record);
-    var isOngoing = isRecordOngoingRotationForHours_(record);
+    var isCompleted = isRecordCompletedRotationForHours_(record, referenceDate);
+    var isOngoing = isRecordOngoingRotationForHours_(record, referenceDate);
     if (!isCompleted && !isOngoing) return;
 
     var key = employeeId || normalizeKey_(employeeName);
@@ -69,15 +101,19 @@ function calculateEmployeeRotationHoursSummary_(records) {
       row[H.EMPLOYEE_ROTATION_HOURS.EMPLOYEE_ID] = employeeId;
       row[H.EMPLOYEE_ROTATION_HOURS.COMPLETED_HOURS] = 0;
       row[H.EMPLOYEE_ROTATION_HOURS.ONGOING_HOURS] = 0;
+      row[H.EMPLOYEE_ROTATION_HOURS.TOTAL_HOURS] = 0;
       summaryByEmployeeId[key] = row;
     }
 
     var totalHours = calculateRecordRotationHours_(record);
-    if (finalStatus === STATUS.FINAL_DONE) {
+    if (isCompleted) {
       summaryByEmployeeId[key][H.EMPLOYEE_ROTATION_HOURS.COMPLETED_HOURS] += totalHours;
     } else {
       summaryByEmployeeId[key][H.EMPLOYEE_ROTATION_HOURS.ONGOING_HOURS] += totalHours;
     }
+    summaryByEmployeeId[key][H.EMPLOYEE_ROTATION_HOURS.TOTAL_HOURS] =
+      summaryByEmployeeId[key][H.EMPLOYEE_ROTATION_HOURS.COMPLETED_HOURS] +
+      summaryByEmployeeId[key][H.EMPLOYEE_ROTATION_HOURS.ONGOING_HOURS];
   });
 
   return Object.keys(summaryByEmployeeId).map(function(key) {
@@ -87,27 +123,113 @@ function calculateEmployeeRotationHoursSummary_(records) {
   });
 }
 
-function isRecordCompletedRotationForHours_(record) {
-  return safeString_(record[H.RECORD.HEAD_STATUS]) === STATUS.HEAD_ACCEPTED &&
-    safeString_(record[H.RECORD.FINAL_STATUS]) === STATUS.FINAL_DONE;
-}
-
-function isRecordOngoingRotationForHours_(record) {
+function isRecordApprovedForHours_(record) {
   var finalStatus = safeString_(record[H.RECORD.FINAL_STATUS]);
   return safeString_(record[H.RECORD.HEAD_STATUS]) === STATUS.HEAD_ACCEPTED &&
-    (finalStatus === STATUS.FINAL_APPROVED || finalStatus === STATUS.FINAL_IN_PROGRESS);
+    APPROVED_EVALUATION_FINAL_STATUSES.indexOf(finalStatus) !== -1;
+}
+
+function hasRotationEndedForHours_(record, referenceDate) {
+  var endDate = dateOnly_(record[H.RECORD.END_DATE]);
+  var today = dateOnly_(referenceDate || now_());
+  return !!endDate && !!today && endDate.getTime() < today.getTime();
+}
+
+function isRecordCompletedRotationForHours_(record, referenceDate) {
+  return isRecordApprovedForHours_(record) &&
+    hasRotationEndedForHours_(record, referenceDate);
+}
+
+function isRecordOngoingRotationForHours_(record, referenceDate) {
+  var endDate = dateOnly_(record[H.RECORD.END_DATE]);
+  var today = dateOnly_(referenceDate || now_());
+  return isRecordApprovedForHours_(record) &&
+    !!endDate &&
+    !!today &&
+    endDate.getTime() >= today.getTime();
 }
 
 function calculateRecordRotationHours_(record) {
+  var storedTotal = toNumber_(record[H.RECORD.TOTAL_HOURS], 0);
+  if (storedTotal > 0) return storedTotal;
   var dailyHours = toNumber_(record[H.RECORD.HOURS], 0);
   if (dailyHours <= 0) return 0;
-  var days = calculateInclusiveRotationDays_(record[H.RECORD.START_DATE], record[H.RECORD.END_DATE]);
+  var days = toNumber_(record[H.RECORD.WORKING_DAYS], 0) ||
+    calculateWorkingDays_(record[H.RECORD.START_DATE], record[H.RECORD.END_DATE]);
   return dailyHours * days;
 }
 
 function calculateInclusiveRotationDays_(startDate, endDate) {
-  var start = dateOnly_(startDate);
-  var end = dateOnly_(endDate);
-  if (!start || !end || end.getTime() < start.getTime()) return 0;
-  return Math.floor((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+  return calculateWorkingDays_(startDate, endDate);
+}
+
+/**
+ * Finds only rows matching one employee ID and caches the result for this
+ * execution. A three-selection submission therefore performs one lookup, not
+ * one lookup per selection or per email.
+ */
+function getEmployeeRotationHoursSnapshotById_(employeeId) {
+  employeeId = safeString_(employeeId);
+  if (!employeeId) return null;
+  var cacheKey = normalizeKey_(employeeId);
+  if (Object.prototype.hasOwnProperty.call(EMPLOYEE_ROTATION_HOURS_LOOKUP_CACHE_, cacheKey)) {
+    return EMPLOYEE_ROTATION_HOURS_LOOKUP_CACHE_[cacheKey];
+  }
+
+  var recordsSheet = getSheet_(SHEETS.RECORDS);
+  var employeeRecords = recordsSheet
+    ? findObjectsByValue_(recordsSheet, H.RECORD.EMPLOYEE_ID, employeeId, 1000000)
+    : [];
+  var summary = calculateEmployeeRotationHoursSummary_(employeeRecords)[0];
+  var snapshot = {
+    completedHours: summary ? toNumber_(summary[H.EMPLOYEE_ROTATION_HOURS.COMPLETED_HOURS], 0) : 0,
+    ongoingHours: summary ? toNumber_(summary[H.EMPLOYEE_ROTATION_HOURS.ONGOING_HOURS], 0) : 0,
+    totalHours: summary ? toNumber_(summary[H.EMPLOYEE_ROTATION_HOURS.TOTAL_HOURS], 0) : 0
+  };
+  EMPLOYEE_ROTATION_HOURS_LOOKUP_CACHE_[cacheKey] = snapshot;
+  return snapshot;
+}
+
+function getEmployeeTotalCompletedHours_(record) {
+  record = record || {};
+  var employeeId = safeString_(record[H.RECORD.EMPLOYEE_ID]);
+  if (!employeeId) return '';
+  var snapshot = getEmployeeRotationHoursSnapshotById_(employeeId);
+  return Math.max(0, snapshot ? snapshot.completedHours : 0);
+}
+
+/** Backward-compatible alias for older callers. */
+function getEmployeePreviousCompletedHours_(record) {
+  return getEmployeeTotalCompletedHours_(record);
+}
+
+function refreshEmployeeRotationHoursForRecords_(records) {
+  records = records || [];
+  if (!records.length) return [];
+  var recordsSheet = getSheet_(SHEETS.RECORDS);
+  var summarySheet = getEmployeeRotationHoursSheet_(openDashboardSpreadsheet_());
+  setSheetHeaders_(summarySheet, EMPLOYEE_ROTATION_HOURS_HEADERS);
+  var employeeLookup = {};
+  var updatedRows = [];
+
+  records.forEach(function(record) {
+    var employeeId = safeString_(record[H.RECORD.EMPLOYEE_ID]);
+    var employeeName = safeString_(record[H.RECORD.EMPLOYEE_NAME]);
+    var key = employeeId || normalizeKey_(employeeName);
+    if (!key || employeeLookup[key]) return;
+    employeeLookup[key] = true;
+    var employeeRecords = recordsSheet && employeeId
+      ? findObjectsByValue_(recordsSheet, H.RECORD.EMPLOYEE_ID, employeeId, 2000)
+      : (recordsSheet ? findObjectsByValue_(recordsSheet, H.RECORD.EMPLOYEE_NAME, employeeName, 2000) : []);
+    var summary = calculateEmployeeRotationHoursSummary_(employeeRecords)[0];
+    if (!summary) return;
+    var existingRow = employeeId
+      ? findRowByValue_(summarySheet, H.EMPLOYEE_ROTATION_HOURS.EMPLOYEE_ID, employeeId)
+      : findRowByValue_(summarySheet, H.EMPLOYEE_ROTATION_HOURS.EMPLOYEE_NAME, employeeName);
+    if (existingRow) updateObjectRow_(summarySheet, existingRow, summary);
+    else appendObjectRow_(summarySheet, EMPLOYEE_ROTATION_HOURS_HEADERS, summary);
+    updatedRows.push(summary);
+  });
+  applyCleanTableFormatting_(summarySheet, EMPLOYEE_ROTATION_HOURS_HEADERS.length);
+  return updatedRows;
 }

@@ -17,8 +17,12 @@ function run02_loadDummyReferenceData() {
 }
 
 function setupDashboardSheetsStaged_(ss, mainForm, evaluationForm) {
-  bsSetHeaders_(bsEnsureSheet_(ss, BS.DASHBOARD), BH.DASHBOARD);
-  bsSetHeaders_(bsEnsureSheet_(ss, BS.RECORDS), BH.RECORDS);
+  var dashboardSheet = bsEnsureSheet_(ss, BS.DASHBOARD);
+  removeDashboardSectionStatusColumn_(dashboardSheet);
+  bsSetHeaders_(dashboardSheet, BH.DASHBOARD);
+  var recordsSheet = bsEnsureSheet_(ss, BS.RECORDS);
+  removeLegacySubmissionTotalHoursColumn_(recordsSheet);
+  bsSetHeaders_(recordsSheet, BH.RECORDS);
   bsSetHeaders_(bsEnsureSheet_(ss, BS.ADMIN_UNITS), BH.UNITS);
   bsSetHeaders_(bsEnsureSheet_(ss, BS.ADMIN_SECTIONS), BH.SECTIONS);
   bsSetHeaders_(bsEnsureSheet_(ss, BS.UNITS), BH.UNITS);
@@ -34,6 +38,7 @@ function setupDashboardSheetsStaged_(ss, mainForm, evaluationForm) {
     applyBasicSheetFormat_(ss.getSheetByName(name), BOOTSTRAP_CONFIG.BRAND_ACCENT_COLOR);
   });
   applyReferenceAdminFormatting_(ss);
+  hideInternalColumns_(recordsSheet);
 
   moveSheetTo_(ss, BS.DASHBOARD, 1);
   moveSheetTo_(ss, BS.RECORDS, 2);

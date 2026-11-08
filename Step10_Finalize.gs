@@ -66,8 +66,21 @@ function getProductionCompatibilitySteps_() {
     { name: 'protectDashboardSheets()', fn: protectDashboardSheets },
     { name: 'refreshDashboard()', fn: refreshDashboard },
     { name: 'verify completed main-form branching', fn: verifyCompletedMainFormBranching_ },
-    { name: 'installTriggers()', fn: installTriggers }
+    { name: 'verify trigger configuration (read-only)', fn: verifyTriggerConfigurationReadOnly_ }
   ];
+}
+
+function verifyTriggerConfigurationReadOnly_() {
+  var handlers = ScriptApp.getProjectTriggers().map(function(trigger) {
+    return trigger.getHandlerFunction();
+  });
+  if (handlers.indexOf('onFormSubmit') !== -1) {
+    throw new Error('A direct onFormSubmit trigger is installed. Request creation must use the response queue through syncSystem().');
+  }
+  if (handlers.indexOf('run11_refreshMainFormFromAdminSheets') !== -1) {
+    throw new Error('A legacy run11_refreshMainFormFromAdminSheets trigger is installed. Remove it before go-live.');
+  }
+  return handlers;
 }
 
 function verifyCompletedMainFormBranching_() {
@@ -75,12 +88,12 @@ function verifyCompletedMainFormBranching_() {
     throw new Error('Main form branching is incomplete. Run run06_continueMainFormBranching() until it reports Complete.');
   }
   var ss = openDashboardFromProperties_();
-  var eligibleUnitCount = bootstrapEligibleUnits_(readUnits_(ss), readSections_(ss)).length;
-  var expectedTotal = bootstrapBranchWorkTotal_(eligibleUnitCount);
+  var expectedTotal = FORM.MAX_ROTATION_OPTIONS || 3;
   var progress = Number(getBootstrapProperty_(BSPROP.BRANCH_INDEX, '0')) || 0;
   var total = Number(getBootstrapProperty_(BSPROP.BRANCH_TOTAL, '0')) || 0;
-  if (!eligibleUnitCount || progress !== expectedTotal || total !== expectedTotal) {
-    throw new Error('Main form branching progress does not match the current unit and section data. Restart with Step 5.');
+  var issues = validateMultiRotationForm_(openMainFormFromProperties_(), readSections_(ss));
+  if (progress !== expectedTotal || total !== expectedTotal || issues.length) {
+    throw new Error('Main form progress or validation does not match the three-selection design. Restart with Step 5. ' + issues.join(' | '));
   }
 }
 

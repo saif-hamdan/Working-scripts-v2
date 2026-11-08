@@ -49,13 +49,18 @@ function setupSheets() {
 }
 
 function ensureMainSheets_(ss) {
-  setSheetHeaders_(ensureSheet_(ss, SHEETS.DASHBOARD), DASHBOARD_HEADERS);
-  setSheetHeaders_(ensureSheet_(ss, SHEETS.RECORDS), RECORD_HEADERS);
-  applyCleanTableFormatting_(ss.getSheetByName(SHEETS.DASHBOARD), DASHBOARD_HEADERS.length);
-  applyCleanTableFormatting_(ss.getSheetByName(SHEETS.RECORDS), RECORD_HEADERS.length);
-  setSheetHeaders_(ensureSheet_(ss, SHEETS.EMPLOYEE_ROTATION_HOURS), EMPLOYEE_ROTATION_HOURS_HEADERS);
-  applyCleanTableFormatting_(ss.getSheetByName(SHEETS.EMPLOYEE_ROTATION_HOURS), EMPLOYEE_ROTATION_HOURS_HEADERS.length);
-  hideInternalColumns_(ss.getSheetByName(SHEETS.RECORDS));
+  var dashboardSheet = ensureSheet_(ss, SHEETS.DASHBOARD);
+  removeDashboardSectionStatusColumn_(dashboardSheet);
+  setSheetHeaders_(dashboardSheet, DASHBOARD_HEADERS);
+  var recordsSheet = ensureSheet_(ss, SHEETS.RECORDS);
+  removeLegacySubmissionTotalHoursColumn_(recordsSheet);
+  setSheetHeaders_(recordsSheet, RECORD_HEADERS);
+  applyCleanTableFormatting_(dashboardSheet, DASHBOARD_HEADERS.length);
+  applyCleanTableFormatting_(recordsSheet, RECORD_HEADERS.length);
+  var employeeHoursSheet = getEmployeeRotationHoursSheet_(ss);
+  setSheetHeaders_(employeeHoursSheet, EMPLOYEE_ROTATION_HOURS_HEADERS);
+  applyCleanTableFormatting_(employeeHoursSheet, EMPLOYEE_ROTATION_HOURS_HEADERS.length);
+  hideInternalColumns_(recordsSheet);
 }
 
 function ensureReferenceSheets_(ss) {
@@ -83,9 +88,9 @@ function ensureReferenceSheets_(ss) {
   }
   if (adminSections.getLastRow() < 2) {
     adminSections.getRange(2, 1, 3, SECTION_HEADERS.length).setValues([
-      ['المكتبة الرئيسية-ادارة المكتبة الرئيسية', 'المكتبة الرئيسية', 'المكتبة الرئيسية', 'ادارة المكتبة الرئيسية', 'نعم', 1],
-      ['المكتبة الرئيسية-الاعارة', 'المكتبة الرئيسية', 'المكتبة الرئيسية', 'الاعارة', 'نعم', 1],
-      ['دائرة الإسكان-دائرة الإسكان', 'دائرة الإسكان', 'دائرة الإسكان', 'دائرة الإسكان', 'نعم', 1]
+      ['المكتبة الرئيسية-ادارة المكتبة الرئيسية', 'المكتبة الرئيسية', 'المكتبة الرئيسية', 'ادارة المكتبة الرئيسية', 'نعم', 1, DEFAULT_SECTION_HEAD_EMAIL, '', '', '', '', ''],
+      ['المكتبة الرئيسية-الاعارة', 'المكتبة الرئيسية', 'المكتبة الرئيسية', 'الاعارة', 'نعم', 1, DEFAULT_SECTION_HEAD_EMAIL, '', '', '', '', ''],
+      ['دائرة الإسكان-دائرة الإسكان', 'دائرة الإسكان', 'دائرة الإسكان', 'دائرة الإسكان', 'نعم', 1, DEFAULT_SECTION_HEAD_EMAIL, '', '', '', '', '']
     ]);
   }
   applyCleanTableFormatting_(adminUnits, UNIT_HEADERS.length);
